@@ -1,3 +1,4 @@
+import { isCronLeader } from "@/cron/cronLeaderLock.js";
 import {
 	getAwsTaskIdentity,
 	hasAwsTaskIdentity,
@@ -27,6 +28,9 @@ export const isActiveSlot = ({
 }: {
 	serviceName: BlueGreenServiceName;
 }): boolean => {
+	// Off-AWS leader election (CRON_LEADER_LOCK=postgres); see cronLeaderLock.ts.
+	if (bgServiceName === "cron" && !isCronLeader()) return false;
+
 	if (!hasAwsTaskIdentity()) return true;
 
 	const config = getActiveSlotConfig({ serviceName: bgServiceName });
@@ -44,6 +48,9 @@ export const describeSlotGate = ({
 }: {
 	serviceName: BlueGreenServiceName;
 }) => {
+	if (bgServiceName === "cron" && !isCronLeader()) {
+		return { allowPoll: false, reason: "cron-leader-lock-not-held" as const };
+	}
 	if (!hasAwsTaskIdentity()) {
 		return { allowPoll: true, reason: "blue-green-disabled" as const };
 	}

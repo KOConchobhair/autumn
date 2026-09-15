@@ -1,6 +1,6 @@
-import { releaseDynamoIdempotencyKey } from "@/external/aws/dynamodb/idempotencyKeys/operations/releaseDynamoIdempotencyKey.js";
 import type { AutumnContext } from "@/honoUtils/HonoEnv.js";
 import { buildIdempotencyStorageKey } from "../idempotencyKeyUtils.js";
+import { releaseIdempotencyKeyInStore } from "../idempotencyStore.js";
 
 /** Frees the key so the client can retry. Swallows its own errors — a failed
  *  release only costs the caller a retry window, never the request. */
@@ -17,5 +17,5 @@ export const releaseIdempotencyKey = async ({
 		idempotencyKey,
 	});
 
-	await releaseDynamoIdempotencyKey({ storageKey });
+	await releaseIdempotencyKeyInStore({ storageKey });
 };

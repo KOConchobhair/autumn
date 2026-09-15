@@ -1,7 +1,7 @@
 import { ErrCode, RecaseError } from "@autumn/shared";
-import { claimDynamoIdempotencyKey } from "@/external/aws/dynamodb/idempotencyKeys/operations/claimDynamoIdempotencyKey.js";
 import type { AutumnContext } from "@/honoUtils/HonoEnv.js";
 import { buildIdempotencyStorageKey } from "../idempotencyKeyUtils.js";
+import { claimIdempotencyKey } from "../idempotencyStore.js";
 
 /** Claims the key in DynamoDB: a duplicate 409s, an unavailable store fails
  *  open so an outage can't reject live traffic. */
@@ -26,7 +26,7 @@ export const checkIdempotencyKey = async ({
 		`[checkIdempotencyKey] claiming idempotency key ${idempotencyKey}, hash: ${hashedKey}`,
 	);
 
-	const result = await claimDynamoIdempotencyKey({ storageKey, ttlMs, logger });
+	const result = await claimIdempotencyKey({ storageKey, ttlMs, logger });
 
 	if (result === "duplicate") {
 		throw new RecaseError({

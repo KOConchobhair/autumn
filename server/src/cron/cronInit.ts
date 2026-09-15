@@ -24,6 +24,7 @@ import { runOneOffExpiry } from "./oneoffCron/runOneOffExpiry.js";
 import { runProductCron } from "./productCron/runProductCron.js";
 import { runResetLoop } from "./resetCron/runResetLoop.js";
 import { runSeatSyncCron } from "./seatSyncCron/runSeatSyncCron.js";
+import { startCronLeaderLock, stopCronLeaderLock } from "./cronLeaderLock.js";
 import type { CronContext } from "./utils/CronContext.js";
 
 const { db, client } = initDrizzle({ name: "cron", maxConnections: 40 });
@@ -34,6 +35,7 @@ const { db: probeDb, client: probeClient } = initDrizzle({
 });
 startPgPoolMonitor();
 startBlueGreenHeartbeat({ db, logger, serviceName: "cron" });
+startCronLeaderLock();
 
 const ctx: CronContext = { db, logger };
 let shuttingDown = false;
@@ -175,6 +177,7 @@ const shutdown = async (signal: string) => {
 	stopBlueGreenSlotStorePolling({ serviceName: "cron" });
 	stopAllEdgeConfigPolling();
 	await Promise.all([resetLoopPromise, resetLoopV2Promise]);
+	await stopCronLeaderLock();
 	await shutdownSqsSendBatchers();
 	await client.end();
 	await probeClient.end();

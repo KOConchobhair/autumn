@@ -3,6 +3,28 @@ import {
 	DEFAULT_AWS_REGION,
 	extractRegionFromQueueUrl,
 } from "@/external/aws/awsRegionUtils.js";
+import { getMiscMainRedis } from "@/external/redis/miscCache/miscRedisInstances.js";
+import { RedisDedupStore } from "./backends/rabbitmq/dedupStore.js";
+import { RabbitMqQueueClient } from "./backends/rabbitmq/RabbitMqQueueClient.js";
+import { isRabbitMqQueueUrl } from "./backends/rabbitmq/topology.js";
+
+// ============ Backend selection ============
+/** `QUEUE_BACKEND=rabbitmq`, or any `rabbitmq://` queue URL, swaps the AWS
+ *  client for an SQS-command-compatible RabbitMQ client. Call sites keep the
+ *  `SQSClient` type; only the seven commands Autumn uses are implemented. */
+const useRabbitMqBackend = ({ queueUrl }: { queueUrl?: string }): boolean =>
+	process.env.QUEUE_BACKEND === "rabbitmq" || isRabbitMqQueueUrl(queueUrl);
+
+const createQueueClient = ({ queueUrl }: { queueUrl?: string }): SQSClient => {
+	const resolvedQueueUrl = queueUrl ?? process.env.SQS_QUEUE_URL_V2;
+	if (useRabbitMqBackend({ queueUrl: resolvedQueueUrl }) && resolvedQueueUrl) {
+		return new RabbitMqQueueClient({
+			queueUrl: resolvedQueueUrl,
+			dedupStore: new RedisDedupStore(() => getMiscMainRedis()),
+		}) as unknown as SQSClient;
+	}
+	return new SQSClient(getSqsClientConfig({ queueUrl: resolvedQueueUrl }));
+};
 
 // ============ FIFO Queue (primary) ============
 
@@ -51,7 +73,7 @@ const getSqsClientCacheKey = ({ queueUrl }: { queueUrl?: string } = {}) => {
 
 const sqsClientsByCacheKey = new Map<string, SQSClient>();
 
-let sqsClient = new SQSClient(getSqsClientConfig());
+let sqsClient = createQueueClient({});
 sqsClientsByCacheKey.set(getSqsClientCacheKey(), sqsClient);
 
 export const sqs = sqsClient;
@@ -67,7 +89,7 @@ export const recreateSqsClient = ({
 	const existingClient = sqsClientsByCacheKey.get(cacheKey);
 	existingClient?.destroy();
 
-	const nextClient = new SQSClient(getSqsClientConfig({ queueUrl }));
+	const nextClient = createQueueClient({ queueUrl });
 	sqsClientsByCacheKey.set(cacheKey, nextClient);
 
 	if (!queueUrl || queueUrl === process.env.SQS_QUEUE_URL_V2) {
@@ -87,7 +109,7 @@ export const getSqsClient = ({
 	const existingClient = sqsClientsByCacheKey.get(cacheKey);
 	if (existingClient) return existingClient;
 
-	const nextClient = new SQSClient(getSqsClientConfig({ queueUrl }));
+	const nextClient = createQueueClient({ queueUrl });
 	sqsClientsByCacheKey.set(cacheKey, nextClient);
 	return nextClient;
 };
