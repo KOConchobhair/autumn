@@ -11,6 +11,7 @@ import type { Redis } from "ioredis";
 import type { DrizzleCli } from "@/db/initDrizzle.js";
 import type { Logger } from "@/external/logtail/logtailUtils.js";
 import type { OidcClaims } from "@/external/vercel/misc/vercelAuth.js";
+import type { PermissionFactsTestOptions } from "@/honoMiddlewares/utils/parsePermissionFactsHeader.js";
 import type { LogRequestContext } from "@/utils/logging/loggerTypes.js";
 
 export type RequestContext = {
@@ -114,6 +115,10 @@ export type RequestContext = {
 		listScanCap?: number;
 		/** Stands in for Autumn's own billing checks per feature (non-prod only); a missing feature runs the real check. */
 		billingFeatures?: Partial<Record<string, boolean>>;
+		/** Billing previews also return `_permission_facts`, and `_permission` for these inline rules (non-prod only). */
+		includePermissionFacts?: PermissionFactsTestOptions;
+		/** The approvals evaluator treats sandbox as live, since sandbox is exempt (non-prod only). */
+		approvalsSandboxAsLive?: boolean;
 		revenueCat?: {
 			subscriptions?: unknown[];
 			purchases?: unknown[];

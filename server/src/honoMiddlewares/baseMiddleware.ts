@@ -16,6 +16,7 @@ import { generateId } from "@/utils/genUtils.js";
 import { addRequestToLogs } from "@/utils/logging/addContextToLogs.js";
 import { buildRequestLogContexts } from "@/utils/logging/requestLogContext.js";
 import { parseBillingFeaturesHeader } from "./utils/parseBillingFeaturesHeader.js";
+import { parsePermissionFactsHeader } from "./utils/parsePermissionFactsHeader.js";
 import { resolveCustomerId } from "./utils/resolveCustomerId.js";
 import { resolveEntityId } from "./utils/resolveEntityId.js";
 import { resolveRouteTemplate } from "./utils/resolveRouteTemplate.js";
@@ -190,6 +191,15 @@ export const baseMiddleware = async (c: Context<HonoEnv>, next: Next) => {
 				process.env.NODE_ENV !== "production"
 					? parseBillingFeaturesHeader(c.req.header("x-billing-features"))
 					: undefined,
+			includePermissionFacts:
+				process.env.NODE_ENV !== "production"
+					? parsePermissionFactsHeader(
+							c.req.header("x-include-permission-facts"),
+						)
+					: undefined,
+			approvalsSandboxAsLive:
+				process.env.NODE_ENV !== "production" &&
+				c.req.header("x-approvals-sandbox-as-live") === "true",
 			revenueCat:
 				process.env.NODE_ENV !== "production"
 					? parseMockRevenueCatFixtures(

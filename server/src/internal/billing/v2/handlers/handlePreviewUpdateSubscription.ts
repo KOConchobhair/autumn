@@ -7,6 +7,8 @@ import {
 	UpdateSubscriptionV0ParamsSchema,
 	UpdateSubscriptionV1ParamsSchema,
 } from "@autumn/shared";
+import { billingContextToUpdateAction } from "@/internal/approvals/facts/billing/billingContextToUpdateAction";
+import { previewPermissionTestFields } from "@/internal/approvals/facts/billing/testSurface/previewPermissionTestFields";
 import { billingActions } from "@/internal/billing/v2/actions";
 import { handleSwitchCollectionMethodErrors } from "@/internal/billing/v2/actions/switchCollectionMethod/errors/handleSwitchCollectionMethodErrors";
 import { setupSwitchCollectionMethodContext } from "@/internal/billing/v2/actions/switchCollectionMethod/setup/setupSwitchCollectionMethodContext";
@@ -75,7 +77,14 @@ export const handlePreviewUpdateSubscription = createRoute({
 			billingPlan,
 			intent: billingPlanToUpdateSubscriptionPreviewIntent({ billingContext }),
 		});
+		const permissionTestFields = await previewPermissionTestFields({
+			ctx,
+			billingContext,
+			billingPlan,
+			preview: previewResponse,
+			action: billingContextToUpdateAction({ billingContext }),
+		});
 
-		return c.json(previewResponse, 200);
+		return c.json({ ...previewResponse, ...permissionTestFields }, 200);
 	},
 });

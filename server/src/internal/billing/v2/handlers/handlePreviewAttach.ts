@@ -5,6 +5,7 @@ import {
 	AttachParamsV1Schema,
 	Scopes,
 } from "@autumn/shared";
+import { previewPermissionTestFields } from "@/internal/approvals/facts/billing/testSurface/previewPermissionTestFields";
 import { billingActions } from "@/internal/billing/v2/actions";
 import { createRoute } from "../../../../honoMiddlewares/routeHandler";
 import { billingPlanToAttachPreview } from "../utils/billingPlan/billingPlanToAttachPreview";
@@ -39,6 +40,14 @@ export const handlePreviewAttach = createRoute({
 			billingPlan,
 		});
 
-		return c.json(previewResponse, 200);
+		const permissionTestFields = await previewPermissionTestFields({
+			ctx,
+			billingContext,
+			billingPlan,
+			preview: previewResponse,
+			action: "billing.attach",
+		});
+
+		return c.json({ ...previewResponse, ...permissionTestFields }, 200);
 	},
 });
