@@ -50,4 +50,3 @@ test(`${chalk.yellowBright("$none filter: add_plan to customers without a specif
 	const planChanges = preview.plan_changes as unknown[];
 	expect(planChanges.length).toBe(1);
 });
-

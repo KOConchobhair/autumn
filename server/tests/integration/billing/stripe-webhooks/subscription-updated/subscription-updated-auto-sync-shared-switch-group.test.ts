@@ -2,9 +2,6 @@
  * Switching one group's variant must preserve the other group's usage. */
 
 import { test } from "bun:test";
-import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
-import { TestFeature } from "@tests/setup/v2Features";
-import chalk from "chalk";
 import {
 	addVariantBaseItemToSubscription,
 	createCustomBasePriceForProduct,
@@ -18,6 +15,9 @@ import {
 	updateBaseSubscriptionItemToVariant,
 	waitForCustomerProducts,
 } from "@tests/integration/billing/stripe-webhooks/utils/sharedStripeProductAutoSyncUtils";
+import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
+import { TestFeature } from "@tests/setup/v2Features";
+import chalk from "chalk";
 
 test(`${chalk.yellowBright("customer.subscription.updated auto-sync: switching one group preserves the other group")}`, async () => {
 	const customerId = "sub-updated-shared-two-groups-switch";
@@ -33,9 +33,7 @@ test(`${chalk.yellowBright("customer.subscription.updated auto-sync: switching o
 				baseAmount: 20,
 				featureId: TestFeature.Messages,
 				baseIncluded: 25_000,
-				variants: [
-					{ id: groupAVariantId, amount: 35, included: 150_000 },
-				],
+				variants: [{ id: groupAVariantId, amount: 35, included: 150_000 }],
 			},
 			{
 				baseId: "shared_two_groups_switch_b_base",
@@ -75,10 +73,7 @@ test(`${chalk.yellowBright("customer.subscription.updated auto-sync: switching o
 	const createdSubscription = await createExternalStripeSubscription({
 		ctx,
 		customerId,
-		items: [
-			{ price: groupAPrice.id },
-			{ price: wrongGroupAUsagePrice.id },
-		],
+		items: [{ price: groupAPrice.id }, { price: wrongGroupAUsagePrice.id }],
 	});
 	expectStripeSubscriptionCreated({ subscription: createdSubscription });
 

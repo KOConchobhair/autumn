@@ -28,65 +28,60 @@ const GRADUATED_TIERS = [
 	{ to: "inf" as const, amount: 5 },
 ];
 
-test(
-	`${chalk.yellowBright("tiers: tiered prepaid (graduated) upgrade - starter → pro with 800 messages")}`,
-	async () => {
-		const customerId = "tiers-tiered-prepaid-upgrade";
+test(`${chalk.yellowBright("tiers: tiered prepaid (graduated) upgrade - starter → pro with 800 messages")}`, async () => {
+	const customerId = "tiers-tiered-prepaid-upgrade";
 
-		// Starter: flat prepaid, $19/mo, 100 included messages
-		const starter = products.base({
-			id: "starter",
-			items: [
-				items.dashboard(),
-				items.monthlyMessages({ includedUsage: 100 }),
-				items.monthlyPrice({ price: 19 }),
-			],
-		});
+	// Starter: flat prepaid, $19/mo, 100 included messages
+	const starter = products.base({
+		id: "starter",
+		items: [
+			items.dashboard(),
+			items.monthlyMessages({ includedUsage: 100 }),
+			items.monthlyPrice({ price: 19 }),
+		],
+	});
 
-		// Pro: graduated tiered prepaid messages ($49/mo, 100 included, 2-tier pricing)
-		const pro = products.base({
-			id: "pro",
-			items: [
-				items.dashboard(),
-				items.adminRights(),
-				items.tieredPrepaidMessages({
-					includedUsage: 100,
-					billingUnits: BILLING_UNITS,
-					tiers: GRADUATED_TIERS,
-				}),
-				items.monthlyPrice({ price: 49 }),
-			],
-		});
+	// Pro: graduated tiered prepaid messages ($49/mo, 100 included, 2-tier pricing)
+	const pro = products.base({
+		id: "pro",
+		items: [
+			items.dashboard(),
+			items.adminRights(),
+			items.tieredPrepaidMessages({
+				includedUsage: 100,
+				billingUnits: BILLING_UNITS,
+				tiers: GRADUATED_TIERS,
+			}),
+			items.monthlyPrice({ price: 49 }),
+		],
+	});
 
-		const { autumnV1 } = await initScenario({
-			customerId,
-			setup: [
-				s.customer({ paymentMethod: "success" }),
-				s.products({ list: [starter, pro] }),
-			],
-			actions: [s.attach({ productId: "starter" })],
-		});
+	const { autumnV1 } = await initScenario({
+		customerId,
+		setup: [
+			s.customer({ paymentMethod: "success" }),
+			s.products({ list: [starter, pro] }),
+		],
+		actions: [s.attach({ productId: "starter" })],
+	});
 
-		const messagesOptions = [
-			{ feature_id: TestFeature.Messages, quantity: 800 },
-		];
+	const messagesOptions = [{ feature_id: TestFeature.Messages, quantity: 800 }];
 
-		// 1. Preview upgrade - graduated: 5 packs×$10 + 2 packs×$5 = $60 prepaid
-		const upgradePreview = await autumnV1.billing.previewAttach({
-			customer_id: customerId,
-			product_id: `pro_${customerId}`,
-			options: messagesOptions,
-			redirect_mode: "always",
-		});
-		console.log("tiered prepaid upgrade preview:", upgradePreview);
+	// 1. Preview upgrade - graduated: 5 packs×$10 + 2 packs×$5 = $60 prepaid
+	const upgradePreview = await autumnV1.billing.previewAttach({
+		customer_id: customerId,
+		product_id: `pro_${customerId}`,
+		options: messagesOptions,
+		redirect_mode: "always",
+	});
+	console.log("tiered prepaid upgrade preview:", upgradePreview);
 
-		// 2. Perform the upgrade
-		const upgradeResult = await autumnV1.billing.attach({
-			customer_id: customerId,
-			product_id: `pro_${customerId}`,
-			options: messagesOptions,
-			redirect_mode: "always",
-		});
-		console.log("tiered prepaid upgrade result:", upgradeResult);
-	},
-);
+	// 2. Perform the upgrade
+	const upgradeResult = await autumnV1.billing.attach({
+		customer_id: customerId,
+		product_id: `pro_${customerId}`,
+		options: messagesOptions,
+		redirect_mode: "always",
+	});
+	console.log("tiered prepaid upgrade result:", upgradeResult);
+});

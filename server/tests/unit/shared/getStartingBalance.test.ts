@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
 	AllowanceType,
-	BillWhen,
 	BillingInterval,
+	BillWhen,
 	EntInterval,
 	type Entitlement,
 	type FeatureOptions,
@@ -12,11 +12,7 @@ import {
 	PriceType,
 } from "@autumn/shared";
 
-const makeEntitlement = ({
-	allowance,
-}: {
-	allowance: number;
-}) =>
+const makeEntitlement = ({ allowance }: { allowance: number }) =>
 	({
 		id: "ent_credits",
 		created_at: 0,
@@ -38,11 +34,7 @@ const makeEntitlement = ({
 		rollover: null,
 	}) satisfies Entitlement;
 
-const makeFeatureOptions = ({
-	quantity,
-}: {
-	quantity: number;
-}) =>
+const makeFeatureOptions = ({ quantity }: { quantity: number }) =>
 	({
 		feature_id: "credits",
 		quantity,
@@ -106,38 +98,47 @@ describe("getStartingBalance", () => {
 		},
 	);
 
-	test.concurrent("avoids precision errors when multiplying billing units", () => {
-		const balance = getStartingBalance({
-			entitlement: makeEntitlement({ allowance: 0.1 }),
-			options: makeFeatureOptions({ quantity: 0.2 }),
-			relatedPrice: makeUsagePrice({
-				billWhen: BillWhen.InAdvance,
-				billingUnits: 0.3,
-			}),
-		});
+	test.concurrent(
+		"avoids precision errors when multiplying billing units",
+		() => {
+			const balance = getStartingBalance({
+				entitlement: makeEntitlement({ allowance: 0.1 }),
+				options: makeFeatureOptions({ quantity: 0.2 }),
+				relatedPrice: makeUsagePrice({
+					billWhen: BillWhen.InAdvance,
+					billingUnits: 0.3,
+				}),
+			});
 
-		expect(balance).toBe(0.16);
-	});
+			expect(balance).toBe(0.16);
+		},
+	);
 
-	test.concurrent("multiplies free entitlement allowance by product quantity", () => {
-		const balance = getStartingBalance({
-			entitlement: makeEntitlement({ allowance: 10 }),
-			productQuantity: 4,
-		});
+	test.concurrent(
+		"multiplies free entitlement allowance by product quantity",
+		() => {
+			const balance = getStartingBalance({
+				entitlement: makeEntitlement({ allowance: 10 }),
+				productQuantity: 4,
+			});
 
-		expect(balance).toBe(40);
-	});
+			expect(balance).toBe(40);
+		},
+	);
 
-	test.concurrent("returns allowance for usage prices that are not prepaid", () => {
-		const balance = getStartingBalance({
-			entitlement: makeEntitlement({ allowance: 100 }),
-			options: makeFeatureOptions({ quantity: 3 }),
-			relatedPrice: makeUsagePrice({
-				billWhen: BillWhen.EndOfPeriod,
-				billingUnits: 25,
-			}),
-		});
+	test.concurrent(
+		"returns allowance for usage prices that are not prepaid",
+		() => {
+			const balance = getStartingBalance({
+				entitlement: makeEntitlement({ allowance: 100 }),
+				options: makeFeatureOptions({ quantity: 3 }),
+				relatedPrice: makeUsagePrice({
+					billWhen: BillWhen.EndOfPeriod,
+					billingUnits: 25,
+				}),
+			});
 
-		expect(balance).toBe(100);
-	});
+			expect(balance).toBe(100);
+		},
+	);
 });

@@ -21,13 +21,13 @@ import {
 import { expectCustomerInvoiceCorrect } from "@tests/integration/billing/utils/expectCustomerInvoiceCorrect";
 import { expectStripeSubscriptionCorrect } from "@tests/integration/billing/utils/expectStripeSubCorrect/expectStripeSubscriptionCorrect";
 import { setupLicenseUpdateScenario } from "@tests/integration/licenses/billing/update/setupLicenseUpdateScenario";
-import { expectLicenseUpdatePreviewCorrect } from "@tests/integration/licenses/utils/expectLicenseBillingPreviewCorrect";
 import { expectCustomerLicenses } from "@tests/integration/licenses/utils/expectCustomerLicenses";
+import { expectLicenseUpdatePreviewCorrect } from "@tests/integration/licenses/utils/expectLicenseBillingPreviewCorrect";
 import { expectBalanceCorrect } from "@tests/integration/utils/expectBalanceCorrect";
 import { expectCustomerProductOptions } from "@tests/integration/utils/expectCustomerProductOptions";
 import { TestFeature } from "@tests/setup/v2Features";
-import { items } from "@tests/utils/fixtures/items";
 import { expectAutumnError } from "@tests/utils/expectUtils/expectErrUtils";
+import { items } from "@tests/utils/fixtures/items";
 import chalk from "chalk";
 
 const SEAT_PRICE = 20;
@@ -242,9 +242,7 @@ test.concurrent(
 					price: 10,
 				}),
 			],
-			attachOptions: [
-				{ feature_id: TestFeature.Messages, quantity: 100 },
-			],
+			attachOptions: [{ feature_id: TestFeature.Messages, quantity: 100 }],
 			seatPrice: SEAT_PRICE,
 			includedSeats: INCLUDED_SEATS,
 			attachedSeats: ATTACHED_SEATS,

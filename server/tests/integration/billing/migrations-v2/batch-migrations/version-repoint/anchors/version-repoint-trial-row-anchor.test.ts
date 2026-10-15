@@ -20,67 +20,64 @@ import {
 	runVersionRepointMigration,
 } from "../utils/versionRepointTestUtils";
 
-test.skip(
-	`${chalk.yellowBright("batch version repoint anchors: trial row keeps trial_ends_at and swaps balances")}`,
-	async () => {
-		const stem = uniqueStem("bvr-anchor-trial");
-		const customerId = `${stem}-customer`;
-		const plan = products.baseWithTrial({
-			id: `${stem}-plan`,
-			items: [items.monthlyMessages({ includedUsage: 100 })],
-			trialDays: 14,
-			cardRequired: false,
-		});
-		const { ctx, autumnV2_3 } = await initScenario({
-			customerId,
-			setup: [s.customer({ testClock: false }), s.products({ list: [plan] })],
-			actions: [
-				s.billing.attach({ productId: plan.id }),
-				s.track({ featureId: TestFeature.Messages, value: 20, timeout: 2_000 }),
+test.skip(`${chalk.yellowBright("batch version repoint anchors: trial row keeps trial_ends_at and swaps balances")}`, async () => {
+	const stem = uniqueStem("bvr-anchor-trial");
+	const customerId = `${stem}-customer`;
+	const plan = products.baseWithTrial({
+		id: `${stem}-plan`,
+		items: [items.monthlyMessages({ includedUsage: 100 })],
+		trialDays: 14,
+		cardRequired: false,
+	});
+	const { ctx, autumnV2_3 } = await initScenario({
+		customerId,
+		setup: [s.customer({ testClock: false }), s.products({ list: [plan] })],
+		actions: [
+			s.billing.attach({ productId: plan.id }),
+			s.track({ featureId: TestFeature.Messages, value: 20, timeout: 2_000 }),
+		],
+	});
+	const before = await readRepointableCustomerPlanRow({
+		ctx,
+		customerId,
+		planId: plan.id,
+	});
+	expect(before.trialEndsAt).not.toBeNull();
+
+	await autumnV2_3.post("/plans.update", {
+		plan_id: plan.id,
+		force_version: true,
+		items: [itemsV2.monthlyMessages({ included: 250 })],
+	});
+	const { result } = await runVersionRepointMigration({
+		ctx,
+		migrationClient: autumnV2_3,
+		migrationId: `${stem}-migration`,
+		filter: { customer: { plan: { plan_id: plan.id, version: 1 } } },
+		operations: {
+			customer: [
+				{
+					type: "update_plan",
+					plan_filter: { plan_id: plan.id, version: 1 },
+					version: 2,
+				},
 			],
-		});
-		const before = await readRepointableCustomerPlanRow({
-			ctx,
-			customerId,
-			planId: plan.id,
-		});
-		expect(before.trialEndsAt).not.toBeNull();
+		},
+	});
+	expectBatchLane({ result });
 
-		await autumnV2_3.post("/plans.update", {
-			plan_id: plan.id,
-			force_version: true,
-			items: [itemsV2.monthlyMessages({ included: 250 })],
-		});
-		const { result } = await runVersionRepointMigration({
-			ctx,
-			migrationClient: autumnV2_3,
-			migrationId: `${stem}-migration`,
-			filter: { customer: { plan: { plan_id: plan.id, version: 1 } } },
-			operations: {
-				customer: [
-					{
-						type: "update_plan",
-						plan_filter: { plan_id: plan.id, version: 1 },
-						version: 2,
-					},
-				],
-			},
-		});
-		expectBatchLane({ result });
+	const after = await readRepointableCustomerPlanRow({
+		ctx,
+		customerId,
+		planId: plan.id,
+	});
+	expectCustomerPlanRepointedInPlace({ before, after, targetVersion: 2 });
+	expect(after.trialEndsAt).toBe(before.trialEndsAt);
 
-		const after = await readRepointableCustomerPlanRow({
-			ctx,
-			customerId,
-			planId: plan.id,
-		});
-		expectCustomerPlanRepointedInPlace({ before, after, targetVersion: 2 });
-		expect(after.trialEndsAt).toBe(before.trialEndsAt);
-
-		const entitlement = await readScopedFeatureRow({
-			ctx,
-			customerId,
-			featureId: TestFeature.Messages,
-		});
-		expect(entitlement.balance).toBe(230);
-	},
-);
+	const entitlement = await readScopedFeatureRow({
+		ctx,
+		customerId,
+		featureId: TestFeature.Messages,
+	});
+	expect(entitlement.balance).toBe(230);
+});

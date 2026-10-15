@@ -61,9 +61,7 @@ test.concurrent(
 		try {
 			// Never stated: the scaffold has no billingControls.
 			const { freshFiles } = await expectRoundTrip({ scenario });
-			expect(freshFiles.get("plans.ts")).not.toContain(
-				"billingControls",
-			);
+			expect(freshFiles.get("plans.ts")).not.toContain("billingControls");
 
 			// A dashboard save writes every lane as []: still nothing to pull.
 			await setLanes(EMPTY_LANES);

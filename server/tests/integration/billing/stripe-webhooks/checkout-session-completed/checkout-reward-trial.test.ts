@@ -26,55 +26,58 @@ const waitForRedemptionApplied = async ({
 	return autumnV1.redemptions.get(redemptionId);
 };
 
-test.concurrent(`${chalk.yellowBright("checkout-reward-trial: exclude_trial=false applies reward on trial checkout")}`, async () => {
-	const referrerId = "checkout-reward-trial-referrer";
-	const redeemerId = "checkout-reward-trial-redeemer";
+test.concurrent(
+	`${chalk.yellowBright("checkout-reward-trial: exclude_trial=false applies reward on trial checkout")}`,
+	async () => {
+		const referrerId = "checkout-reward-trial-referrer";
+		const redeemerId = "checkout-reward-trial-redeemer";
 
-	const proTrial = products.proWithTrial({
-		id: "pro-trial-reward",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-		trialDays: 7,
-		cardRequired: true,
-	});
+		const proTrial = products.proWithTrial({
+			id: "pro-trial-reward",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+			trialDays: 7,
+			cardRequired: true,
+		});
 
-	const reward = rewards.halfOff();
-	const program = {
-		...referralPrograms.onCheckoutReferrer({
-			rewardId: reward.id,
-			productIds: [proTrial.id],
-			maxRedemptions: 1,
-		}),
-		exclude_trial: false,
-	};
+		const reward = rewards.halfOff();
+		const program = {
+			...referralPrograms.onCheckoutReferrer({
+				rewardId: reward.id,
+				productIds: [proTrial.id],
+				maxRedemptions: 1,
+			}),
+			exclude_trial: false,
+		};
 
-	const { autumnV1, redemption } = await initScenario({
-		customerId: referrerId,
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.otherCustomers([{ id: redeemerId }]),
-			s.products({ list: [proTrial] }),
-			s.referralProgram({ reward, program }),
-		],
-		actions: [
-			s.attach({ productId: "pro-trial-reward" }),
-			s.referral.createAndRedeem({ customerId: redeemerId }),
-		],
-	});
+		const { autumnV1, redemption } = await initScenario({
+			customerId: referrerId,
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.otherCustomers([{ id: redeemerId }]),
+				s.products({ list: [proTrial] }),
+				s.referralProgram({ reward, program }),
+			],
+			actions: [
+				s.attach({ productId: "pro-trial-reward" }),
+				s.referral.createAndRedeem({ customerId: redeemerId }),
+			],
+		});
 
-	const result = await autumnV1.billing.attach({
-		customer_id: redeemerId,
-		product_id: proTrial.id,
-	});
+		const result = await autumnV1.billing.attach({
+			customer_id: redeemerId,
+			product_id: proTrial.id,
+		});
 
-	expect(result.payment_url).toBeDefined();
-	expect(result.payment_url).toContain("checkout.stripe.com");
+		expect(result.payment_url).toBeDefined();
+		expect(result.payment_url).toContain("checkout.stripe.com");
 
-	await completeStripeCheckoutFormV2({ url: result.payment_url! });
+		await completeStripeCheckoutFormV2({ url: result.payment_url! });
 
-	const updatedRedemption = await waitForRedemptionApplied({
-		autumnV1,
-		redemptionId: redemption!.id,
-	});
-	expect(updatedRedemption.triggered).toBe(true);
-	expect(updatedRedemption.applied).toBe(true);
-});
+		const updatedRedemption = await waitForRedemptionApplied({
+			autumnV1,
+			redemptionId: redemption!.id,
+		});
+		expect(updatedRedemption.triggered).toBe(true);
+		expect(updatedRedemption.applied).toBe(true);
+	},
+);

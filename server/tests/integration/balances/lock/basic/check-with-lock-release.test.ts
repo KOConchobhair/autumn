@@ -26,51 +26,60 @@ const makeFreeProd = () => {
 // Events: finalize delta = 0-8 = -8, track = 8
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.concurrent(`${chalk.yellowBright("release RL-1: lock=8 release — full restore, remaining=15")}`, async () => {
-	const freeProd = makeFreeProd();
-	const customerId = "lock-release-1";
+test.concurrent(
+	`${chalk.yellowBright("release RL-1: lock=8 release — full restore, remaining=15")}`,
+	async () => {
+		const freeProd = makeFreeProd();
+		const customerId = "lock-release-1";
 
-	const { autumnV2_1, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: false }), s.products({ list: [freeProd] })],
-		actions: [s.attach({ productId: freeProd.id })],
-	});
+		const { autumnV2_1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [freeProd] }),
+			],
+			actions: [s.attach({ productId: freeProd.id })],
+		});
 
-	await deleteLock({ ctx, lockId: customerId });
+		await deleteLock({ ctx, lockId: customerId });
 
-	await autumnV2_1.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		required_balance: 8,
-		lock: { enabled: true, lock_id: customerId },
-	});
+		await autumnV2_1.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			required_balance: 8,
+			lock: { enabled: true, lock_id: customerId },
+		});
 
-	await autumnV2_1.balances.finalize({
-		lock_id: customerId,
-		action: "release",
-	});
+		await autumnV2_1.balances.finalize({
+			lock_id: customerId,
+			action: "release",
+		});
 
-	const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 15,
-	});
+		const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 15,
+		});
 
-	await expectCustomerEventsCorrect({
-		customerId,
-		events: [{ value: -8 }, { value: 8 }],
-	});
+		await expectCustomerEventsCorrect({
+			customerId,
+			events: [{ value: -8 }, { value: 8 }],
+		});
 
-	const customerDb = await autumnV2_1.customers.get<ApiCustomerV5>(customerId, {
-		skip_cache: "true",
-	});
-	expectBalanceCorrect({
-		customer: customerDb,
-		featureId: TestFeature.Messages,
-		remaining: 15,
-	});
-});
+		const customerDb = await autumnV2_1.customers.get<ApiCustomerV5>(
+			customerId,
+			{
+				skip_cache: "true",
+			},
+		);
+		expectBalanceCorrect({
+			customer: customerDb,
+			featureId: TestFeature.Messages,
+			remaining: 15,
+		});
+	},
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RL-2: track=5, lock=8, release → remaining=10
@@ -78,48 +87,54 @@ test.concurrent(`${chalk.yellowBright("release RL-1: lock=8 release — full res
 // Events: finalize delta = 0-8 = -8, track = 8, track = 5
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.concurrent(`${chalk.yellowBright("release RL-2: track=5 lock=8 release — prior usage kept, remaining=10")}`, async () => {
-	const freeProd = makeFreeProd();
-	const customerId = "lock-release-2";
+test.concurrent(
+	`${chalk.yellowBright("release RL-2: track=5 lock=8 release — prior usage kept, remaining=10")}`,
+	async () => {
+		const freeProd = makeFreeProd();
+		const customerId = "lock-release-2";
 
-	const { autumnV2_1, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: false }), s.products({ list: [freeProd] })],
-		actions: [s.attach({ productId: freeProd.id })],
-	});
+		const { autumnV2_1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [freeProd] }),
+			],
+			actions: [s.attach({ productId: freeProd.id })],
+		});
 
-	await deleteLock({ ctx, lockId: customerId });
+		await deleteLock({ ctx, lockId: customerId });
 
-	await autumnV2_1.track({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		value: 5,
-	});
+		await autumnV2_1.track({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			value: 5,
+		});
 
-	await autumnV2_1.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		required_balance: 8,
-		lock: { enabled: true, lock_id: customerId },
-	});
+		await autumnV2_1.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			required_balance: 8,
+			lock: { enabled: true, lock_id: customerId },
+		});
 
-	await autumnV2_1.balances.finalize({
-		lock_id: customerId,
-		action: "release",
-	});
+		await autumnV2_1.balances.finalize({
+			lock_id: customerId,
+			action: "release",
+		});
 
-	const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 10,
-	});
+		const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 10,
+		});
 
-	await expectCustomerEventsCorrect({
-		customerId,
-		events: [{ value: -8 }, { value: 8 }, { value: 5 }],
-	});
-});
+		await expectCustomerEventsCorrect({
+			customerId,
+			events: [{ value: -8 }, { value: 8 }, { value: 5 }],
+		});
+	},
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RL-3: lock=8 spanning hourly+lifetime buckets, release → both fully restored
@@ -127,44 +142,50 @@ test.concurrent(`${chalk.yellowBright("release RL-2: track=5 lock=8 release — 
 // Product: hourlyMessages(5) + lifetimeMessages(20) = 25 total
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.concurrent(`${chalk.yellowBright("release RL-3: lock=8 cross-bucket release — both buckets fully restored")}`, async () => {
-	const hourlyMessages = items.hourlyMessages({ includedUsage: 5 });
-	const lifetimeMessages = items.lifetimeMessages({ includedUsage: 20 });
-	const freeProd = products.base({
-		id: "free",
-		items: [hourlyMessages, lifetimeMessages],
-	});
+test.concurrent(
+	`${chalk.yellowBright("release RL-3: lock=8 cross-bucket release — both buckets fully restored")}`,
+	async () => {
+		const hourlyMessages = items.hourlyMessages({ includedUsage: 5 });
+		const lifetimeMessages = items.lifetimeMessages({ includedUsage: 20 });
+		const freeProd = products.base({
+			id: "free",
+			items: [hourlyMessages, lifetimeMessages],
+		});
 
-	const customerId = "lock-release-4";
+		const customerId = "lock-release-4";
 
-	const { autumnV2_1, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: false }), s.products({ list: [freeProd] })],
-		actions: [s.attach({ productId: freeProd.id })],
-	});
+		const { autumnV2_1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [freeProd] }),
+			],
+			actions: [s.attach({ productId: freeProd.id })],
+		});
 
-	await deleteLock({ ctx, lockId: customerId });
+		await deleteLock({ ctx, lockId: customerId });
 
-	await autumnV2_1.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		required_balance: 8,
-		lock: { enabled: true, lock_id: customerId },
-	});
+		await autumnV2_1.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			required_balance: 8,
+			lock: { enabled: true, lock_id: customerId },
+		});
 
-	await autumnV2_1.balances.finalize({
-		lock_id: customerId,
-		action: "release",
-	});
+		await autumnV2_1.balances.finalize({
+			lock_id: customerId,
+			action: "release",
+		});
 
-	const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 25,
-		breakdown: {
-			[ResetInterval.Hour]: { included_grant: 5, remaining: 5 },
-			[ResetInterval.OneOff]: { included_grant: 20, remaining: 20 },
-		},
-	});
-});
+		const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 25,
+			breakdown: {
+				[ResetInterval.Hour]: { included_grant: 5, remaining: 5 },
+				[ResetInterval.OneOff]: { included_grant: 20, remaining: 20 },
+			},
+		});
+	},
+);

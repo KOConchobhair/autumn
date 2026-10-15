@@ -14,123 +14,183 @@ import { constructPrepaidItem } from "@/utils/scriptUtils/constructItem";
 import { runUpdatePlanMigration } from "../../../utils/runUpdatePlanMigration";
 import { lifetimeCredits } from "./updateIntervalTestUtils";
 
-test.concurrent(`${chalk.yellowBright("migrations update_items interval: subscription one-off to monthly uses subscription cycle")}`, async () => {
-	const customerId = "migration-update-items-one-off-to-month-sub";
-	const pro = products.pro({
-		id: "migration-update-items-one-off-to-month-sub-plan",
-		items: [lifetimeCredits({ includedUsage: 100 })],
-	});
+test.concurrent(
+	`${chalk.yellowBright("migrations update_items interval: subscription one-off to monthly uses subscription cycle")}`,
+	async () => {
+		const customerId = "migration-update-items-one-off-to-month-sub";
+		const pro = products.pro({
+			id: "migration-update-items-one-off-to-month-sub-plan",
+			items: [lifetimeCredits({ includedUsage: 100 })],
+		});
 
-	const { autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [
-			s.billing.attach({ productId: pro.id }),
-			s.advanceTestClock({ days: 10 }),
-			s.track({ featureId: TestFeature.Credits, value: 40, timeout: 2000 }),
-		],
-	});
-	const before = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	const currentPeriodEnd = before.subscriptions.find(
-		(subscription) => subscription.plan_id === pro.id,
-	)?.current_period_end;
-	expect(currentPeriodEnd).not.toBeNull();
+		const { autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [
+				s.billing.attach({ productId: pro.id }),
+				s.advanceTestClock({ days: 10 }),
+				s.track({ featureId: TestFeature.Credits, value: 40, timeout: 2000 }),
+			],
+		});
+		const before = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		const currentPeriodEnd = before.subscriptions.find(
+			(subscription) => subscription.plan_id === pro.id,
+		)?.current_period_end;
+		expect(currentPeriodEnd).not.toBeNull();
 
-	await runUpdatePlanMigration({
-		ctx,
-		migrationClient: autumnV2_2,
-		migrationId: `${customerId}-mig`,
-		customerId,
-		filter: { customer: { plan: { plan_id: pro.id } } },
-		operations: {
-			customer: [
-				{
-					type: "update_plan",
-					plan_filter: { plan_id: pro.id },
-					customize: {
-						update_items: [
+		await runUpdatePlanMigration({
+			ctx,
+			migrationClient: autumnV2_2,
+			migrationId: `${customerId}-mig`,
+			customerId,
+			filter: { customer: { plan: { plan_id: pro.id } } },
+			operations: {
+				customer: [
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: pro.id },
+						customize: {
+							update_items: [
+								{
+									filter: { feature_id: TestFeature.Credits },
+									included: 150,
+									interval: ResetInterval.Month,
+								},
+							],
+						},
+					},
+				],
+			},
+			runOnServer: false,
+			noBillingChanges: true,
+		});
+
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Credits,
+			remaining: 110,
+			usage: 40,
+			nextResetAt: currentPeriodEnd!,
+			planId: pro.id,
+			breakdown: {
+				[ResetInterval.Month]: {
+					included_grant: 150,
+					remaining: 110,
+					usage: 40,
+				},
+			},
+		});
+	},
+);
+
+test.concurrent(
+	`${chalk.yellowBright("migrations update_items interval: monthly paid item interval changes are rejected")}`,
+	async () => {
+		const customerId = "migration-update-items-monthly-paid-rejected";
+		const base = products.base({
+			id: "migration-update-items-monthly-paid-rejected-plan",
+			items: [
+				items.prepaid({
+					featureId: TestFeature.Credits,
+					includedUsage: 100,
+					billingUnits: 100,
+					price: 10,
+				}),
+				items.consumableMessages({ includedUsage: 50, price: 0.1 }),
+			],
+		});
+
+		const { autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [base] }),
+			],
+			actions: [s.billing.attach({ productId: base.id })],
+		});
+
+		const cases = [
+			{
+				name: "prepaid",
+				filter: {
+					feature_id: TestFeature.Credits,
+					billing_method: BillingMethod.Prepaid,
+				},
+			},
+			{
+				name: "usage-based",
+				filter: {
+					feature_id: TestFeature.Messages,
+					billing_method: BillingMethod.UsageBased,
+				},
+			},
+		];
+
+		for (const testCase of cases) {
+			await expect(
+				runUpdatePlanMigration({
+					ctx,
+					migrationClient: autumnV2_2,
+					migrationId: `${customerId}-${testCase.name}-mig`,
+					customerId,
+					filter: { customer: { plan: { plan_id: base.id } } },
+					operations: {
+						customer: [
 							{
-								filter: { feature_id: TestFeature.Credits },
-								included: 150,
-								interval: ResetInterval.Month,
+								type: "update_plan",
+								plan_filter: { plan_id: base.id },
+								customize: {
+									update_items: [
+										{
+											filter: testCase.filter,
+											interval: ResetInterval.OneOff,
+										},
+									],
+								},
 							},
 						],
 					},
-				},
+					runOnServer: false,
+				}),
+			).rejects.toThrow(/paid items/i);
+		}
+	},
+);
+
+test.concurrent(
+	`${chalk.yellowBright("migrations update_items interval: one-off prepaid interval changes are rejected")}`,
+	async () => {
+		const customerId = "migration-update-items-one-off-prepaid-rejected";
+		const oneOffPrepaid = constructPrepaidItem({
+			featureId: TestFeature.Credits,
+			includedUsage: 100,
+			billingUnits: 100,
+			price: 10,
+			isOneOff: true,
+		});
+		const base = products.base({
+			id: "migration-update-items-one-off-prepaid-rejected-plan",
+			items: [oneOffPrepaid],
+		});
+
+		const { autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [base] }),
 			],
-		},
-		runOnServer: false,
-		noBillingChanges: true,
-	});
+			actions: [s.billing.attach({ productId: base.id })],
+		});
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Credits,
-		remaining: 110,
-		usage: 40,
-		nextResetAt: currentPeriodEnd!,
-		planId: pro.id,
-		breakdown: {
-			[ResetInterval.Month]: {
-				included_grant: 150,
-				remaining: 110,
-				usage: 40,
-			},
-		},
-	});
-});
-
-test.concurrent(`${chalk.yellowBright("migrations update_items interval: monthly paid item interval changes are rejected")}`, async () => {
-	const customerId = "migration-update-items-monthly-paid-rejected";
-	const base = products.base({
-		id: "migration-update-items-monthly-paid-rejected-plan",
-		items: [
-			items.prepaid({
-				featureId: TestFeature.Credits,
-				includedUsage: 100,
-				billingUnits: 100,
-				price: 10,
-			}),
-			items.consumableMessages({ includedUsage: 50, price: 0.1 }),
-		],
-	});
-
-	const { autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [base] }),
-		],
-		actions: [s.billing.attach({ productId: base.id })],
-	});
-
-	const cases = [
-		{
-			name: "prepaid",
-			filter: {
-				feature_id: TestFeature.Credits,
-				billing_method: BillingMethod.Prepaid,
-			},
-		},
-		{
-			name: "usage-based",
-			filter: {
-				feature_id: TestFeature.Messages,
-				billing_method: BillingMethod.UsageBased,
-			},
-		},
-	];
-
-	for (const testCase of cases) {
 		await expect(
 			runUpdatePlanMigration({
 				ctx,
 				migrationClient: autumnV2_2,
-				migrationId: `${customerId}-${testCase.name}-mig`,
+				migrationId: `${customerId}-mig`,
 				customerId,
 				filter: { customer: { plan: { plan_id: base.id } } },
 				operations: {
@@ -141,8 +201,11 @@ test.concurrent(`${chalk.yellowBright("migrations update_items interval: monthly
 							customize: {
 								update_items: [
 									{
-										filter: testCase.filter,
-										interval: ResetInterval.OneOff,
+										filter: {
+											feature_id: TestFeature.Credits,
+											billing_method: BillingMethod.Prepaid,
+										},
+										interval: ResetInterval.Month,
 									},
 								],
 							},
@@ -152,59 +215,5 @@ test.concurrent(`${chalk.yellowBright("migrations update_items interval: monthly
 				runOnServer: false,
 			}),
 		).rejects.toThrow(/paid items/i);
-	}
-});
-
-test.concurrent(`${chalk.yellowBright("migrations update_items interval: one-off prepaid interval changes are rejected")}`, async () => {
-	const customerId = "migration-update-items-one-off-prepaid-rejected";
-	const oneOffPrepaid = constructPrepaidItem({
-		featureId: TestFeature.Credits,
-		includedUsage: 100,
-		billingUnits: 100,
-		price: 10,
-		isOneOff: true,
-	});
-	const base = products.base({
-		id: "migration-update-items-one-off-prepaid-rejected-plan",
-		items: [oneOffPrepaid],
-	});
-
-	const { autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [base] }),
-		],
-		actions: [s.billing.attach({ productId: base.id })],
-	});
-
-	await expect(
-		runUpdatePlanMigration({
-			ctx,
-			migrationClient: autumnV2_2,
-			migrationId: `${customerId}-mig`,
-			customerId,
-			filter: { customer: { plan: { plan_id: base.id } } },
-			operations: {
-				customer: [
-					{
-						type: "update_plan",
-						plan_filter: { plan_id: base.id },
-						customize: {
-							update_items: [
-								{
-									filter: {
-										feature_id: TestFeature.Credits,
-										billing_method: BillingMethod.Prepaid,
-									},
-									interval: ResetInterval.Month,
-								},
-							],
-						},
-					},
-				],
-			},
-			runOnServer: false,
-		}),
-	).rejects.toThrow(/paid items/i);
-});
+	},
+);

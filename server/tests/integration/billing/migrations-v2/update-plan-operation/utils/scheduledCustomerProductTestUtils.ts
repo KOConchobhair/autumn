@@ -210,6 +210,8 @@ export const expectNoCustomerProductRow = async ({
 		.from(customerProducts)
 		.where(eq(customerProducts.id, customerProductId));
 	if (rows.length !== 0) {
-		throw new Error(`Expected customer product ${customerProductId} to be deleted`);
+		throw new Error(
+			`Expected customer product ${customerProductId} to be deleted`,
+		);
 	}
 };

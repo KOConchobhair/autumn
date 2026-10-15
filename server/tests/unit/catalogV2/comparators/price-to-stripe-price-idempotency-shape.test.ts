@@ -304,7 +304,9 @@ describe("priceToStripePriceIdempotencyShape", () => {
 
 		test("allocated_billing_behavior", () => {
 			expectShapeSame(
-				usage({ allocated_billing_behavior: AllocatedBillingBehavior.Prorated }),
+				usage({
+					allocated_billing_behavior: AllocatedBillingBehavior.Prorated,
+				}),
 				usage({ allocated_billing_behavior: AllocatedBillingBehavior.Arrear }),
 				false,
 			);

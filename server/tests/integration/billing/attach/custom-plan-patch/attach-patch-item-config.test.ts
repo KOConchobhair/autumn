@@ -28,174 +28,191 @@ import { products } from "@tests/utils/fixtures/products";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
 
-test.concurrent(`${chalk.yellowBright("attach patch config: customize included credits via remove/add")}`, async () => {
-	const customerId = "attach-patch-config-credits";
+test.concurrent(
+	`${chalk.yellowBright("attach patch config: customize included credits via remove/add")}`,
+	async () => {
+		const customerId = "attach-patch-config-credits";
 
-	const scale = products.base({
-		id: "scale",
-		items: [
-			items.monthlyPrice({ price: 20 }),
-			items.monthlyCredits({ includedUsage: 100 }),
-		],
-	});
-
-	const { autumnV2_2 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [scale] }),
-		],
-		actions: [],
-	});
-
-	const attachParams: AttachParamsV1Input = {
-		customer_id: customerId,
-		plan_id: scale.id,
-		customize: {
-			remove_items: [{ feature_id: TestFeature.Credits }],
-			add_items: [
-				{
-					feature_id: TestFeature.Credits,
-					included: 500,
-					reset: { interval: ResetInterval.Month },
-				},
+		const scale = products.base({
+			id: "scale",
+			items: [
+				items.monthlyPrice({ price: 20 }),
+				items.monthlyCredits({ includedUsage: 100 }),
 			],
-		},
-	};
+		});
 
-	// Included amount change only — base price unchanged.
-	const preview =
-		await autumnV2_2.billing.previewAttach<AttachParamsV1Input>(attachParams);
-	expect(preview.total).toBe(20);
+		const { autumnV2_2 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [scale] }),
+			],
+			actions: [],
+		});
 
-	await autumnV2_2.billing.attach<AttachParamsV1Input>(attachParams);
+		const attachParams: AttachParamsV1Input = {
+			customer_id: customerId,
+			plan_id: scale.id,
+			customize: {
+				remove_items: [{ feature_id: TestFeature.Credits }],
+				add_items: [
+					{
+						feature_id: TestFeature.Credits,
+						included: 500,
+						reset: { interval: ResetInterval.Month },
+					},
+				],
+			},
+		};
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectProductActive({ customer, productId: scale.id });
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Credits,
-		remaining: 500,
-		usage: 0,
-		planId: scale.id,
-	});
-});
+		// Included amount change only — base price unchanged.
+		const preview =
+			await autumnV2_2.billing.previewAttach<AttachParamsV1Input>(attachParams);
+		expect(preview.total).toBe(20);
 
-test.concurrent(`${chalk.yellowBright("attach patch config: customize price/tiers via remove/add")}`, async () => {
-	const customerId = "attach-patch-config-tiers";
+		await autumnV2_2.billing.attach<AttachParamsV1Input>(attachParams);
 
-	const scale = products.base({
-		id: "scale",
-		items: [
-			items.monthlyPrice({ price: 20 }),
-			items.prepaidMessages({ includedUsage: 0, billingUnits: 100, price: 10 }),
-		],
-	});
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectProductActive({ customer, productId: scale.id });
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Credits,
+			remaining: 500,
+			usage: 0,
+			planId: scale.id,
+		});
+	},
+);
 
-	const { autumnV2_2 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [scale] }),
-		],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("attach patch config: customize price/tiers via remove/add")}`,
+	async () => {
+		const customerId = "attach-patch-config-tiers";
 
-	// Replace the flat $10/100 prepaid with a graduated tiered price.
-	const attachParams: AttachParamsV1Input = {
-		customer_id: customerId,
-		plan_id: scale.id,
-		customize: {
-			remove_items: [{ feature_id: TestFeature.Messages }],
-			add_items: [
-				itemsV2.tieredPrepaidMessages({
-					included: 0,
+		const scale = products.base({
+			id: "scale",
+			items: [
+				items.monthlyPrice({ price: 20 }),
+				items.prepaidMessages({
+					includedUsage: 0,
 					billingUnits: 100,
-					tiers: [
-						{ to: 300, amount: 6 },
-						{ to: TierInfinite, amount: 3 },
-					],
+					price: 10,
 				}),
 			],
-		},
-		feature_quantities: [{ feature_id: TestFeature.Messages, quantity: 500 }],
-	};
+		});
 
-	// 5 packs of 100: 3 packs @ $6 ($18) + 2 packs @ $3 ($6) = $24, + $20 base = $44.
-	const preview =
-		await autumnV2_2.billing.previewAttach<AttachParamsV1Input>(attachParams);
-	expect(preview.total).toBe(44);
-
-	await autumnV2_2.billing.attach<AttachParamsV1Input>(attachParams);
-
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectProductActive({ customer, productId: scale.id });
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 500,
-		usage: 0,
-		planId: scale.id,
-	});
-});
-
-test.concurrent(`${chalk.yellowBright("attach patch config: customize billing behavior via remove/add")}`, async () => {
-	const customerId = "attach-patch-config-billing-behavior";
-
-	// Original item is prepaid (must buy packs upfront).
-	const scale = products.base({
-		id: "scale",
-		items: [
-			items.monthlyPrice({ price: 20 }),
-			items.prepaidMessages({ includedUsage: 0, billingUnits: 100, price: 10 }),
-		],
-	});
-
-	const { autumnV2_2 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [scale] }),
-		],
-		actions: [],
-	});
-
-	// Swap prepaid -> usage-based with included: no upfront pack charge.
-	const attachParams: AttachParamsV1Input = {
-		customer_id: customerId,
-		plan_id: scale.id,
-		customize: {
-			remove_items: [{ feature_id: TestFeature.Messages }],
-			add_items: [
-				{
-					feature_id: TestFeature.Messages,
-					included: 100,
-					price: {
-						amount: 0.1,
-						interval: BillingInterval.Month,
-						billing_method: BillingMethod.UsageBased,
-						billing_units: 1,
-					},
-				},
+		const { autumnV2_2 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [scale] }),
 			],
-		},
-	};
+			actions: [],
+		});
 
-	// Usage-based -> only the base price is charged now (billing behavior changed).
-	const preview =
-		await autumnV2_2.billing.previewAttach<AttachParamsV1Input>(attachParams);
-	expect(preview.total).toBe(20);
+		// Replace the flat $10/100 prepaid with a graduated tiered price.
+		const attachParams: AttachParamsV1Input = {
+			customer_id: customerId,
+			plan_id: scale.id,
+			customize: {
+				remove_items: [{ feature_id: TestFeature.Messages }],
+				add_items: [
+					itemsV2.tieredPrepaidMessages({
+						included: 0,
+						billingUnits: 100,
+						tiers: [
+							{ to: 300, amount: 6 },
+							{ to: TierInfinite, amount: 3 },
+						],
+					}),
+				],
+			},
+			feature_quantities: [{ feature_id: TestFeature.Messages, quantity: 500 }],
+		};
 
-	await autumnV2_2.billing.attach<AttachParamsV1Input>(attachParams);
+		// 5 packs of 100: 3 packs @ $6 ($18) + 2 packs @ $3 ($6) = $24, + $20 base = $44.
+		const preview =
+			await autumnV2_2.billing.previewAttach<AttachParamsV1Input>(attachParams);
+		expect(preview.total).toBe(44);
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectProductActive({ customer, productId: scale.id });
-	await expectCustomerProducts({ customer, active: [scale.id] });
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 100,
-		usage: 0,
-		planId: scale.id,
-	});
-});
+		await autumnV2_2.billing.attach<AttachParamsV1Input>(attachParams);
+
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectProductActive({ customer, productId: scale.id });
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 500,
+			usage: 0,
+			planId: scale.id,
+		});
+	},
+);
+
+test.concurrent(
+	`${chalk.yellowBright("attach patch config: customize billing behavior via remove/add")}`,
+	async () => {
+		const customerId = "attach-patch-config-billing-behavior";
+
+		// Original item is prepaid (must buy packs upfront).
+		const scale = products.base({
+			id: "scale",
+			items: [
+				items.monthlyPrice({ price: 20 }),
+				items.prepaidMessages({
+					includedUsage: 0,
+					billingUnits: 100,
+					price: 10,
+				}),
+			],
+		});
+
+		const { autumnV2_2 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [scale] }),
+			],
+			actions: [],
+		});
+
+		// Swap prepaid -> usage-based with included: no upfront pack charge.
+		const attachParams: AttachParamsV1Input = {
+			customer_id: customerId,
+			plan_id: scale.id,
+			customize: {
+				remove_items: [{ feature_id: TestFeature.Messages }],
+				add_items: [
+					{
+						feature_id: TestFeature.Messages,
+						included: 100,
+						price: {
+							amount: 0.1,
+							interval: BillingInterval.Month,
+							billing_method: BillingMethod.UsageBased,
+							billing_units: 1,
+						},
+					},
+				],
+			},
+		};
+
+		// Usage-based -> only the base price is charged now (billing behavior changed).
+		const preview =
+			await autumnV2_2.billing.previewAttach<AttachParamsV1Input>(attachParams);
+		expect(preview.total).toBe(20);
+
+		await autumnV2_2.billing.attach<AttachParamsV1Input>(attachParams);
+
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectProductActive({ customer, productId: scale.id });
+		await expectCustomerProducts({ customer, active: [scale.id] });
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 100,
+			usage: 0,
+			planId: scale.id,
+		});
+	},
+);

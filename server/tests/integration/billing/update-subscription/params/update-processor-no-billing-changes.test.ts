@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import {
-	findActiveCustomerProductById,
 	CusProductStatus,
+	findActiveCustomerProductById,
 	type UpdateSubscriptionV1ParamsInput,
 } from "@autumn/shared";
 import { expectCustomerProducts } from "@tests/integration/billing/utils/expectCustomerProductCorrect";

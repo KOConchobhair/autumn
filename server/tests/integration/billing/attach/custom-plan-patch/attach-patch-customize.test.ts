@@ -14,10 +14,7 @@
  */
 
 import { expect, test } from "bun:test";
-import {
-	type ApiCustomerV5,
-	type AttachParamsV1Input,
-} from "@autumn/shared";
+import type { ApiCustomerV5, AttachParamsV1Input } from "@autumn/shared";
 import {
 	expectCustomerProducts,
 	expectProductActive,
@@ -32,79 +29,82 @@ import { WEBHOOK_SETTLE_TIMEOUT_MS } from "@tests/utils/pollableCustomerExpect";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
 
-test.concurrent(`${chalk.yellowBright("attach patch customize: add_items/remove_items keep base items")}`, async () => {
-	const customerId = "attach-patch-customize-basic";
+test.concurrent(
+	`${chalk.yellowBright("attach patch customize: add_items/remove_items keep base items")}`,
+	async () => {
+		const customerId = "attach-patch-customize-basic";
 
-	// Mirrors the reported payload: base price + several feature items, a boolean
-	// flag to remove, and a prepaid item whose quantity comes from feature_quantities.
-	const scale = products.base({
-		id: "scale",
-		items: [
-			items.monthlyPrice({ price: 500 }),
-			items.monthlyMessages({ includedUsage: 100 }), // retained canary
-			items.adminRights(), // boolean flag to remove
-			items.prepaidUsers({ billingUnits: 1 }), // quantity via feature_quantities
-		],
-	});
+		// Mirrors the reported payload: base price + several feature items, a boolean
+		// flag to remove, and a prepaid item whose quantity comes from feature_quantities.
+		const scale = products.base({
+			id: "scale",
+			items: [
+				items.monthlyPrice({ price: 500 }),
+				items.monthlyMessages({ includedUsage: 100 }), // retained canary
+				items.adminRights(), // boolean flag to remove
+				items.prepaidUsers({ billingUnits: 1 }), // quantity via feature_quantities
+			],
+		});
 
-	const { autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [scale] }),
-		],
-		actions: [],
-	});
+		const { autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [scale] }),
+			],
+			actions: [],
+		});
 
-	const result = await autumnV2_2.billing.attach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: scale.id,
-		customize: {
-			add_items: [itemsV2.dashboard()],
-			remove_items: [{ feature_id: TestFeature.AdminRights }],
-		},
-		invoice_mode: { enabled: true, finalize: false },
-		feature_quantities: [{ feature_id: TestFeature.Users, quantity: 3 }],
-		enable_plan_immediately: true,
-	});
+		const result = await autumnV2_2.billing.attach<AttachParamsV1Input>({
+			customer_id: customerId,
+			plan_id: scale.id,
+			customize: {
+				add_items: [itemsV2.dashboard()],
+				remove_items: [{ feature_id: TestFeature.AdminRights }],
+			},
+			invoice_mode: { enabled: true, finalize: false },
+			feature_quantities: [{ feature_id: TestFeature.Users, quantity: 3 }],
+			enable_plan_immediately: true,
+		});
 
-	// Draft invoice keeps the plan pending; finalizing it activates the plan before payment.
-	await ctx.stripeCli.invoices.finalizeInvoice(result.invoice!.stripe_id);
-	await expectCustomerProducts({
-		autumn: autumnV2_2,
-		customerId,
-		settleTimeoutMs: WEBHOOK_SETTLE_TIMEOUT_MS,
-		active: [scale.id],
-	});
+		// Draft invoice keeps the plan pending; finalizing it activates the plan before payment.
+		await ctx.stripeCli.invoices.finalizeInvoice(result.invoice!.stripe_id);
+		await expectCustomerProducts({
+			autumn: autumnV2_2,
+			customerId,
+			settleTimeoutMs: WEBHOOK_SETTLE_TIMEOUT_MS,
+			active: [scale.id],
+		});
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectProductActive({ customer, productId: scale.id });
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectProductActive({ customer, productId: scale.id });
 
-	// Base feature item retained (the bug dropped this entirely).
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 100,
-		usage: 0,
-		planId: scale.id,
-	});
+		// Base feature item retained (the bug dropped this entirely).
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 100,
+			usage: 0,
+			planId: scale.id,
+		});
 
-	// add_items applied.
-	expectFlagCorrect({
-		customer,
-		featureId: TestFeature.Dashboard,
-		planId: scale.id,
-	});
+		// add_items applied.
+		expectFlagCorrect({
+			customer,
+			featureId: TestFeature.Dashboard,
+			planId: scale.id,
+		});
 
-	// remove_items applied.
-	expect(customer.flags?.[TestFeature.AdminRights]).toBeUndefined();
+		// remove_items applied.
+		expect(customer.flags?.[TestFeature.AdminRights]).toBeUndefined();
 
-	// feature_quantities applied to the prepaid item.
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Users,
-		remaining: 3,
-		usage: 0,
-		planId: scale.id,
-	});
-});
+		// feature_quantities applied to the prepaid item.
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Users,
+			remaining: 3,
+			usage: 0,
+			planId: scale.id,
+		});
+	},
+);

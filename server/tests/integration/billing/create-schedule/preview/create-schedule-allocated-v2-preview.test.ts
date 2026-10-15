@@ -6,9 +6,9 @@ import type {
 	AttachPreviewResponse,
 	CreateScheduleParamsV0Input,
 } from "@autumn/shared";
-import { expectInvoiceLineItemsCorrect } from "@tests/integration/billing/utils/expectInvoiceLineItemsCorrect";
 import { expectCustomerInvoiceCorrect } from "@tests/integration/billing/utils/expectCustomerInvoiceCorrect";
 import { expectCustomerProducts } from "@tests/integration/billing/utils/expectCustomerProductCorrect";
+import { expectInvoiceLineItemsCorrect } from "@tests/integration/billing/utils/expectInvoiceLineItemsCorrect";
 import { expectBalanceCorrect } from "@tests/integration/utils/expectBalanceCorrect";
 import { TestFeature } from "@tests/setup/v2Features";
 import { items } from "@tests/utils/fixtures/items";
@@ -30,7 +30,13 @@ const previewCreateSchedule = async ({
 }): Promise<AttachPreviewResponse> =>
 	await autumnV2_3.post("/billing.preview_create_schedule", params);
 
-const getActivePeriodEnd = ({ customer, planId }: { customer: ApiCustomerV5; planId: string }) => {
+const getActivePeriodEnd = ({
+	customer,
+	planId,
+}: {
+	customer: ApiCustomerV5;
+	planId: string;
+}) => {
 	const transitionAt = customer.subscriptions.find(
 		(subscription) => subscription.plan_id === planId,
 	)?.current_period_end;

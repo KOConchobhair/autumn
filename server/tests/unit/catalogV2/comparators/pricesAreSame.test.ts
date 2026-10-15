@@ -274,19 +274,47 @@ describe("pricesAreSame", () => {
 
 	describe("usage config — billing_units (unset means 1)", () => {
 		test("equal values same; different values differ", () => {
-			expectSame(usage({ billing_units: 100 }), usage({ billing_units: 100 }), true);
-			expectSame(usage({ billing_units: 1 }), usage({ billing_units: 100 }), false);
+			expectSame(
+				usage({ billing_units: 100 }),
+				usage({ billing_units: 100 }),
+				true,
+			);
+			expectSame(
+				usage({ billing_units: 1 }),
+				usage({ billing_units: 100 }),
+				false,
+			);
 		});
 
 		test("null, undefined, and 1 are all equivalent", () => {
-			expectSame(usage({ billing_units: null }), usage({ billing_units: undefined }), true);
-			expectSame(usage({ billing_units: null }), usage({ billing_units: 1 }), true);
-			expectSame(usage({ billing_units: undefined }), usage({ billing_units: 1 }), true);
+			expectSame(
+				usage({ billing_units: null }),
+				usage({ billing_units: undefined }),
+				true,
+			);
+			expectSame(
+				usage({ billing_units: null }),
+				usage({ billing_units: 1 }),
+				true,
+			);
+			expectSame(
+				usage({ billing_units: undefined }),
+				usage({ billing_units: 1 }),
+				true,
+			);
 		});
 
 		test("unset vs a non-default value differ", () => {
-			expectSame(usage({ billing_units: null }), usage({ billing_units: 100 }), false);
-			expectSame(usage({ billing_units: undefined }), usage({ billing_units: 100 }), false);
+			expectSame(
+				usage({ billing_units: null }),
+				usage({ billing_units: 100 }),
+				false,
+			);
+			expectSame(
+				usage({ billing_units: undefined }),
+				usage({ billing_units: 100 }),
+				false,
+			);
 		});
 	});
 
@@ -310,13 +338,21 @@ describe("pricesAreSame", () => {
 				usage({ interval_count: 2 }),
 				false,
 			);
-			expectSame(usage({ interval_count: 1 }), usage({ interval_count: 3 }), false);
+			expectSame(
+				usage({ interval_count: 1 }),
+				usage({ interval_count: 3 }),
+				false,
+			);
 		});
 	});
 
 	describe("usage config — feature ids (both compared, strict)", () => {
 		test("feature_id differs", () => {
-			expectSame(usage({ feature_id: "messages" }), usage({ feature_id: "seats" }), false);
+			expectSame(
+				usage({ feature_id: "messages" }),
+				usage({ feature_id: "seats" }),
+				false,
+			);
 		});
 
 		test("internal_feature_id differs even when feature_id matches", () => {
@@ -335,7 +371,11 @@ describe("pricesAreSame", () => {
 		];
 
 		test("identical tiers are same", () => {
-			expectSame(usage({ usage_tiers: twoTiers }), usage({ usage_tiers: [...twoTiers] }), true);
+			expectSame(
+				usage({ usage_tiers: twoTiers }),
+				usage({ usage_tiers: [...twoTiers] }),
+				true,
+			);
 		});
 
 		test("tier count differs", () => {
@@ -392,18 +432,26 @@ describe("pricesAreSame", () => {
 
 		test("flat_amount unset equals 0", () => {
 			expectSame(
-				usage({ usage_tiers: [{ to: TierInfinite, amount: 1, flat_amount: 0 }] }),
+				usage({
+					usage_tiers: [{ to: TierInfinite, amount: 1, flat_amount: 0 }],
+				}),
 				usage({ usage_tiers: [{ to: TierInfinite, amount: 1 }] }),
 				true,
 			);
 			expectSame(
-				usage({ usage_tiers: [{ to: TierInfinite, amount: 1, flat_amount: 5 }] }),
+				usage({
+					usage_tiers: [{ to: TierInfinite, amount: 1, flat_amount: 5 }],
+				}),
 				usage({ usage_tiers: [{ to: TierInfinite, amount: 1 }] }),
 				false,
 			);
 			expectSame(
-				usage({ usage_tiers: [{ to: TierInfinite, amount: 1, flat_amount: 5 }] }),
-				usage({ usage_tiers: [{ to: TierInfinite, amount: 1, flat_amount: 6 }] }),
+				usage({
+					usage_tiers: [{ to: TierInfinite, amount: 1, flat_amount: 5 }],
+				}),
+				usage({
+					usage_tiers: [{ to: TierInfinite, amount: 1, flat_amount: 6 }],
+				}),
 				false,
 			);
 		});
@@ -411,7 +459,11 @@ describe("pricesAreSame", () => {
 
 	describe("currencies map", () => {
 		test("nullish maps and empty maps are all equivalent", () => {
-			expectSame(usage({ currencies: null }), usage({ currencies: undefined }), true);
+			expectSame(
+				usage({ currencies: null }),
+				usage({ currencies: undefined }),
+				true,
+			);
 			expectSame(usage({ currencies: null }), usage({ currencies: {} }), true);
 		});
 
@@ -657,17 +709,12 @@ describe("tiersAreSame (direct)", () => {
 	});
 
 	test("length mismatch differs", () => {
-		expect(
-			tiersAreSame([{ to: TierInfinite, amount: 1 }], []),
-		).toBe(false);
+		expect(tiersAreSame([{ to: TierInfinite, amount: 1 }], [])).toBe(false);
 	});
 
 	test("single tier: `to` ignored, amount compared", () => {
 		expect(
-			tiersAreSame(
-				[{ to: TierInfinite, amount: 1 }],
-				[{ to: -1, amount: 1 }],
-			),
+			tiersAreSame([{ to: TierInfinite, amount: 1 }], [{ to: -1, amount: 1 }]),
 		).toBe(true);
 		expect(
 			tiersAreSame(

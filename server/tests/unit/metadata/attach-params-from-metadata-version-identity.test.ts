@@ -14,7 +14,11 @@ import { attachParamsFromMetadataData } from "@/internal/metadata/utils/attachPa
 import { backfillProductVersionIdentityInTree } from "@/internal/products/productUtils/backfillProductVersionIdentity.js";
 
 const staleProduct = ({ version = 1 }: { version?: number } = {}) => {
-	const { version_slug: _slug, active: _active, ...rest } = products.create({
+	const {
+		version_slug: _slug,
+		active: _active,
+		...rest
+	} = products.create({
 		id: "credit",
 	});
 	return { ...rest, version };
@@ -41,7 +45,9 @@ describe("attachParamsFromMetadataData — version identity backfill", () => {
 		expect(parsed.version_slug).toBeNull();
 		expect(parsed.active).toBe(false);
 
-		const lineItem = LineItemSchema.safeParse(lineItemWithStaleProduct(product));
+		const lineItem = LineItemSchema.safeParse(
+			lineItemWithStaleProduct(product),
+		);
 		expect(lineItem.success).toBe(true);
 		if (lineItem.success) {
 			expect(lineItem.data.context.product.version_slug).toBeNull();
@@ -76,9 +82,8 @@ describe("attachParamsFromMetadataData — version identity backfill", () => {
 			ProductSchema.parse(attachParams.cusProduct?.product).version_slug,
 		).toBe("v3");
 		expect(
-			ProductSchema.parse(
-				attachParams.customer.customer_products[0].product,
-			).version_slug,
+			ProductSchema.parse(attachParams.customer.customer_products[0].product)
+				.version_slug,
 		).toBe("v2");
 	});
 
@@ -93,7 +98,10 @@ describe("attachParamsFromMetadataData — version identity backfill", () => {
 	});
 
 	test("passes through explicit null version_slug (only undefined is filled)", () => {
-		const product = { ...products.create({ id: "credit" }), version_slug: null };
+		const product = {
+			...products.create({ id: "credit" }),
+			version_slug: null,
+		};
 		const attachParams = attachParamsFromMetadataData({
 			data: { products: [product], cusProducts: [] },
 		});
@@ -105,9 +113,7 @@ describe("attachParamsFromMetadataData — version identity backfill", () => {
 		const data = {
 			billingContext: { fullProducts: [staleProduct({ version: 5 })] },
 			insertCustomerProducts: [{ product: staleProduct({ version: 2 }) }],
-			lineItems: [
-				lineItemWithStaleProduct(staleProduct({ version: 4 })),
-			],
+			lineItems: [lineItemWithStaleProduct(staleProduct({ version: 4 }))],
 		};
 
 		backfillProductVersionIdentityInTree({ value: data });

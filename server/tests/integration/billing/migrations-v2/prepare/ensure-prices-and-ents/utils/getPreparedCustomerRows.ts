@@ -6,8 +6,8 @@ import {
 	entitlements,
 	prices,
 } from "@autumn/shared";
-import type { AutumnContext } from "@/honoUtils/HonoEnv.js";
 import { and, eq, inArray } from "drizzle-orm";
+import type { AutumnContext } from "@/honoUtils/HonoEnv.js";
 
 export const getPreparedCustomerRows = async ({
 	ctx,

@@ -2,11 +2,6 @@
  * Adding an add-on should link it without mutating existing variant usage. */
 
 import { test } from "bun:test";
-import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
-import { TestFeature } from "@tests/setup/v2Features";
-import { items } from "@tests/utils/fixtures/items";
-import { products } from "@tests/utils/fixtures/products";
-import chalk from "chalk";
 import {
 	createCustomBasePriceForProduct,
 	createExternalStripeSubscription,
@@ -21,6 +16,11 @@ import {
 	trackCustomerUsage,
 	waitForCustomerProducts,
 } from "@tests/integration/billing/stripe-webhooks/utils/sharedStripeProductAutoSyncUtils";
+import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
+import { TestFeature } from "@tests/setup/v2Features";
+import { items } from "@tests/utils/fixtures/items";
+import { products } from "@tests/utils/fixtures/products";
+import chalk from "chalk";
 
 test(`${chalk.yellowBright("customer.subscription.updated auto-sync: adding add-on keeps existing variant usage")}`, async () => {
 	const customerId = "sub-updated-shared-addon-add";
@@ -43,9 +43,7 @@ test(`${chalk.yellowBright("customer.subscription.updated auto-sync: adding add-
 				baseAmount: 20,
 				featureId: TestFeature.Messages,
 				baseIncluded: 25_000,
-				variants: [
-					{ id: groupAVariantId, amount: 35, included: 150_000 },
-				],
+				variants: [{ id: groupAVariantId, amount: 35, included: 150_000 }],
 			},
 		],
 	});
@@ -67,10 +65,7 @@ test(`${chalk.yellowBright("customer.subscription.updated auto-sync: adding add-
 	const createdSubscription = await createExternalStripeSubscription({
 		ctx,
 		customerId,
-		items: [
-			{ price: groupAPrice.id },
-			{ price: wrongGroupAUsagePrice.id },
-		],
+		items: [{ price: groupAPrice.id }, { price: wrongGroupAUsagePrice.id }],
 	});
 	expectStripeSubscriptionCreated({ subscription: createdSubscription });
 

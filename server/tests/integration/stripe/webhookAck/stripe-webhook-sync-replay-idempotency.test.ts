@@ -162,13 +162,7 @@ const workerCtx = ({ orgId }: { orgId: string }) =>
 		logger: { info: () => {}, error: () => {}, warn: () => {} },
 	}) as unknown as AutumnContext;
 
-const replay = ({
-	orgId,
-	event,
-}: {
-	orgId: string;
-	event: Stripe.Event;
-}) =>
+const replay = ({ orgId, event }: { orgId: string; event: Stripe.Event }) =>
 	runStripeWebhookReplay({
 		ctx: workerCtx({ orgId }),
 		payload: {

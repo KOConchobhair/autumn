@@ -173,7 +173,9 @@ test.concurrent(
 		});
 
 		expect(bAfter.customerStripePriceId).toBeTruthy();
-		expect(bAfter.customerStripePriceId).not.toBe(bBefore.customerStripePriceId);
+		expect(bAfter.customerStripePriceId).not.toBe(
+			bBefore.customerStripePriceId,
+		);
 		expect([
 			aBefore.customerStripePriceId,
 			aAfter.catalogStripePriceId,

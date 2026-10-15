@@ -11,7 +11,11 @@
  */
 
 import { expect, test } from "bun:test";
-import { BillingInterval, type DiffedCustomizePlanV1, ResetInterval } from "@autumn/shared";
+import {
+	BillingInterval,
+	type DiffedCustomizePlanV1,
+	ResetInterval,
+} from "@autumn/shared";
 import { buildMigrationDraft } from "@/internal/catalogV2/actions/buildMigrationDraft/buildMigrationDraft.js";
 import type { MigrationTarget } from "@/internal/catalogV2/actions/buildMigrationDraft/types.js";
 

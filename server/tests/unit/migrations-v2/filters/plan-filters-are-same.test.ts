@@ -4,11 +4,11 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import type { PlanFilter } from "@autumn/shared/api/migrations/filters/planFilter.js";
 import {
 	collectPlanFilterPlanIds,
 	planFiltersAreSame,
 } from "@autumn/shared/api/products/utils/compare/planFiltersAreSame.js";
-import type { PlanFilter } from "@autumn/shared/api/migrations/filters/planFilter.js";
 
 const same = (left: PlanFilter, right: PlanFilter) =>
 	planFiltersAreSame({ left, right });

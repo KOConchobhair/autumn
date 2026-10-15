@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { runWithTransientDbRetry } from "@/internal/migrations/v2/batchOperations/execute/utils/runWithTransientDbRetry.js";
 
-const connectionDropped = () =>
-	new Error("Connection terminated unexpectedly");
+const connectionDropped = () => new Error("Connection terminated unexpectedly");
 
 describe("runWithTransientDbRetry", () => {
 	test("returns the first success without retrying", async () => {

@@ -1,20 +1,20 @@
-import { type ApiPlanV1 } from "@autumn/shared";
 import { describe, expect, test } from "bun:test";
-import { diffPlanV1 } from "@autumn/shared/utils/planV1Utils/diff/diffPlanV1.js";
+import type { ApiPlanV1 } from "@autumn/shared";
 import { applyDiff } from "@autumn/shared/utils/planV1Utils/diff/applyDiff.js";
+import { diffPlanV1 } from "@autumn/shared/utils/planV1Utils/diff/diffPlanV1.js";
 import {
 	creditPackBase,
 	creditPackVariants,
+	freeStarterBase,
+	freeStarterVariants,
+	maxBase,
+	maxVariants,
 	plusBase,
 	plusVariants,
 	proBase,
 	proVariants,
 	unlimitedBase,
 	unlimitedVariants,
-	freeStarterBase,
-	freeStarterVariants,
-	maxBase,
-	maxVariants,
 } from "./diffPlanV1.runable.fixtures.js";
 import { normalizePlan } from "./utils/normalizePlan.js";
 
@@ -24,7 +24,11 @@ const groups = [
 	{ name: "plus", base: plusBase, variants: plusVariants },
 	{ name: "pro", base: proBase, variants: proVariants },
 	{ name: "unlimited", base: unlimitedBase, variants: unlimitedVariants },
-	{ name: "free_starter", base: freeStarterBase, variants: freeStarterVariants },
+	{
+		name: "free_starter",
+		base: freeStarterBase,
+		variants: freeStarterVariants,
+	},
 	{ name: "max", base: maxBase, variants: maxVariants },
 ];
 

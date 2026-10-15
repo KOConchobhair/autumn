@@ -69,109 +69,116 @@ const makeProProd = () =>
 // Final: lifetime=93, monthly(pro)=80. Total=173.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.concurrent(`${chalk.yellowBright("lock-pg-edge PG-EC-1: lock crosses monthly→lifetime, upgrade mid-flight, confirm with refund — postgres path, monthly(pro) untouched, lifetime refunded")}`, async () => {
-	const addonProd = makeAddonProd();
-	const freeProd = makeFreeProd();
-	const proProd = makeProProd();
-	const customerId = "lock-pg-edge-1";
-	const lockKey = `${customerId}-lock`;
+test.concurrent(
+	`${chalk.yellowBright("lock-pg-edge PG-EC-1: lock crosses monthly→lifetime, upgrade mid-flight, confirm with refund — postgres path, monthly(pro) untouched, lifetime refunded")}`,
+	async () => {
+		const addonProd = makeAddonProd();
+		const freeProd = makeFreeProd();
+		const proProd = makeProProd();
+		const customerId = "lock-pg-edge-1";
+		const lockKey = `${customerId}-lock`;
 
-	const { autumnV2_1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false }),
-			s.products({ list: [addonProd, freeProd, proProd] }),
-		],
-		actions: [
-			// Attach addon first (lifetime bucket), then free (monthly bucket)
-			s.attach({ productId: addonProd.id }),
-			s.attach({ productId: freeProd.id }),
-		],
-	});
+		const { autumnV2_1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [addonProd, freeProd, proProd] }),
+			],
+			actions: [
+				// Attach addon first (lifetime bucket), then free (monthly bucket)
+				s.attach({ productId: addonProd.id }),
+				s.attach({ productId: freeProd.id }),
+			],
+		});
 
-	await deleteLock({ ctx, lockId: lockKey });
+		await deleteLock({ ctx, lockId: lockKey });
 
-	// Check lock=60: exhausts monthly(free)=50, then deducts 10 from lifetime.
-	// Receipt: [monthly(free):50, lifetime:10]
-	await autumnV2_1.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		required_balance: 60,
-		lock: { enabled: true, lock_id: lockKey },
-		skip_cache: true,
-	});
+		// Check lock=60: exhausts monthly(free)=50, then deducts 10 from lifetime.
+		// Receipt: [monthly(free):50, lifetime:10]
+		await autumnV2_1.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			required_balance: 60,
+			lock: { enabled: true, lock_id: lockKey },
+			skip_cache: true,
+		});
 
-	// Verify state after check: total=90 (lifetime=90, monthly=0)
-	const afterCheck = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer: afterCheck,
-		featureId: TestFeature.Messages,
-		remaining: 90,
-	});
+		// Verify state after check: total=90 (lifetime=90, monthly=0)
+		const afterCheck =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer: afterCheck,
+			featureId: TestFeature.Messages,
+			remaining: 90,
+		});
 
-	// Upgrade: free→pro. New monthly entitlement (80) replaces old monthly (0).
-	// Lifetime addon is unaffected. Lock receipt still references old monthly ID.
-	await autumnV2_1.attach({
-		customer_id: customerId,
-		product_id: proProd.id,
-	});
+		// Upgrade: free→pro. New monthly entitlement (80) replaces old monthly (0).
+		// Lifetime addon is unaffected. Lock receipt still references old monthly ID.
+		await autumnV2_1.attach({
+			customer_id: customerId,
+			product_id: proProd.id,
+		});
 
-	// Verify state after upgrade: lifetime=90, monthly(pro)=80. Total=170.
-	const afterUpgrade =
-		await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer: afterUpgrade,
-		featureId: TestFeature.Messages,
-		remaining: 170,
-	});
+		// Verify state after upgrade: lifetime=90, monthly(pro)=80. Total=170.
+		const afterUpgrade =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer: afterUpgrade,
+			featureId: TestFeature.Messages,
+			remaining: 170,
+		});
 
-	// Confirm override=57 → delta = 57-60 = -3.
-	// LIFO: restore 3 to lifetime (last bucket touched). lifetime=90→93.
-	// monthly(pro) not in receipt → stays at 80.
-	await autumnV2_1.balances.finalize(
-		{
-			lock_id: lockKey,
-			action: "confirm",
-			override_value: 57,
-		},
-		{
-			skipCache: true,
-		},
-	);
+		// Confirm override=57 → delta = 57-60 = -3.
+		// LIFO: restore 3 to lifetime (last bucket touched). lifetime=90→93.
+		// monthly(pro) not in receipt → stays at 80.
+		await autumnV2_1.balances.finalize(
+			{
+				lock_id: lockKey,
+				action: "confirm",
+				override_value: 57,
+			},
+			{
+				skipCache: true,
+			},
+		);
 
-	const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 173,
-		breakdown: {
-			[ResetInterval.Month]: { remaining: 80, usage: 0 },
-			[ResetInterval.OneOff]: { remaining: 93, usage: 7 },
-		},
-	});
+		const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 173,
+			breakdown: {
+				[ResetInterval.Month]: { remaining: 80, usage: 0 },
+				[ResetInterval.OneOff]: { remaining: 93, usage: 7 },
+			},
+		});
 
-	// Events newest-first: finalize(-3), check(60).
-	// The upgrade does not emit message events (free product, no billing).
-	await expectCustomerEventsCorrect({
-		customerId,
-		events: [{ value: -3 }, { value: 60 }],
-	});
+		// Events newest-first: finalize(-3), check(60).
+		// The upgrade does not emit message events (free product, no billing).
+		await expectCustomerEventsCorrect({
+			customerId,
+			events: [{ value: -3 }, { value: 60 }],
+		});
 
-	await timeout(3000);
+		await timeout(3000);
 
-	const customerDb = await autumnV2_1.customers.get<ApiCustomerV5>(customerId, {
-		skip_cache: "true",
-	});
-	expectBalanceCorrect({
-		customer: customerDb,
-		featureId: TestFeature.Messages,
-		remaining: 173,
-		breakdown: {
-			[ResetInterval.Month]: { remaining: 80, usage: 0 },
-			[ResetInterval.OneOff]: { remaining: 93, usage: 7 },
-		},
-	});
-});
+		const customerDb = await autumnV2_1.customers.get<ApiCustomerV5>(
+			customerId,
+			{
+				skip_cache: "true",
+			},
+		);
+		expectBalanceCorrect({
+			customer: customerDb,
+			featureId: TestFeature.Messages,
+			remaining: 173,
+			breakdown: {
+				[ResetInterval.Month]: { remaining: 80, usage: 0 },
+				[ResetInterval.OneOff]: { remaining: 93, usage: 7 },
+			},
+		});
+	},
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PG-EC-2: lock=60 (crosses monthly→lifetime), upgrade free→pro, confirm=63 (delta=+3)
@@ -181,107 +188,114 @@ test.concurrent(`${chalk.yellowBright("lock-pg-edge PG-EC-1: lock crosses monthl
 // Final: lifetime=90, monthly(pro)=77. Total=167.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.concurrent(`${chalk.yellowBright("lock-pg-edge PG-EC-2: lock crosses monthly→lifetime, upgrade mid-flight, confirm with extra deduction — postgres path, monthly deducted")}`, async () => {
-	const addonProd = makeAddonProd();
-	const freeProd = makeFreeProd();
-	const proProd = makeProProd();
-	const customerId = "lock-pg-edge-2";
-	const lockKey = `${customerId}-lock`;
+test.concurrent(
+	`${chalk.yellowBright("lock-pg-edge PG-EC-2: lock crosses monthly→lifetime, upgrade mid-flight, confirm with extra deduction — postgres path, monthly deducted")}`,
+	async () => {
+		const addonProd = makeAddonProd();
+		const freeProd = makeFreeProd();
+		const proProd = makeProProd();
+		const customerId = "lock-pg-edge-2";
+		const lockKey = `${customerId}-lock`;
 
-	const { autumnV2_1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false }),
-			s.products({ list: [addonProd, freeProd, proProd] }),
-		],
-		actions: [
-			s.attach({ productId: addonProd.id }),
-			s.attach({ productId: freeProd.id }),
-		],
-	});
+		const { autumnV2_1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [addonProd, freeProd, proProd] }),
+			],
+			actions: [
+				s.attach({ productId: addonProd.id }),
+				s.attach({ productId: freeProd.id }),
+			],
+		});
 
-	await deleteLock({ ctx, lockId: lockKey });
+		await deleteLock({ ctx, lockId: lockKey });
 
-	// Check lock=60: exhausts monthly(free)=50, deducts 10 from lifetime.
-	// Receipt: [monthly(free):50, lifetime:10]
-	await autumnV2_1.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		required_balance: 60,
-		lock: { enabled: true, lock_id: lockKey },
-		skip_cache: true,
-	});
+		// Check lock=60: exhausts monthly(free)=50, deducts 10 from lifetime.
+		// Receipt: [monthly(free):50, lifetime:10]
+		await autumnV2_1.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			required_balance: 60,
+			lock: { enabled: true, lock_id: lockKey },
+			skip_cache: true,
+		});
 
-	// Verify state after check: total=90
-	const afterCheck = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer: afterCheck,
-		featureId: TestFeature.Messages,
-		remaining: 90,
-	});
+		// Verify state after check: total=90
+		const afterCheck =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer: afterCheck,
+			featureId: TestFeature.Messages,
+			remaining: 90,
+		});
 
-	// Upgrade free→pro. New monthly(pro)=80 added. Lifetime addon unaffected.
-	await autumnV2_1.attach({
-		customer_id: customerId,
-		product_id: proProd.id,
-	});
+		// Upgrade free→pro. New monthly(pro)=80 added. Lifetime addon unaffected.
+		await autumnV2_1.attach({
+			customer_id: customerId,
+			product_id: proProd.id,
+		});
 
-	// Verify state after upgrade: lifetime=90, monthly(pro)=80. Total=170.
-	const afterUpgrade =
-		await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer: afterUpgrade,
-		featureId: TestFeature.Messages,
-		remaining: 170,
-	});
+		// Verify state after upgrade: lifetime=90, monthly(pro)=80. Total=170.
+		const afterUpgrade =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer: afterUpgrade,
+			featureId: TestFeature.Messages,
+			remaining: 170,
+		});
 
-	// Confirm override=63 → delta = 63-60 = +3.
-	// Continue deducting from lifetime (last bucket in receipt). lifetime=90→87.
-	// monthly(pro) not in receipt → stays at 80.
-	await autumnV2_1.balances.finalize(
-		{
-			lock_id: lockKey,
-			action: "confirm",
-			override_value: 63,
-		},
-		{
-			skipCache: true,
-		},
-	);
+		// Confirm override=63 → delta = 63-60 = +3.
+		// Continue deducting from lifetime (last bucket in receipt). lifetime=90→87.
+		// monthly(pro) not in receipt → stays at 80.
+		await autumnV2_1.balances.finalize(
+			{
+				lock_id: lockKey,
+				action: "confirm",
+				override_value: 63,
+			},
+			{
+				skipCache: true,
+			},
+		);
 
-	const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 167,
-		breakdown: {
-			[ResetInterval.Month]: { remaining: 77, usage: 3 },
-			[ResetInterval.OneOff]: { remaining: 90, usage: 10 },
-		},
-	});
+		const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 167,
+			breakdown: {
+				[ResetInterval.Month]: { remaining: 77, usage: 3 },
+				[ResetInterval.OneOff]: { remaining: 90, usage: 10 },
+			},
+		});
 
-	// Events newest-first: finalize(+3), check(60).
-	// The upgrade does not emit message events (free product, no billing).
-	await expectCustomerEventsCorrect({
-		customerId,
-		events: [{ value: 3 }, { value: 60 }],
-	});
+		// Events newest-first: finalize(+3), check(60).
+		// The upgrade does not emit message events (free product, no billing).
+		await expectCustomerEventsCorrect({
+			customerId,
+			events: [{ value: 3 }, { value: 60 }],
+		});
 
-	await timeout(3000);
+		await timeout(3000);
 
-	const customerDb = await autumnV2_1.customers.get<ApiCustomerV5>(customerId, {
-		skip_cache: "true",
-	});
-	expectBalanceCorrect({
-		customer: customerDb,
-		featureId: TestFeature.Messages,
-		remaining: 167,
-		breakdown: {
-			[ResetInterval.Month]: { remaining: 77, usage: 3 },
-			[ResetInterval.OneOff]: { remaining: 90, usage: 10 },
-		},
-	});
-});
+		const customerDb = await autumnV2_1.customers.get<ApiCustomerV5>(
+			customerId,
+			{
+				skip_cache: "true",
+			},
+		);
+		expectBalanceCorrect({
+			customer: customerDb,
+			featureId: TestFeature.Messages,
+			remaining: 167,
+			breakdown: {
+				[ResetInterval.Month]: { remaining: 77, usage: 3 },
+				[ResetInterval.OneOff]: { remaining: 90, usage: 10 },
+			},
+		});
+	},
+);
 // ─────────────────────────────────────────────────────────────────────────────
 // EC-3: lock on free-only product, upgrade to pro, track on pro, confirm with
 // refund — skipped unwind redirects refund onto current (pro) entitlement.
@@ -300,100 +314,107 @@ test.concurrent(`${chalk.yellowBright("lock-pg-edge PG-EC-2: lock crosses monthl
 // Final: monthly(pro)=70. Total=70.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.concurrent(`${chalk.yellowBright("lock-pg-edge PG-EC-3: lock on free, upgrade to pro, track, confirm refund — postgres path, skipped unwind redirects onto pro entitlement")}`, async () => {
-	const freeProd = makeFreeProd();
-	const proProd = makeProProd();
-	const customerId = "lock-pg-edge-3";
-	const lockKey = `${customerId}-lock`;
+test.concurrent(
+	`${chalk.yellowBright("lock-pg-edge PG-EC-3: lock on free, upgrade to pro, track, confirm refund — postgres path, skipped unwind redirects onto pro entitlement")}`,
+	async () => {
+		const freeProd = makeFreeProd();
+		const proProd = makeProProd();
+		const customerId = "lock-pg-edge-3";
+		const lockKey = `${customerId}-lock`;
 
-	const { autumnV2_1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false }),
-			s.products({ list: [freeProd, proProd] }),
-		],
-		actions: [s.attach({ productId: freeProd.id })],
-	});
+		const { autumnV2_1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [freeProd, proProd] }),
+			],
+			actions: [s.attach({ productId: freeProd.id })],
+		});
 
-	await deleteLock({ ctx, lockId: lockKey });
+		await deleteLock({ ctx, lockId: lockKey });
 
-	// check lock=40: deducts all 40 from monthly(free)=50→10.
-	// Receipt: [monthly(free):40]
-	await autumnV2_1.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		required_balance: 40,
-		lock: { enabled: true, lock_id: lockKey },
-		skip_cache: true,
-	});
+		// check lock=40: deducts all 40 from monthly(free)=50→10.
+		// Receipt: [monthly(free):40]
+		await autumnV2_1.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			required_balance: 40,
+			lock: { enabled: true, lock_id: lockKey },
+			skip_cache: true,
+		});
 
-	const afterCheck = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer: afterCheck,
-		featureId: TestFeature.Messages,
-		remaining: 10,
-	});
+		const afterCheck =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer: afterCheck,
+			featureId: TestFeature.Messages,
+			remaining: 10,
+		});
 
-	// Upgrade free→pro. monthly(free) entitlement replaced by monthly(pro)=80.
-	// Lock receipt still references the now-gone monthly(free) ID.
-	await autumnV2_1.attach({
-		customer_id: customerId,
-		product_id: proProd.id,
-	});
+		// Upgrade free→pro. monthly(free) entitlement replaced by monthly(pro)=80.
+		// Lock receipt still references the now-gone monthly(free) ID.
+		await autumnV2_1.attach({
+			customer_id: customerId,
+			product_id: proProd.id,
+		});
 
-	const afterUpgrade =
-		await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer: afterUpgrade,
-		featureId: TestFeature.Messages,
-		remaining: 80,
-	});
+		const afterUpgrade =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer: afterUpgrade,
+			featureId: TestFeature.Messages,
+			remaining: 80,
+		});
 
-	// Track 20 on pro to consume some balance, giving room for the refund.
-	// monthly(pro)=80→60.
-	await autumnV2_1.track({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		value: 20,
-	});
+		// Track 20 on pro to consume some balance, giving room for the refund.
+		// monthly(pro)=80→60.
+		await autumnV2_1.track({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			value: 20,
+		});
 
-	await timeout(4000);
+		await timeout(4000);
 
-	// confirm override=30 → delta = 30-40 = -10 → unwind 10.
-	// LIFO: monthly(free) not found → skip, remaining_signed_unwind_value=-10.
-	// effective_additional = 0 + (-10) = -10 → refund 10 onto monthly(pro)=60→70.
-	await autumnV2_1.balances.finalize(
-		{
-			lock_id: lockKey,
-			action: "confirm",
-			override_value: 30,
-		},
-		{
-			skipCache: true,
-		},
-	);
+		// confirm override=30 → delta = 30-40 = -10 → unwind 10.
+		// LIFO: monthly(free) not found → skip, remaining_signed_unwind_value=-10.
+		// effective_additional = 0 + (-10) = -10 → refund 10 onto monthly(pro)=60→70.
+		await autumnV2_1.balances.finalize(
+			{
+				lock_id: lockKey,
+				action: "confirm",
+				override_value: 30,
+			},
+			{
+				skipCache: true,
+			},
+		);
 
-	const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 70,
-	});
+		const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 70,
+		});
 
-	// Events newest-first: finalize(-10), track(20), check(40)
-	await expectCustomerEventsCorrect({
-		customerId,
-		events: [{ value: -10 }, { value: 20 }, { value: 40 }],
-	});
+		// Events newest-first: finalize(-10), track(20), check(40)
+		await expectCustomerEventsCorrect({
+			customerId,
+			events: [{ value: -10 }, { value: 20 }, { value: 40 }],
+		});
 
-	await timeout(3000);
+		await timeout(3000);
 
-	const customerDb = await autumnV2_1.customers.get<ApiCustomerV5>(customerId, {
-		skip_cache: "true",
-	});
-	expectBalanceCorrect({
-		customer: customerDb,
-		featureId: TestFeature.Messages,
-		remaining: 70,
-	});
-});
+		const customerDb = await autumnV2_1.customers.get<ApiCustomerV5>(
+			customerId,
+			{
+				skip_cache: "true",
+			},
+		);
+		expectBalanceCorrect({
+			customer: customerDb,
+			featureId: TestFeature.Messages,
+			remaining: 70,
+		});
+	},
+);

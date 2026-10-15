@@ -191,7 +191,8 @@ test(
 		const automationsItem = subscription.items.data.find(
 			(item) => item.price.id === nativeAutomationsPrice.id,
 		);
-		if (!automationsItem) throw new Error("Automations subscription item not found");
+		if (!automationsItem)
+			throw new Error("Automations subscription item not found");
 
 		await ctx.stripeCli.subscriptions.update(subscription.id, {
 			items: [{ id: automationsItem.id, deleted: true }],
@@ -311,7 +312,10 @@ test(
 		});
 
 		// ── Contract: exactly one Automations instance total ──
-		const fullCustomer = await CusService.getFull({ ctx, idOrInternalId: customerId });
+		const fullCustomer = await CusService.getFull({
+			ctx,
+			idOrInternalId: customerId,
+		});
 		expect(
 			fullCustomer.customer_products.filter(
 				(cp) => cp.product_id === automationsId,

@@ -10,7 +10,10 @@ import {
 import { Decimal } from "decimal.js";
 import { notNullish, nullish } from "@/utils/genUtils.js";
 
-type CustomerLike = ApiCustomerV3 | ApiEntityV0 | { features?: Record<string, any> };
+type CustomerLike =
+	| ApiCustomerV3
+	| ApiEntityV0
+	| { features?: Record<string, any> };
 
 export const expectFeaturesCorrect = ({
 	customer,

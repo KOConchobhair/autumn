@@ -5,13 +5,11 @@
 
 import { expect, test } from "bun:test";
 import {
-	getAllStripePriceIds,
-} from "@tests/integration/billing/sync/utils/syncTestUtils.js";
-import {
-	type FlashClient,
 	callFlash,
+	type FlashClient,
 	getFlashedCustomerProduct,
 } from "@tests/integration/billing/dfu/billing-import/utils/flashTestUtils.js";
+import { getAllStripePriceIds } from "@tests/integration/billing/sync/utils/syncTestUtils.js";
 import { items } from "@tests/utils/fixtures/items.js";
 import { products } from "@tests/utils/fixtures/products.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";

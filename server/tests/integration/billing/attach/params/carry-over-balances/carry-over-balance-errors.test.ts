@@ -23,42 +23,45 @@ import chalk from "chalk";
 // Expected: InvalidRequest — boolean features have no consumable balance
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("carry-over-balance-errors 1: boolean feature in feature_ids returns InvalidRequest")}`, async () => {
-	const proItems = [
-		items.monthlyMessages({ includedUsage: 100 }),
-		items.dashboard(),
-	];
-	const premiumItems = [
-		items.monthlyMessages({ includedUsage: 500 }),
-		items.dashboard(),
-	];
+test.concurrent(
+	`${chalk.yellowBright("carry-over-balance-errors 1: boolean feature in feature_ids returns InvalidRequest")}`,
+	async () => {
+		const proItems = [
+			items.monthlyMessages({ includedUsage: 100 }),
+			items.dashboard(),
+		];
+		const premiumItems = [
+			items.monthlyMessages({ includedUsage: 500 }),
+			items.dashboard(),
+		];
 
-	const pro = products.pro({ id: "pro", items: proItems });
-	const premium = products.premium({ id: "premium", items: premiumItems });
+		const pro = products.pro({ id: "pro", items: proItems });
+		const premium = products.premium({ id: "premium", items: premiumItems });
 
-	const { customerId, autumnV2_1 } = await initScenario({
-		customerId: "carry-over-err-boolean",
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [s.attach({ productId: pro.id, timeout: 4000 })],
-	});
+		const { customerId, autumnV2_1 } = await initScenario({
+			customerId: "carry-over-err-boolean",
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [s.attach({ productId: pro.id, timeout: 4000 })],
+		});
 
-	await expectAutumnError({
-		errCode: ErrCode.InvalidRequest,
-		func: async () => {
-			await autumnV2_1.billing.attach({
-				customer_id: customerId,
-				plan_id: premium.id,
-				carry_over_balances: {
-					enabled: true,
-					feature_ids: [TestFeature.Dashboard],
-				},
-			});
-		},
-	});
-});
+		await expectAutumnError({
+			errCode: ErrCode.InvalidRequest,
+			func: async () => {
+				await autumnV2_1.billing.attach({
+					customer_id: customerId,
+					plan_id: premium.id,
+					carry_over_balances: {
+						enabled: true,
+						feature_ids: [TestFeature.Dashboard],
+					},
+				});
+			},
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Allocated feature in feature_ids → error
@@ -68,39 +71,42 @@ test.concurrent(`${chalk.yellowBright("carry-over-balance-errors 1: boolean feat
 // Expected: InvalidRequest — allocated features have no consumable balance
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("carry-over-balance-errors 2: allocated feature in feature_ids returns InvalidRequest")}`, async () => {
-	const proItems = [
-		items.monthlyMessages({ includedUsage: 100 }),
-		items.allocatedUsers({ includedUsage: 5 }),
-	];
-	const premiumItems = [
-		items.monthlyMessages({ includedUsage: 500 }),
-		items.allocatedUsers({ includedUsage: 10 }),
-	];
+test.concurrent(
+	`${chalk.yellowBright("carry-over-balance-errors 2: allocated feature in feature_ids returns InvalidRequest")}`,
+	async () => {
+		const proItems = [
+			items.monthlyMessages({ includedUsage: 100 }),
+			items.allocatedUsers({ includedUsage: 5 }),
+		];
+		const premiumItems = [
+			items.monthlyMessages({ includedUsage: 500 }),
+			items.allocatedUsers({ includedUsage: 10 }),
+		];
 
-	const pro = products.pro({ id: "pro", items: proItems });
-	const premium = products.premium({ id: "premium", items: premiumItems });
+		const pro = products.pro({ id: "pro", items: proItems });
+		const premium = products.premium({ id: "premium", items: premiumItems });
 
-	const { customerId, autumnV2_1 } = await initScenario({
-		customerId: "carry-over-err-allocated",
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [s.attach({ productId: pro.id, timeout: 4000 })],
-	});
+		const { customerId, autumnV2_1 } = await initScenario({
+			customerId: "carry-over-err-allocated",
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [s.attach({ productId: pro.id, timeout: 4000 })],
+		});
 
-	await expectAutumnError({
-		errCode: ErrCode.InvalidRequest,
-		func: async () => {
-			await autumnV2_1.billing.attach({
-				customer_id: customerId,
-				plan_id: premium.id,
-				carry_over_balances: {
-					enabled: true,
-					feature_ids: [TestFeature.Users],
-				},
-			});
-		},
-	});
-});
+		await expectAutumnError({
+			errCode: ErrCode.InvalidRequest,
+			func: async () => {
+				await autumnV2_1.billing.attach({
+					customer_id: customerId,
+					plan_id: premium.id,
+					carry_over_balances: {
+						enabled: true,
+						feature_ids: [TestFeature.Users],
+					},
+				});
+			},
+		});
+	},
+);

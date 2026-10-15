@@ -5,9 +5,6 @@
  * Stripe-portal downgrade to another ungrouped plan with a custom price. */
 
 import { test } from "bun:test";
-import { items } from "@tests/utils/fixtures/items";
-import { products } from "@tests/utils/fixtures/products";
-import chalk from "chalk";
 import {
 	createCustomBasePriceForProduct,
 	createExternalStripeSubscription,
@@ -17,8 +14,11 @@ import {
 	updateBaseSubscriptionItemToVariant,
 	waitForCustomerProducts,
 } from "@tests/integration/billing/stripe-webhooks/utils/sharedStripeProductAutoSyncUtils";
+import { items } from "@tests/utils/fixtures/items";
+import { products } from "@tests/utils/fixtures/products";
 import testCtx from "@tests/utils/testInitUtils/createTestContext";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
+import chalk from "chalk";
 
 test(`${chalk.yellowBright("customer.subscription.updated auto-sync: ungrouped base plan downgrade with custom price")}`, async () => {
 	const customerId = "sub-updated-ungrouped-downgrade";

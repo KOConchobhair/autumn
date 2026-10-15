@@ -148,133 +148,136 @@ test.concurrent(`${chalk.yellowBright("update while canceling")}`, async () => {
  * - Scheduled Pro product should remain scheduled
  * - After advancing test clock, Pro should become active
  */
-test.concurrent(`${chalk.yellowBright("update while downgrading")}`, async () => {
-	const customerId = "upd-while-downgrading";
+test.concurrent(
+	`${chalk.yellowBright("update while downgrading")}`,
+	async () => {
+		const customerId = "upd-while-downgrading";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const consumableItem = items.consumableMessages({ includedUsage: 50 });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const consumableItem = items.consumableMessages({ includedUsage: 50 });
 
-	// Premium product ($50/mo)
-	const premium = constructProduct({
-		id: "premium",
-		items: [consumableItem],
-		type: "premium",
-		isDefault: false,
-	});
+		// Premium product ($50/mo)
+		const premium = constructProduct({
+			id: "premium",
+			items: [consumableItem],
+			type: "premium",
+			isDefault: false,
+		});
 
-	// Pro product ($20/mo)
-	const pro = products.pro({
-		id: "pro",
-		items: [messagesItem],
-	});
+		// Pro product ($20/mo)
+		const pro = products.pro({
+			id: "pro",
+			items: [messagesItem],
+		});
 
-	const { autumnV1, ctx, testClockId } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [premium, pro] }),
-		],
-		actions: [s.attach({ productId: "premium" })],
-	});
+		const { autumnV1, ctx, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [premium, pro] }),
+			],
+			actions: [s.attach({ productId: "premium" })],
+		});
 
-	// Verify premium is active
-	const customerAfterAttach =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({
-		customer: customerAfterAttach,
-		productId: premium.id,
-	});
+		// Verify premium is active
+		const customerAfterAttach =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({
+			customer: customerAfterAttach,
+			productId: premium.id,
+		});
 
-	// User downgrades from premium to pro (premium becomes canceling, pro is scheduled)
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		// User downgrades from premium to pro (premium becomes canceling, pro is scheduled)
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
 
-	// Verify premium is canceled and pro is scheduled
-	const customerAfterDowngrade =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductCanceling({
-		customer: customerAfterDowngrade,
-		productId: premium.id,
-	});
-	await expectProductScheduled({
-		customer: customerAfterDowngrade,
-		productId: pro.id,
-	});
+		// Verify premium is canceled and pro is scheduled
+		const customerAfterDowngrade =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductCanceling({
+			customer: customerAfterDowngrade,
+			productId: premium.id,
+		});
+		await expectProductScheduled({
+			customer: customerAfterDowngrade,
+			productId: pro.id,
+		});
 
-	// Now update the canceling premium's items (not the scheduled pro)
-	const updatedConsumableItem = items.consumableMessages({
-		includedUsage: 100,
-	}); // Increase from 50 to 100
-	const newPriceItem = items.monthlyPrice({ price: 60 }); // $60/mo instead of $50
+		// Now update the canceling premium's items (not the scheduled pro)
+		const updatedConsumableItem = items.consumableMessages({
+			includedUsage: 100,
+		}); // Increase from 50 to 100
+		const newPriceItem = items.monthlyPrice({ price: 60 }); // $60/mo instead of $50
 
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: premium.id,
-		items: [updatedConsumableItem, newPriceItem],
-	});
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: premium.id,
+			items: [updatedConsumableItem, newPriceItem],
+		});
 
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: premium.id,
-		items: [updatedConsumableItem, newPriceItem],
-	});
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: premium.id,
+			items: [updatedConsumableItem, newPriceItem],
+		});
 
-	// Verify state after update
-	const customerAfterUpdate =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify state after update
+		const customerAfterUpdate =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Premium product should remain canceling (with updated items)
-	await expectProductCanceling({
-		customer: customerAfterUpdate,
-		productId: premium.id,
-	});
+		// Premium product should remain canceling (with updated items)
+		await expectProductCanceling({
+			customer: customerAfterUpdate,
+			productId: premium.id,
+		});
 
-	// Scheduled pro product should remain scheduled
-	await expectProductScheduled({
-		customer: customerAfterUpdate,
-		productId: pro.id,
-	});
+		// Scheduled pro product should remain scheduled
+		await expectProductScheduled({
+			customer: customerAfterUpdate,
+			productId: pro.id,
+		});
 
-	// Verify Stripe subscription is correct (still set to cancel at period end)
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		subCount: 1,
-	});
+		// Verify Stripe subscription is correct (still set to cancel at period end)
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			subCount: 1,
+		});
 
-	// Verify invoices - should have initial premium attach + update
-	expectCustomerInvoiceCorrect({
-		customer: customerAfterUpdate,
-		count: 2,
-		latestTotal: preview.total,
-	});
+		// Verify invoices - should have initial premium attach + update
+		expectCustomerInvoiceCorrect({
+			customer: customerAfterUpdate,
+			count: 2,
+			latestTotal: preview.total,
+		});
 
-	// Advance to next billing cycle
-	await advanceToNextInvoice({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-	});
+		// Advance to next billing cycle
+		await advanceToNextInvoice({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+		});
 
-	// After advancing, pro should be active and premium should be gone
-	const customerAfterAdvance =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// After advancing, pro should be active and premium should be gone
+		const customerAfterAdvance =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Pro should now be active
-	await expectProductActive({
-		customer: customerAfterAdvance,
-		productId: pro.id,
-	});
+		// Pro should now be active
+		await expectProductActive({
+			customer: customerAfterAdvance,
+			productId: pro.id,
+		});
 
-	// Premium should no longer be present
-	await expectProductNotPresent({
-		customer: customerAfterAdvance,
-		productId: premium.id,
-	});
-});
+		// Premium should no longer be present
+		await expectProductNotPresent({
+			customer: customerAfterAdvance,
+			productId: premium.id,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: Update while canceling (preserves usage)
@@ -292,111 +295,114 @@ test.concurrent(`${chalk.yellowBright("update while downgrading")}`, async () =>
  * - Usage should be preserved
  * - Stripe subscription is correct (still set to cancel at period end)
  */
-test.concurrent(`${chalk.yellowBright("update while canceling: preserves usage")}`, async () => {
-	const customerId = "upd-while-cancel-usage";
+test.concurrent(
+	`${chalk.yellowBright("update while canceling: preserves usage")}`,
+	async () => {
+		const customerId = "upd-while-cancel-usage";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
 
-	// Free is the default product
-	const free = constructProduct({
-		id: "free",
-		items: [messagesItem],
-		type: "free",
-		isDefault: true,
-	});
+		// Free is the default product
+		const free = constructProduct({
+			id: "free",
+			items: [messagesItem],
+			type: "free",
+			isDefault: true,
+		});
 
-	const pro = products.pro({
-		id: "pro",
-		items: [messagesItem],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [messagesItem],
+		});
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, pro] }),
-		],
-		actions: [s.attach({ productId: "pro" })],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, pro] }),
+			],
+			actions: [s.attach({ productId: "pro" })],
+		});
 
-	// Track some usage
-	const messagesUsage = 50;
-	await autumnV1.track(
-		{
+		// Track some usage
+		const messagesUsage = 50;
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Messages,
+				value: messagesUsage,
+			},
+			{ timeout: 2000 },
+		);
+
+		// Verify usage tracked
+		const customerWithUsage =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expect(customerWithUsage.features[TestFeature.Messages].usage).toBe(
+			messagesUsage,
+		);
+
+		// Cancel pro → free scheduled
+		await autumnV1.cancel({
 			customer_id: customerId,
-			feature_id: TestFeature.Messages,
-			value: messagesUsage,
-		},
-		{ timeout: 2000 },
-	);
+			product_id: pro.id,
+		});
 
-	// Verify usage tracked
-	const customerWithUsage =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expect(customerWithUsage.features[TestFeature.Messages].usage).toBe(
-		messagesUsage,
-	);
+		// Verify pro is canceled and free is scheduled
+		const customerAfterCancel2 =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductCanceling({
+			customer: customerAfterCancel2,
+			productId: pro.id,
+		});
+		await expectProductScheduled({
+			customer: customerAfterCancel2,
+			productId: free.id,
+		});
 
-	// Cancel pro → free scheduled
-	await autumnV1.cancel({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		// Now update pro's items while it's canceling
+		const updatedMessagesItem = items.monthlyMessages({ includedUsage: 200 });
 
-	// Verify pro is canceled and free is scheduled
-	const customerAfterCancel2 =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductCanceling({
-		customer: customerAfterCancel2,
-		productId: pro.id,
-	});
-	await expectProductScheduled({
-		customer: customerAfterCancel2,
-		productId: free.id,
-	});
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: pro.id,
+			items: [updatedMessagesItem, items.monthlyPrice()],
+		});
 
-	// Now update pro's items while it's canceling
-	const updatedMessagesItem = items.monthlyMessages({ includedUsage: 200 });
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: pro.id,
+			items: [updatedMessagesItem, items.monthlyPrice()],
+		});
 
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: pro.id,
-		items: [updatedMessagesItem, items.monthlyPrice()],
-	});
+		// Verify state after update
+		const customerAfterUpdate2 =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: pro.id,
-		items: [updatedMessagesItem, items.monthlyPrice()],
-	});
+		// Pro should remain canceling (canceling state preserved)
+		await expectProductCanceling({
+			customer: customerAfterUpdate2,
+			productId: pro.id,
+		});
 
-	// Verify state after update
-	const customerAfterUpdate2 =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Scheduled free product should remain scheduled
+		await expectProductScheduled({
+			customer: customerAfterUpdate2,
+			productId: free.id,
+		});
 
-	// Pro should remain canceling (canceling state preserved)
-	await expectProductCanceling({
-		customer: customerAfterUpdate2,
-		productId: pro.id,
-	});
+		// Usage should be preserved
+		expect(customerAfterUpdate2.features[TestFeature.Messages].usage).toBe(
+			messagesUsage,
+		);
 
-	// Scheduled free product should remain scheduled
-	await expectProductScheduled({
-		customer: customerAfterUpdate2,
-		productId: free.id,
-	});
-
-	// Usage should be preserved
-	expect(customerAfterUpdate2.features[TestFeature.Messages].usage).toBe(
-		messagesUsage,
-	);
-
-	// Verify Stripe subscription is correct (still set to cancel at period end)
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		shouldBeCanceled: true,
-	});
-});
+		// Verify Stripe subscription is correct (still set to cancel at period end)
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			shouldBeCanceled: true,
+		});
+	},
+);

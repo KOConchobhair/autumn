@@ -38,56 +38,60 @@ import chalk from "chalk";
  * - Product NOT active until confirmation
  * - Complete confirmation → product active
  */
-test.concurrent(`${chalk.yellowBright("legacy-3ds 1: new subscription")}`, async () => {
-	const customerId = "legacy-3ds-new";
+test.concurrent(
+	`${chalk.yellowBright("legacy-3ds 1: new subscription")}`,
+	async () => {
+		const customerId = "legacy-3ds-new";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({
-		id: "pro",
-		items: [messagesItem],
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({
+			id: "pro",
+			items: [messagesItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "authenticate" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "authenticate" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	const res = await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		const res = await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
 
-	expect(res.checkout_url).toBeDefined();
+		expect(res.checkout_url).toBeDefined();
 
-	// Product should NOT be active yet
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expect(customerBefore.features?.[TestFeature.Messages]).toBeUndefined();
+		// Product should NOT be active yet
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expect(customerBefore.features?.[TestFeature.Messages]).toBeUndefined();
 
-	await completeInvoiceConfirmation({ url: res.checkout_url });
+		await completeInvoiceConfirmation({ url: res.checkout_url });
 
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({ customer: customerAfter as any, product: pro });
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({ customer: customerAfter as any, product: pro });
 
-	expectCustomerFeatureCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Messages,
-		includedUsage: 100,
-		balance: 100,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Messages,
+			includedUsage: 100,
+			balance: 100,
+			usage: 0,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Upgrade (pro → premium) - 3DS required
@@ -189,73 +193,77 @@ test.concurrent(`${chalk.yellowBright("legacy-3ds 2: upgrade")}`, async () => {
  * - Add-on NOT attached until confirmation
  * - Complete confirmation → both products attached, merged sub
  */
-test.concurrent(`${chalk.yellowBright("legacy-3ds 3: merged add-on")}`, async () => {
-	const customerId = "legacy-3ds-merged";
+test.concurrent(
+	`${chalk.yellowBright("legacy-3ds 3: merged add-on")}`,
+	async () => {
+		const customerId = "legacy-3ds-merged";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({
-		id: "pro",
-		items: [messagesItem],
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({
+			id: "pro",
+			items: [messagesItem],
+		});
 
-	const addOnMessagesItem = items.monthlyMessages({ includedUsage: 200 });
-	const addOnPriceItem = items.monthlyPrice({ price: 10 });
-	const addOn = products.base({
-		id: "monthly-addon",
-		isAddOn: true,
-		items: [addOnMessagesItem, addOnPriceItem],
-	});
+		const addOnMessagesItem = items.monthlyMessages({ includedUsage: 200 });
+		const addOnPriceItem = items.monthlyPrice({ price: 10 });
+		const addOn = products.base({
+			id: "monthly-addon",
+			isAddOn: true,
+			items: [addOnMessagesItem, addOnPriceItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, addOn] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.attachPaymentMethod({ type: "authenticate" }),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, addOn] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.attachPaymentMethod({ type: "authenticate" }),
+			],
+		});
 
-	const res = await autumnV1.attach({
-		customer_id: customerId,
-		product_id: addOn.id,
-	});
+		const res = await autumnV1.attach({
+			customer_id: customerId,
+			product_id: addOn.id,
+		});
 
-	expect(res.checkout_url).toBeDefined();
+		expect(res.checkout_url).toBeDefined();
 
-	// Pro still attached, add-on NOT attached
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({
-		customer: customerBefore as any,
-		product: pro,
-	});
-	expectProductNotAttached({
-		customer: customerBefore as any,
-		product: addOn,
-	});
+		// Pro still attached, add-on NOT attached
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({
+			customer: customerBefore as any,
+			product: pro,
+		});
+		expectProductNotAttached({
+			customer: customerBefore as any,
+			product: addOn,
+		});
 
-	await completeInvoiceConfirmation({ url: res.checkout_url });
+		await completeInvoiceConfirmation({ url: res.checkout_url });
 
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({
-		customer: customerAfter as any,
-		product: pro,
-	});
-	expectProductAttached({
-		customer: customerAfter as any,
-		product: addOn,
-	});
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({
+			customer: customerAfter as any,
+			product: pro,
+		});
+		expectProductAttached({
+			customer: customerAfter as any,
+			product: addOn,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 4: Update quantity (prepaid increase) - 3DS required
@@ -269,101 +277,106 @@ test.concurrent(`${chalk.yellowBright("legacy-3ds 3: merged add-on")}`, async ()
  * - Balance unchanged until confirmation
  * - Complete confirmation → balance updated
  */
-test.concurrent(`${chalk.yellowBright("legacy-3ds 4: update quantity")}`, async () => {
-	const customerId = "legacy-3ds-qty";
+test.concurrent(
+	`${chalk.yellowBright("legacy-3ds 4: update quantity")}`,
+	async () => {
+		const customerId = "legacy-3ds-qty";
 
-	const prepaidItem = items.prepaidMessages({
-		includedUsage: 100,
-		billingUnits: 100,
-		price: 10,
-		config: {
-			on_increase: OnIncrease.ProrateImmediately,
-		},
-	});
-	const pro = products.pro({
-		id: "pro",
-		items: [prepaidItem],
-	});
-
-	// V1 quantity excludes allowance: 300 units = 3 packs
-	const initialQuantityV1 = 300;
-	const initialTotalBalance = 100 + initialQuantityV1; // 400
-
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [
-			s.attach({
-				productId: pro.id,
-				options: [
-					{
-						feature_id: TestFeature.Messages,
-						quantity: initialQuantityV1,
-					},
-				],
-			}),
-			s.attachPaymentMethod({ type: "authenticate" }),
-		],
-	});
-
-	// Verify initial state
-	const customerInit = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectCustomerFeatureCorrect({
-		customer: customerInit,
-		featureId: TestFeature.Messages,
-		includedUsage: initialTotalBalance,
-		balance: initialTotalBalance,
-		usage: 0,
-	});
-
-	// Increase quantity to 500 (V1, excludes allowance)
-	const updatedQuantityV1 = 500;
-
-	const res = await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		options: [
-			{
-				feature_id: TestFeature.Messages,
-				quantity: updatedQuantityV1,
+		const prepaidItem = items.prepaidMessages({
+			includedUsage: 100,
+			billingUnits: 100,
+			price: 10,
+			config: {
+				on_increase: OnIncrease.ProrateImmediately,
 			},
-		],
-	});
+		});
+		const pro = products.pro({
+			id: "pro",
+			items: [prepaidItem],
+		});
 
-	expect(res.checkout_url).toBeDefined();
+		// V1 quantity excludes allowance: 300 units = 3 packs
+		const initialQuantityV1 = 300;
+		const initialTotalBalance = 100 + initialQuantityV1; // 400
 
-	// Balance should be unchanged
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectCustomerFeatureCorrect({
-		customer: customerBefore,
-		featureId: TestFeature.Messages,
-		includedUsage: initialTotalBalance,
-		balance: initialTotalBalance,
-		usage: 0,
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [
+				s.attach({
+					productId: pro.id,
+					options: [
+						{
+							feature_id: TestFeature.Messages,
+							quantity: initialQuantityV1,
+						},
+					],
+				}),
+				s.attachPaymentMethod({ type: "authenticate" }),
+			],
+		});
 
-	await completeInvoiceConfirmation({ url: res.checkout_url });
+		// Verify initial state
+		const customerInit =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerFeatureCorrect({
+			customer: customerInit,
+			featureId: TestFeature.Messages,
+			includedUsage: initialTotalBalance,
+			balance: initialTotalBalance,
+			usage: 0,
+		});
 
-	// After confirmation: new total = 100 (allowance) + 500 (prepaid) = 600
-	const updatedTotalBalance = 100 + updatedQuantityV1; // 600
+		// Increase quantity to 500 (V1, excludes allowance)
+		const updatedQuantityV1 = 500;
 
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectCustomerFeatureCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Messages,
-		includedUsage: updatedTotalBalance,
-		balance: updatedTotalBalance,
-		usage: 0,
-	});
+		const res = await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			options: [
+				{
+					feature_id: TestFeature.Messages,
+					quantity: updatedQuantityV1,
+				},
+			],
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		expect(res.checkout_url).toBeDefined();
+
+		// Balance should be unchanged
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerFeatureCorrect({
+			customer: customerBefore,
+			featureId: TestFeature.Messages,
+			includedUsage: initialTotalBalance,
+			balance: initialTotalBalance,
+			usage: 0,
+		});
+
+		await completeInvoiceConfirmation({ url: res.checkout_url });
+
+		// After confirmation: new total = 100 (allowance) + 500 (prepaid) = 600
+		const updatedTotalBalance = 100 + updatedQuantityV1; // 600
+
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerFeatureCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Messages,
+			includedUsage: updatedTotalBalance,
+			balance: updatedTotalBalance,
+			usage: 0,
+		});
+
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);

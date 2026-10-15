@@ -33,42 +33,45 @@ import chalk from "chalk";
  * - They represent things like seats/workflows that don't reset on billing cycles
  * - reset_after_trial_end would be meaningless for these features
  */
-test.concurrent(`${chalk.yellowBright("transition-config-errors 1: reset_after_trial_end on allocated feature (free)")}`, async () => {
-	const customerId = "trans-config-err-allocated-free";
+test.concurrent(
+	`${chalk.yellowBright("transition-config-errors 1: reset_after_trial_end on allocated feature (free)")}`,
+	async () => {
+		const customerId = "trans-config-err-allocated-free";
 
-	const pro = products.pro({
-		id: "pro-allocated-workflows",
-		items: [items.freeAllocatedWorkflows({ includedUsage: 5 })],
-	});
+		const pro = products.pro({
+			id: "pro-allocated-workflows",
+			items: [items.freeAllocatedWorkflows({ includedUsage: 5 })],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	// Attempt to attach with reset_after_trial_end on allocated feature should fail
-	await expectAutumnError({
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: pro.id,
-				options: [
-					{
-						feature_id: TestFeature.Workflows,
-						quantity: 5,
+		// Attempt to attach with reset_after_trial_end on allocated feature should fail
+		await expectAutumnError({
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: pro.id,
+					options: [
+						{
+							feature_id: TestFeature.Workflows,
+							quantity: 5,
+						},
+					],
+					transition_rules: {
+						reset_after_trial_end: [TestFeature.Workflows],
 					},
-				],
-				transition_rules: {
-					reset_after_trial_end: [TestFeature.Workflows],
-				},
-			});
-		},
-	});
-});
+				});
+			},
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: reset_after_trial_end on allocated feature (paid)
@@ -82,42 +85,45 @@ test.concurrent(`${chalk.yellowBright("transition-config-errors 1: reset_after_t
  * Expected Result:
  * - Error thrown: reset_after_trial_end is not supported for allocated features
  */
-test.concurrent(`${chalk.yellowBright("transition-config-errors 2: reset_after_trial_end on allocated feature (paid)")}`, async () => {
-	const customerId = "trans-config-err-allocated-paid";
+test.concurrent(
+	`${chalk.yellowBright("transition-config-errors 2: reset_after_trial_end on allocated feature (paid)")}`,
+	async () => {
+		const customerId = "trans-config-err-allocated-paid";
 
-	const pro = products.pro({
-		id: "pro-allocated-users",
-		items: [items.allocatedUsers({ includedUsage: 0 })],
-	});
+		const pro = products.pro({
+			id: "pro-allocated-users",
+			items: [items.allocatedUsers({ includedUsage: 0 })],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	// Attempt to attach with reset_after_trial_end on allocated feature should fail
-	await expectAutumnError({
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: pro.id,
-				options: [
-					{
-						feature_id: TestFeature.Users,
-						quantity: 5,
+		// Attempt to attach with reset_after_trial_end on allocated feature should fail
+		await expectAutumnError({
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: pro.id,
+					options: [
+						{
+							feature_id: TestFeature.Users,
+							quantity: 5,
+						},
+					],
+					transition_rules: {
+						reset_after_trial_end: [TestFeature.Users],
 					},
-				],
-				transition_rules: {
-					reset_after_trial_end: [TestFeature.Users],
-				},
-			});
-		},
-	});
-});
+				});
+			},
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: feature options for non-existent feature
@@ -131,39 +137,42 @@ test.concurrent(`${chalk.yellowBright("transition-config-errors 2: reset_after_t
  * Expected Result:
  * - Error thrown: feature_id in options doesn't match any feature on the product
  */
-test.concurrent(`${chalk.yellowBright("transition-config-errors 3: feature options for non-existent feature")}`, async () => {
-	const customerId = "trans-config-err-nonexistent-feature";
+test.concurrent(
+	`${chalk.yellowBright("transition-config-errors 3: feature options for non-existent feature")}`,
+	async () => {
+		const customerId = "trans-config-err-nonexistent-feature";
 
-	const pro = products.pro({
-		id: "pro-users-only",
-		items: [items.allocatedUsers({ includedUsage: 0 })],
-	});
+		const pro = products.pro({
+			id: "pro-users-only",
+			items: [items.allocatedUsers({ includedUsage: 0 })],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	// Attempt to attach with options for a feature that doesn't exist on the product
-	await expectAutumnError({
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: pro.id,
-				options: [
-					{
-						feature_id: "random-nonexistent-feature",
-						quantity: 5,
+		// Attempt to attach with options for a feature that doesn't exist on the product
+		await expectAutumnError({
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: pro.id,
+					options: [
+						{
+							feature_id: "random-nonexistent-feature",
+							quantity: 5,
+						},
+					],
+					transition_rules: {
+						reset_after_trial_end: ["random-nonexistent-feature"],
 					},
-				],
-				transition_rules: {
-					reset_after_trial_end: ["random-nonexistent-feature"],
-				},
-			});
-		},
-	});
-});
+				});
+			},
+		});
+	},
+);

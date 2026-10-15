@@ -91,7 +91,8 @@ test.concurrent(
 			plans: [
 				{
 					plan_id: pro.id,
-					versioning: "new_version", active: true,
+					versioning: "new_version",
+					active: true,
 					items: [monthlyMessagesItem(500)],
 				},
 			],
@@ -129,7 +130,8 @@ test.concurrent(
 			plans: [
 				{
 					plan_id: pro.id,
-					versioning: "new_version", active: true,
+					versioning: "new_version",
+					active: true,
 					items: [monthlyMessagesItem(500)],
 				},
 			],

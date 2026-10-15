@@ -2,22 +2,22 @@ import { describe, expect, test } from "bun:test";
 import {
 	AllowanceType,
 	AppEnv,
-	BillWhen,
 	BillingInterval,
 	BillingVersion,
+	BillWhen,
 	CollectionMethod,
 	CusProductStatus,
-	EntInterval,
-	FeatureType,
-	Infinite,
-	PriceType,
 	customerEntitlementToBillingCycleEnd,
+	EntInterval,
 	type EntitlementWithFeature,
 	type Feature,
+	FeatureType,
 	type FullCusEntWithFullCusProduct,
-	type FullCustomerPrice,
 	type FullCusProduct,
+	type FullCustomerPrice,
+	Infinite,
 	type Price,
+	PriceType,
 	type Product,
 } from "@autumn/shared";
 
@@ -142,8 +142,8 @@ const product = () =>
 		archived: false,
 		version_slug: "v1",
 		active: true,
-deleted_at: null,
-previous_version_slug: null,
+		deleted_at: null,
+		previous_version_slug: null,
 		config: { ignore_past_due: false },
 		metadata: {},
 	}) satisfies Product;
@@ -289,32 +289,38 @@ describe("customerEntitlementToBillingCycleEnd", () => {
 		expect(result).toBeNull();
 	});
 
-	test.concurrent("uses billing_cycle_anchor to compute the next billing cycle end", () => {
-		const result = customerEntitlementToBillingCycleEnd({
-			customerEntitlement: customerEntitlement({
-				entitlement: entitlement({ interval: EntInterval.Month }),
-				price: price({ interval: BillingInterval.Year }),
-				billingCycleAnchor: utc(2026, 0, 15, 10, 30),
-			}),
-			now: utc(2026, 2, 1),
-		});
+	test.concurrent(
+		"uses billing_cycle_anchor to compute the next billing cycle end",
+		() => {
+			const result = customerEntitlementToBillingCycleEnd({
+				customerEntitlement: customerEntitlement({
+					entitlement: entitlement({ interval: EntInterval.Month }),
+					price: price({ interval: BillingInterval.Year }),
+					billingCycleAnchor: utc(2026, 0, 15, 10, 30),
+				}),
+				now: utc(2026, 2, 1),
+			});
 
-		expect(result).toBe(utc(2027, 0, 15, 10, 30));
-	});
+			expect(result).toBe(utc(2027, 0, 15, 10, 30));
+		},
+	);
 
-	test.concurrent("falls back to starts_at for older customer products without a stored anchor", () => {
-		const result = customerEntitlementToBillingCycleEnd({
-			customerEntitlement: customerEntitlement({
-				entitlement: entitlement({ interval: EntInterval.Month }),
-				price: price({ interval: BillingInterval.Quarter }),
-				billingCycleAnchor: null,
-				startsAt: utc(2026, 0, 10, 9),
-			}),
-			now: utc(2026, 1, 1),
-		});
+	test.concurrent(
+		"falls back to starts_at for older customer products without a stored anchor",
+		() => {
+			const result = customerEntitlementToBillingCycleEnd({
+				customerEntitlement: customerEntitlement({
+					entitlement: entitlement({ interval: EntInterval.Month }),
+					price: price({ interval: BillingInterval.Quarter }),
+					billingCycleAnchor: null,
+					startsAt: utc(2026, 0, 10, 9),
+				}),
+				now: utc(2026, 1, 1),
+			});
 
-		expect(result).toBe(utc(2026, 3, 10, 9));
-	});
+			expect(result).toBe(utc(2026, 3, 10, 9));
+		},
+	);
 
 	test.concurrent("honors billing interval counts", () => {
 		const result = customerEntitlementToBillingCycleEnd({
@@ -332,35 +338,41 @@ describe("customerEntitlementToBillingCycleEnd", () => {
 		expect(result).toBe(utc(2026, 6, 1));
 	});
 
-	test.concurrent("returns the trial end while the customer product is still trialing", () => {
-		const trialEndsAt = utc(2026, 0, 20, 12);
-		const result = customerEntitlementToBillingCycleEnd({
-			customerEntitlement: customerEntitlement({
-				entitlement: entitlement({ interval: EntInterval.Month }),
-				price: price({ interval: BillingInterval.Year }),
-				billingCycleAnchor: utc(2026, 0, 1),
-				startsAt: utc(2026, 0, 1),
-				trialEndsAt,
-			}),
-			now: utc(2026, 0, 5),
-		});
+	test.concurrent(
+		"returns the trial end while the customer product is still trialing",
+		() => {
+			const trialEndsAt = utc(2026, 0, 20, 12);
+			const result = customerEntitlementToBillingCycleEnd({
+				customerEntitlement: customerEntitlement({
+					entitlement: entitlement({ interval: EntInterval.Month }),
+					price: price({ interval: BillingInterval.Year }),
+					billingCycleAnchor: utc(2026, 0, 1),
+					startsAt: utc(2026, 0, 1),
+					trialEndsAt,
+				}),
+				now: utc(2026, 0, 5),
+			});
 
-		expect(result).toBe(trialEndsAt);
-	});
+			expect(result).toBe(trialEndsAt);
+		},
+	);
 
-	test.concurrent("uses the anchored recurring cycle after a trial has ended", () => {
-		const trialEndsAt = utc(2026, 0, 20, 12);
-		const result = customerEntitlementToBillingCycleEnd({
-			customerEntitlement: customerEntitlement({
-				entitlement: entitlement({ interval: EntInterval.Month }),
-				price: price({ interval: BillingInterval.Year }),
-				billingCycleAnchor: trialEndsAt,
-				startsAt: utc(2026, 0, 1),
-				trialEndsAt,
-			}),
-			now: utc(2026, 1, 5),
-		});
+	test.concurrent(
+		"uses the anchored recurring cycle after a trial has ended",
+		() => {
+			const trialEndsAt = utc(2026, 0, 20, 12);
+			const result = customerEntitlementToBillingCycleEnd({
+				customerEntitlement: customerEntitlement({
+					entitlement: entitlement({ interval: EntInterval.Month }),
+					price: price({ interval: BillingInterval.Year }),
+					billingCycleAnchor: trialEndsAt,
+					startsAt: utc(2026, 0, 1),
+					trialEndsAt,
+				}),
+				now: utc(2026, 1, 5),
+			});
 
-		expect(result).toBe(utc(2027, 0, 20, 12));
-	});
+			expect(result).toBe(utc(2027, 0, 20, 12));
+		},
+	);
 });

@@ -46,10 +46,7 @@ test.concurrent(
 		});
 		const { autumnV2_3, ctx } = await initScenario({
 			customerId,
-			setup: [
-				s.customer({ testClock: false }),
-				s.products({ list: [pro] }),
-			],
+			setup: [s.customer({ testClock: false }), s.products({ list: [pro] })],
 			actions: [],
 		});
 
@@ -91,10 +88,7 @@ test.concurrent(
 		});
 		const { autumnV2_3, ctx } = await initScenario({
 			customerId,
-			setup: [
-				s.customer({ testClock: false }),
-				s.products({ list: [pro] }),
-			],
+			setup: [s.customer({ testClock: false }), s.products({ list: [pro] })],
 			actions: [],
 		});
 

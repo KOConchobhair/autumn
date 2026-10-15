@@ -18,7 +18,10 @@ test.concurrent(
 		const customerId = `fp-conc-a-${suffix}`;
 		const otherCustomerId = `fp-conc-b-${suffix}`;
 		const messages = items.consumableMessages();
-		const pro = products.pro({ id: `fp-conc-pro-${suffix}`, items: [messages] });
+		const pro = products.pro({
+			id: `fp-conc-pro-${suffix}`,
+			items: [messages],
+		});
 		const premium = products.premium({
 			id: `fp-conc-prem-${suffix}`,
 			items: [messages],

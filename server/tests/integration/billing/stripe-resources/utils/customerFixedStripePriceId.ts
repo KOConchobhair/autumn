@@ -1,5 +1,9 @@
 import { expect } from "bun:test";
-import { type FixedPriceConfig, isFixedPrice, type Price } from "@autumn/shared";
+import {
+	type FixedPriceConfig,
+	isFixedPrice,
+	type Price,
+} from "@autumn/shared";
 import { loadCustomerAndCatalogPrices } from "@tests/integration/billing/misc/utils/findCatalogAndCustomPrices";
 import type { AutumnContext } from "@/honoUtils/HonoEnv";
 import { ProductService } from "@/internal/products/ProductService";
@@ -71,7 +75,9 @@ export const expectSharedFixedStripePrice = async ({
 	for (const result of results) {
 		expect(result.customerStripePriceId).toBe(first);
 		if (notCatalog) {
-			expect(result.customerStripePriceId).not.toBe(result.catalogStripePriceId);
+			expect(result.customerStripePriceId).not.toBe(
+				result.catalogStripePriceId,
+			);
 		}
 	}
 	return results;

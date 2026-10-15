@@ -38,114 +38,118 @@ import chalk from "chalk";
 // TEST 1: PRODUCT DOWNGRADE (Premium → Pro) - Same quantity
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("v2→v1 downgrade: product downgrade (premium → pro) same quantity")}`, async () => {
-	const customerId = "v2-v1-downgrade-product";
-	const billingUnits = 100;
+test.concurrent(
+	`${chalk.yellowBright("v2→v1 downgrade: product downgrade (premium → pro) same quantity")}`,
+	async () => {
+		const customerId = "v2-v1-downgrade-product";
+		const billingUnits = 100;
 
-	// Premium: $15/pack, $50 base, 200 included usage
-	const premiumIncludedUsage = 200;
-	const premiumPricePerPack = 15;
-	const premiumPrepaidItem = items.prepaidMessages({
-		includedUsage: premiumIncludedUsage,
-		billingUnits,
-		price: premiumPricePerPack,
-		config: {
-			on_increase: OnIncrease.ProrateImmediately,
-			on_decrease: OnDecrease.ProrateImmediately,
-		},
-	});
-	const premiumPriceItem = items.monthlyPrice({ price: 50 });
-	const premium = products.base({
-		id: "premium",
-		items: [premiumPrepaidItem, premiumPriceItem],
-	});
+		// Premium: $15/pack, $50 base, 200 included usage
+		const premiumIncludedUsage = 200;
+		const premiumPricePerPack = 15;
+		const premiumPrepaidItem = items.prepaidMessages({
+			includedUsage: premiumIncludedUsage,
+			billingUnits,
+			price: premiumPricePerPack,
+			config: {
+				on_increase: OnIncrease.ProrateImmediately,
+				on_decrease: OnDecrease.ProrateImmediately,
+			},
+		});
+		const premiumPriceItem = items.monthlyPrice({ price: 50 });
+		const premium = products.base({
+			id: "premium",
+			items: [premiumPrepaidItem, premiumPriceItem],
+		});
 
-	// Pro: $10/pack, $20 base, 100 included usage
-	const proIncludedUsage = 100;
-	const proPricePerPack = 10;
-	const proPrepaidItem = items.prepaidMessages({
-		includedUsage: proIncludedUsage,
-		billingUnits,
-		price: proPricePerPack,
-		config: {
-			on_increase: OnIncrease.ProrateImmediately,
-			on_decrease: OnDecrease.ProrateImmediately,
-		},
-	});
-	const proPriceItem = items.monthlyPrice({ price: 20 });
-	const pro = products.base({
-		id: "pro",
-		items: [proPrepaidItem, proPriceItem],
-	});
+		// Pro: $10/pack, $20 base, 100 included usage
+		const proIncludedUsage = 100;
+		const proPricePerPack = 10;
+		const proPrepaidItem = items.prepaidMessages({
+			includedUsage: proIncludedUsage,
+			billingUnits,
+			price: proPricePerPack,
+			config: {
+				on_increase: OnIncrease.ProrateImmediately,
+				on_decrease: OnDecrease.ProrateImmediately,
+			},
+		});
+		const proPriceItem = items.monthlyPrice({ price: 20 });
+		const pro = products.base({
+			id: "pro",
+			items: [proPrepaidItem, proPriceItem],
+		});
 
-	// Initial: 700 total units on Premium (including 200 allowance)
-	// = 500 prepaid units = 5 packs
-	const initialTotalUnits = 700;
+		// Initial: 700 total units on Premium (including 200 allowance)
+		// = 500 prepaid units = 5 packs
+		const initialTotalUnits = 700;
 
-	const { autumnV1, testClockId } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [premium, pro] }),
-		],
-		actions: [
-			// V2 attach to Premium
-			s.billing.attach({
-				productId: premium.id,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialTotalUnits },
-				],
-				timeout: 4000,
-			}),
-		],
-	});
+		const { autumnV1, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [premium, pro] }),
+			],
+			actions: [
+				// V2 attach to Premium
+				s.billing.attach({
+					productId: premium.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialTotalUnits },
+					],
+					timeout: 4000,
+				}),
+			],
+		});
 
-	// Verify initial state on Premium
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectCustomerFeatureCorrect({
-		customer: customerBefore,
-		featureId: TestFeature.Messages,
-		includedUsage: initialTotalUnits,
-		balance: initialTotalUnits,
-		usage: 0,
-	});
+		// Verify initial state on Premium
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerFeatureCorrect({
+			customer: customerBefore,
+			featureId: TestFeature.Messages,
+			includedUsage: initialTotalUnits,
+			balance: initialTotalUnits,
+			usage: 0,
+		});
 
-	// Downgrade, only consider billing units, so 5 paid packs attached
+		// Downgrade, only consider billing units, so 5 paid packs attached
 
-	// V1 attach to Pro (quantity excluding allowance)
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		// V1 attach to Pro (quantity excluding allowance)
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
 
-	await advanceToNextInvoice({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-	});
+		await advanceToNextInvoice({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+		});
 
-	// Verify customer downgraded to Pro
-	// On product change, usage resets and balance is recalculated
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectCustomerFeatureCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Messages,
-		includedUsage: 600,
-		balance: 600,
-		usage: 0,
-	});
+		// Verify customer downgraded to Pro
+		// On product change, usage resets and balance is recalculated
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerFeatureCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Messages,
+			includedUsage: 600,
+			balance: 600,
+			usage: 0,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
 
-	// Verify invoice: should have downgrade credits
-	await expectCustomerInvoiceCorrect({
-		customerId,
-		count: 2,
-		latestTotal: 20 + proPricePerPack * 5,
-	});
-});
+		// Verify invoice: should have downgrade credits
+		await expectCustomerInvoiceCorrect({
+			customerId,
+			count: 2,
+			latestTotal: 20 + proPricePerPack * 5,
+		});
+	},
+);

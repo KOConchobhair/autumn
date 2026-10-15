@@ -11,8 +11,8 @@ import type { FullProduct, Price } from "@autumn/shared";
 import {
 	findBasePrice,
 	findFeaturePrice,
-	stripeConfigValue,
 	type StripeResourceField,
+	stripeConfigValue,
 } from "@tests/integration/utils/expectStripePriceResources.js";
 import type Stripe from "stripe";
 

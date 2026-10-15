@@ -4,11 +4,11 @@
  */
 
 import { expect, test } from "bun:test";
-import chalk from "chalk";
-import type Stripe from "stripe";
 import { products } from "@tests/utils/fixtures/products.js";
 import type { TestContext } from "@tests/utils/testInitUtils/createTestContext.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
+import chalk from "chalk";
+import type Stripe from "stripe";
 
 const auAddress = {
 	country: "AU",

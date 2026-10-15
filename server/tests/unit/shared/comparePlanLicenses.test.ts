@@ -267,9 +267,7 @@ describe("licenseCustomizesAreSame — add_items", () => {
 	test("reset.interval_count unset === 1", () => {
 		overlaySame(
 			{
-				add_items: [
-					messagesItem({ reset: { interval: ResetInterval.Month } }),
-				],
+				add_items: [messagesItem({ reset: { interval: ResetInterval.Month } })],
 			},
 			{
 				add_items: [
@@ -291,16 +289,10 @@ describe("licenseCustomizesAreSame — remove_items", () => {
 	test("order does not matter", () => {
 		overlaySame(
 			{
-				remove_items: [
-					{ feature_id: "messages" },
-					{ feature_id: "words" },
-				],
+				remove_items: [{ feature_id: "messages" }, { feature_id: "words" }],
 			},
 			{
-				remove_items: [
-					{ feature_id: "words" },
-					{ feature_id: "messages" },
-				],
+				remove_items: [{ feature_id: "words" }, { feature_id: "messages" }],
 			},
 			true,
 		);
@@ -377,10 +369,12 @@ describe("licenseCustomizePatchesAreSame — clear vs leave", () => {
 	});
 
 	test("null (clear) !== omitted / {}", () => {
-		expect(licenseCustomizePatchesAreSame({ left: null, right: undefined })).toBe(
+		expect(
+			licenseCustomizePatchesAreSame({ left: null, right: undefined }),
+		).toBe(false);
+		expect(licenseCustomizePatchesAreSame({ left: null, right: {} })).toBe(
 			false,
 		);
-		expect(licenseCustomizePatchesAreSame({ left: null, right: {} })).toBe(false);
 	});
 
 	test("null !== a real overlay", () => {
@@ -426,7 +420,11 @@ describe("planLicensesAreSame — link fields", () => {
 	});
 
 	test("license_plan_id", () => {
-		linkSame(link({ license_plan_id: "seat" }), link({ license_plan_id: "pack" }), false);
+		linkSame(
+			link({ license_plan_id: "seat" }),
+			link({ license_plan_id: "pack" }),
+			false,
+		);
 	});
 
 	test("included: 0 is kept; 0 !== 2", () => {
@@ -435,8 +433,16 @@ describe("planLicensesAreSame — link fields", () => {
 	});
 
 	test("prepaid_only true !== false", () => {
-		linkSame(link({ prepaid_only: true }), link({ prepaid_only: false }), false);
-		linkSame(link({ prepaid_only: false }), link({ prepaid_only: false }), true);
+		linkSame(
+			link({ prepaid_only: true }),
+			link({ prepaid_only: false }),
+			false,
+		);
+		linkSame(
+			link({ prepaid_only: false }),
+			link({ prepaid_only: false }),
+			true,
+		);
 	});
 
 	test("empty customize variants are the same on a link", () => {
@@ -459,7 +465,9 @@ describe("planLicensesAreSame — link fields", () => {
 });
 
 describe("customizePlanLicensesAreSame — patch fields", () => {
-	const seat = (overrides: Partial<CustomizePlanLicense> = {}): CustomizePlanLicense => ({
+	const seat = (
+		overrides: Partial<CustomizePlanLicense> = {},
+	): CustomizePlanLicense => ({
 		license_plan_id: "seat",
 		...overrides,
 	});
@@ -484,8 +492,16 @@ describe("customizePlanLicensesAreSame — patch fields", () => {
 		patchSame(seat(), seat({ prepaid_only: undefined }), true);
 		patchSame(seat(), seat({ prepaid_only: false }), false);
 		patchSame(seat(), seat({ prepaid_only: true }), false);
-		patchSame(seat({ prepaid_only: false }), seat({ prepaid_only: false }), true);
-		patchSame(seat({ prepaid_only: true }), seat({ prepaid_only: false }), false);
+		patchSame(
+			seat({ prepaid_only: false }),
+			seat({ prepaid_only: false }),
+			true,
+		);
+		patchSame(
+			seat({ prepaid_only: true }),
+			seat({ prepaid_only: false }),
+			false,
+		);
 	});
 
 	test("customize: omitted === {}; null is clear", () => {
@@ -510,7 +526,11 @@ describe("customizePlanLicensesAreSame — patch fields", () => {
 		patchSame(seat(), seat({ metadata: {} }), true);
 		patchSame(seat({ metadata: { a: 1 } }), seat({ metadata: { a: 1 } }), true);
 		patchSame(seat({ metadata: { a: 1 } }), seat(), false);
-		patchSame(seat({ metadata: { a: 1 } }), seat({ metadata: { a: 2 } }), false);
+		patchSame(
+			seat({ metadata: { a: 1 } }),
+			seat({ metadata: { a: 2 } }),
+			false,
+		);
 		patchSame(
 			seat({ metadata: { a: 1, b: 2 } }),
 			seat({ metadata: { b: 2, a: 1 } }),

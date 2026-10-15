@@ -41,94 +41,97 @@ import { CusService } from "@/internal/customers/CusService";
 // - Balance accumulates after second attach
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-oneoff 1: attach and accumulate balance")}`, async () => {
-	const customerId = "legacy-oneoff-1";
+test.concurrent(
+	`${chalk.yellowBright("legacy-oneoff 1: attach and accumulate balance")}`,
+	async () => {
+		const customerId = "legacy-oneoff-1";
 
-	const oneOffMessagesItem = items.oneOffMessages({
-		billingUnits: 250,
-		price: 8,
-	});
+		const oneOffMessagesItem = items.oneOffMessages({
+			billingUnits: 250,
+			price: 8,
+		});
 
-	const oneOff = products.base({
-		id: "one-off",
-		items: [oneOffMessagesItem],
-	});
+		const oneOff = products.base({
+			id: "one-off",
+			items: [oneOffMessagesItem],
+		});
 
-	const autumnV1 = new AutumnInt({ version: LegacyVersion.v1_4 });
+		const autumnV1 = new AutumnInt({ version: LegacyVersion.v1_4 });
 
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [oneOff] }),
-		],
-		actions: [],
-	});
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [oneOff] }),
+			],
+			actions: [],
+		});
 
-	// First attach: quantity 500
-	const options1 = [{ feature_id: TestFeature.Messages, quantity: 500 }];
+		// First attach: quantity 500
+		const options1 = [{ feature_id: TestFeature.Messages, quantity: 500 }];
 
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: oneOff.id,
-		options: options1,
-	});
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: oneOff.id,
+			options: options1,
+		});
 
-	const customerAfter1 =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfter1 =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expectProductAttached({
-		customer: customerAfter1 as any,
-		product: oneOff,
-		quantity: 1,
-	});
+		expectProductAttached({
+			customer: customerAfter1 as any,
+			product: oneOff,
+			quantity: 1,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer: customerAfter1,
-		featureId: TestFeature.Messages,
-		balance: 500,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer: customerAfter1,
+			featureId: TestFeature.Messages,
+			balance: 500,
+			usage: 0,
+		});
 
-	// Second attach: quantity 750
-	const options2 = [{ feature_id: TestFeature.Messages, quantity: 750 }];
+		// Second attach: quantity 750
+		const options2 = [{ feature_id: TestFeature.Messages, quantity: 750 }];
 
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: oneOff.id,
-		options: options2,
-	});
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: oneOff.id,
+			options: options2,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer: customerAfter1,
-		count: 1,
-		latestTotal: 16, // 2 packs * 8
-	});
+		await expectCustomerInvoiceCorrect({
+			customer: customerAfter1,
+			count: 1,
+			latestTotal: 16, // 2 packs * 8
+		});
 
-	const customerAfter2 =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfter2 =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Balance should accumulate: 500 + 750 = 1250
-	const totalBalance = options1[0].quantity + options2[0].quantity;
+		// Balance should accumulate: 500 + 750 = 1250
+		const totalBalance = options1[0].quantity + options2[0].quantity;
 
-	expectCustomerFeatureCorrect({
-		customer: customerAfter2,
-		featureId: TestFeature.Messages,
-		balance: totalBalance,
-	});
+		expectCustomerFeatureCorrect({
+			customer: customerAfter2,
+			featureId: TestFeature.Messages,
+			balance: totalBalance,
+		});
 
-	expectProductAttached({
-		customer: customerAfter2 as any,
-		product: oneOff,
-		quantity: 2,
-	});
+		expectProductAttached({
+			customer: customerAfter2 as any,
+			product: oneOff,
+			quantity: 2,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer: customerAfter2,
-		count: 2,
-		latestTotal: 24, // 3 packs * 8
-	});
-});
+		await expectCustomerInvoiceCorrect({
+			customer: customerAfter2,
+			count: 2,
+			latestTotal: 24, // 3 packs * 8
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Payment failure returns checkout_url
@@ -143,51 +146,54 @@ test.concurrent(`${chalk.yellowBright("legacy-oneoff 1: attach and accumulate ba
 // - Response contains checkout_url when payment fails
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-oneoff 2: payment failure returns checkout_url")}`, async () => {
-	const customerId = "legacy-oneoff-2";
+test.concurrent(
+	`${chalk.yellowBright("legacy-oneoff 2: payment failure returns checkout_url")}`,
+	async () => {
+		const customerId = "legacy-oneoff-2";
 
-	const oneOffMessagesItem = items.oneOffMessages({
-		billingUnits: 250,
-		price: 8,
-	});
+		const oneOffMessagesItem = items.oneOffMessages({
+			billingUnits: 250,
+			price: 8,
+		});
 
-	const oneOff = products.oneOff({
-		id: "one-off",
-		items: [oneOffMessagesItem],
-	});
+		const oneOff = products.oneOff({
+			id: "one-off",
+			items: [oneOffMessagesItem],
+		});
 
-	const autumnV1 = new AutumnInt({ version: LegacyVersion.v1_4 });
+		const autumnV1 = new AutumnInt({ version: LegacyVersion.v1_4 });
 
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [oneOff] }),
-		],
-		actions: [],
-	});
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [oneOff] }),
+			],
+			actions: [],
+		});
 
-	// Swap to failed payment method
-	const customer = await CusService.get({
-		db: ctx.db,
-		idOrInternalId: customerId,
-		orgId: ctx.org.id,
-		env: ctx.env,
-	});
+		// Swap to failed payment method
+		const customer = await CusService.get({
+			db: ctx.db,
+			idOrInternalId: customerId,
+			orgId: ctx.org.id,
+			env: ctx.env,
+		});
 
-	await attachFailedPaymentMethod({
-		stripeCli: ctx.stripeCli,
-		customer: customer!,
-	});
+		await attachFailedPaymentMethod({
+			stripeCli: ctx.stripeCli,
+			customer: customer!,
+		});
 
-	// Attempt attach with failed payment method
-	const options = [{ feature_id: TestFeature.Messages, quantity: 500 }];
+		// Attempt attach with failed payment method
+		const options = [{ feature_id: TestFeature.Messages, quantity: 500 }];
 
-	const res = await autumnV1.attach({
-		customer_id: customerId,
-		product_id: oneOff.id,
-		options,
-	});
+		const res = await autumnV1.attach({
+			customer_id: customerId,
+			product_id: oneOff.id,
+			options,
+		});
 
-	expect(res.checkout_url).toBeDefined();
-});
+		expect(res.checkout_url).toBeDefined();
+	},
+);

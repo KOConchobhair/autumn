@@ -672,8 +672,7 @@ describe("sanitizeCachedFullSubject — processor_type (Option A walker behavior
 
 		const deserialized = JSON.parse(cachedJson) as Record<string, unknown>;
 		expect(
-			(deserialized.invoices as Record<string, unknown>[])[0]
-				.processor_type,
+			(deserialized.invoices as Record<string, unknown>[])[0].processor_type,
 		).toBeUndefined();
 
 		const sanitized = sanitizeCachedFullSubject({
@@ -707,16 +706,13 @@ describe("sanitizeCachedFullSubject — processor_type (Option A walker behavior
 
 		const deserialized = JSON.parse(cachedJson) as Record<string, unknown>;
 		expect(
-			(deserialized.invoices as Record<string, unknown>[])[0]
-				.processor_type,
+			(deserialized.invoices as Record<string, unknown>[])[0].processor_type,
 		).toBe(ProcessorType.RevenueCat);
 
 		const sanitized = sanitizeCachedFullSubject({
 			cachedFullSubject: deserialized as unknown as CachedFullSubject,
 		});
-		expect(sanitized.invoices[0].processor_type).toBe(
-			ProcessorType.RevenueCat,
-		);
+		expect(sanitized.invoices[0].processor_type).toBe(ProcessorType.RevenueCat);
 
 		const { processInvoice } = await import(
 			"@/internal/invoices/InvoiceService.js"
@@ -808,8 +804,7 @@ describe("FullCustomer v1 cache — processor_type rollover", () => {
 		);
 		const deserialized = JSON.parse(cachedJson) as Record<string, unknown>;
 		expect(
-			(deserialized.invoices as Record<string, unknown>[])[0]
-				.processor_type,
+			(deserialized.invoices as Record<string, unknown>[])[0].processor_type,
 		).toBeUndefined();
 
 		const fullCustomer = normalizeFromSchemaCacheUtils<FullCustomer>({
@@ -817,9 +812,7 @@ describe("FullCustomer v1 cache — processor_type rollover", () => {
 			data: deserialized,
 		});
 
-		expect(
-			(fullCustomer.invoices ?? [])[0]?.processor_type,
-		).toBeUndefined();
+		expect((fullCustomer.invoices ?? [])[0]?.processor_type).toBeUndefined();
 
 		const { processInvoice } = await import(
 			"@/internal/invoices/InvoiceService.js"
@@ -897,9 +890,7 @@ describe("FullCustomer v1 cache — processor_type rollover", () => {
 		// nothing over-corrects.
 		const cachedJson = JSON.stringify(
 			buildFullCustomer({
-				invoices: [
-					buildInvoice({ processor_type: ProcessorType.Stripe }),
-				],
+				invoices: [buildInvoice({ processor_type: ProcessorType.Stripe })],
 			}),
 		);
 		const deserialized = JSON.parse(cachedJson) as Record<string, unknown>;
@@ -1037,10 +1028,11 @@ describe("sanitizeCachedFullSubject — product.config (commit ce100dbf)", () =>
 		// Simulates what Upstash hands back: ignore_past_due defaulted to {},
 		// cjson encoded it as [], so on read we get `config: []`. The walker
 		// must rebuild it as `{ ignore_past_due: false }`.
-		const malformed = buildBaseCachedFullSubjectForSanitize() as unknown as Record<
-			string,
-			unknown
-		>;
+		const malformed =
+			buildBaseCachedFullSubjectForSanitize() as unknown as Record<
+				string,
+				unknown
+			>;
 		malformed.products = [
 			{
 				...buildBaseProductForSanitize("plan_sanitize_empty_array_config"),
@@ -1070,11 +1062,14 @@ describe("sanitizeCachedFullSubject — product.config (commit ce100dbf)", () =>
 		// Pre-existing cache entries written before `config` existed simply
 		// don't have the field — the belt-and-suspenders block in
 		// sanitizeCachedFullSubject must inject {}.
-		const malformed = buildBaseCachedFullSubjectForSanitize() as unknown as Record<
-			string,
-			unknown
-		>;
-		malformed.products = [buildBaseProductForSanitize("plan_sanitize_missing_config")];
+		const malformed =
+			buildBaseCachedFullSubjectForSanitize() as unknown as Record<
+				string,
+				unknown
+			>;
+		malformed.products = [
+			buildBaseProductForSanitize("plan_sanitize_missing_config"),
+		];
 
 		const result = sanitizeCachedFullSubject({
 			cachedFullSubject: malformed as unknown as CachedFullSubject,
@@ -1091,10 +1086,11 @@ describe("sanitizeCachedFullSubject — product.config (commit ce100dbf)", () =>
 	test("preserves explicit ignore_past_due=true (no over-correction)", () => {
 		// If Upstash cjson encoded `{ ignore_past_due: true }` faithfully (only
 		// fully-empty objects collapse), the value must survive untouched.
-		const malformed = buildBaseCachedFullSubjectForSanitize() as unknown as Record<
-			string,
-			unknown
-		>;
+		const malformed =
+			buildBaseCachedFullSubjectForSanitize() as unknown as Record<
+				string,
+				unknown
+			>;
 		malformed.products = [
 			{
 				...buildBaseProductForSanitize("plan_sanitize_preserve_true"),
@@ -1185,10 +1181,11 @@ describe("sanitizeCachedFullSubject — version identity backfill", () => {
 	const subjectWithProduct = (
 		productOverrides: Record<string, unknown>,
 	): CachedFullSubject => {
-		const subject = buildBaseCachedFullSubjectForSanitize() as unknown as Record<
-			string,
-			unknown
-		>;
+		const subject =
+			buildBaseCachedFullSubjectForSanitize() as unknown as Record<
+				string,
+				unknown
+			>;
 		subject.products = [
 			{
 				...buildBaseProductForSanitize("plan_version_identity"),
@@ -1251,10 +1248,11 @@ describe("sanitizeCachedFullSubject — version identity backfill", () => {
 	});
 
 	test("fills nested customer_licenses[].planLicense.product (not joined from products[])", () => {
-		const subject = buildBaseCachedFullSubjectForSanitize() as unknown as Record<
-			string,
-			unknown
-		>;
+		const subject =
+			buildBaseCachedFullSubjectForSanitize() as unknown as Record<
+				string,
+				unknown
+			>;
 		subject.customer_licenses = [
 			{
 				planLicense: {
@@ -1380,7 +1378,11 @@ const assertNoArrayShapedObjects = (
 			);
 		}
 		if (value && typeof value === "object") {
-			const shape = (unwrapped as unknown as { _def: { shape: Record<string, z.ZodTypeAny> } })._def.shape;
+			const shape = (
+				unwrapped as unknown as {
+					_def: { shape: Record<string, z.ZodTypeAny> };
+				}
+			)._def.shape;
 			for (const [key, childSchema] of Object.entries(shape)) {
 				assertNoArrayShapedObjects(
 					(value as Record<string, unknown>)[key],
@@ -1394,7 +1396,9 @@ const assertNoArrayShapedObjects = (
 
 	if (unwrapped instanceof z.ZodArray) {
 		if (Array.isArray(value)) {
-			const element = (unwrapped as unknown as { _def: { element: z.ZodTypeAny } })._def.element;
+			const element = (
+				unwrapped as unknown as { _def: { element: z.ZodTypeAny } }
+			)._def.element;
 			value.forEach((item, idx) =>
 				assertNoArrayShapedObjects(item, element, `${path}[${idx}]`),
 			);
@@ -1408,10 +1412,11 @@ describe("sanitizeCachedFullSubject — generic fuzz (regression net for new fie
 		// Build a "fully-populated" subject so the walker has every nested
 		// shape to traverse. New fields on any nested schema get fuzzed for
 		// free on the next test run.
-		const populated = buildBaseCachedFullSubjectForSanitize() as unknown as Record<
-			string,
-			unknown
-		>;
+		const populated =
+			buildBaseCachedFullSubjectForSanitize() as unknown as Record<
+				string,
+				unknown
+			>;
 		populated.products = [
 			{
 				...buildBaseProductForSanitize("plan_sanitize_fuzz_1"),

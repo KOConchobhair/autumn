@@ -29,16 +29,16 @@ import {
 	type ApiCustomerV5,
 	AppEnv,
 	CusProductStatus,
+	customers,
 } from "@autumn/shared";
+import { expectBalanceCorrect } from "@tests/integration/utils/expectBalanceCorrect";
+import { TestFeature } from "@tests/setup/v2Features";
 import { items } from "@tests/utils/fixtures/items";
 import { products } from "@tests/utils/fixtures/products";
-import { TestFeature } from "@tests/setup/v2Features";
 import ctx from "@tests/utils/testInitUtils/createTestContext";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
-import { expectBalanceCorrect } from "@tests/integration/utils/expectBalanceCorrect";
 import chalk from "chalk";
 import { eq } from "drizzle-orm";
-import { customers } from "@autumn/shared";
 import { RCMappingService } from "@/external/revenueCat/misc/RCMappingService";
 import { CusProductService } from "@/internal/customers/cusProducts/CusProductService";
 import { OrgService } from "@/internal/orgs/OrgService";

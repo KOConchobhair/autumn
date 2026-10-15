@@ -9,9 +9,11 @@ import { timeout } from "@/utils/genUtils.js";
 export const CUSTOMER_UPDATED_WAIT_MS = 8000;
 
 /** Stripe customer id for a customer created via initScenario. */
-export const getStripeCustomerId = (customer: {
-	processor?: { id?: string } | null;
-} | null): string => {
+export const getStripeCustomerId = (
+	customer: {
+		processor?: { id?: string } | null;
+	} | null,
+): string => {
 	const stripeId = customer?.processor?.id;
 	if (!stripeId) {
 		throw new Error("Customer has no linked Stripe id (processor.id)");

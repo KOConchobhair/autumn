@@ -63,24 +63,29 @@ test.concurrent(
 			id: "pooled-usage-alert-three-pro",
 			items: [pooledMessages(10_000)],
 		});
-		const { autumnV2_1, autumnV2_2, customerId, entities, ctx: scenarioCtx } =
-			await initScenario({
-				customerId: "pooled-usage-alert-three-pro",
-				setup: [
-					s.customer({ paymentMethod: "success", testClock: false }),
-					s.entities({ count: 3, featureId: TestFeature.Users }),
-					s.products({ list: [proEntityPlan] }),
-				],
-				actions: [
-					s.billing.attach({
-						productId: proEntityPlan.id,
-						entityIndex: 0,
-						items: [items.monthlyPrice(), pooledMessages(80_000)],
-					}),
-					s.billing.attach({ productId: proEntityPlan.id, entityIndex: 1 }),
-					s.billing.attach({ productId: proEntityPlan.id, entityIndex: 2 }),
-				],
-			});
+		const {
+			autumnV2_1,
+			autumnV2_2,
+			customerId,
+			entities,
+			ctx: scenarioCtx,
+		} = await initScenario({
+			customerId: "pooled-usage-alert-three-pro",
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: false }),
+				s.entities({ count: 3, featureId: TestFeature.Users }),
+				s.products({ list: [proEntityPlan] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: proEntityPlan.id,
+					entityIndex: 0,
+					items: [items.monthlyPrice(), pooledMessages(80_000)],
+				}),
+				s.billing.attach({ productId: proEntityPlan.id, entityIndex: 1 }),
+				s.billing.attach({ productId: proEntityPlan.id, entityIndex: 2 }),
+			],
+		});
 
 		const pooledState = await expectPooledBalanceCorrect({
 			db: scenarioCtx.db,

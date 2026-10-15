@@ -87,340 +87,352 @@ const expectEntityPrepaidOverage = ({
 	});
 };
 
-test.concurrent(`${chalk.yellowBright("update-quantity-prepaid-overage-entities: per-entity feature increase adjusts both entities")}`, async () => {
-	const customerId = "qty-prepaid-overage-per-entity-increase";
-	const product = buildPerEntityPrepaidOverageProduct({
-		id: "per-entity-prepaid-overage-increase",
-	});
+test.concurrent(
+	`${chalk.yellowBright("update-quantity-prepaid-overage-entities: per-entity feature increase adjusts both entities")}`,
+	async () => {
+		const customerId = "qty-prepaid-overage-per-entity-increase";
+		const product = buildPerEntityPrepaidOverageProduct({
+			id: "per-entity-prepaid-overage-increase",
+		});
 
-	const { autumnV2_1, ctx, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialQuantity },
-				],
-			}),
-			s.track({
-				featureId: TestFeature.Messages,
-				entityIndex: 0,
-				value: 450,
-				timeout: 2000,
-			}),
-			s.track({
-				featureId: TestFeature.Messages,
-				entityIndex: 1,
-				value: 400,
-				timeout: 2000,
-			}),
-		],
-	});
+		const { autumnV2_1, ctx, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialQuantity },
+					],
+				}),
+				s.track({
+					featureId: TestFeature.Messages,
+					entityIndex: 0,
+					value: 450,
+					timeout: 2000,
+				}),
+				s.track({
+					featureId: TestFeature.Messages,
+					entityIndex: 1,
+					value: 400,
+					timeout: 2000,
+				}),
+			],
+		});
 
-	await autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
-		customer_id: customerId,
-		plan_id: product.id,
-		feature_quantities: [
-			{
-				feature_id: TestFeature.Messages,
-				quantity: increasedQuantity,
+		await autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
+			customer_id: customerId,
+			plan_id: product.id,
+			feature_quantities: [
+				{
+					feature_id: TestFeature.Messages,
+					quantity: increasedQuantity,
+				},
+			],
+			recalculate_balances: {
+				enabled: true,
 			},
-		],
-		recalculate_balances: {
-			enabled: true,
-		},
-	});
+		});
 
-	const entity1 = await autumnV2_1.entities.get<ApiEntityV2>(
-		customerId,
-		entities[0].id,
-	);
-	const entity2 = await autumnV2_1.entities.get<ApiEntityV2>(
-		customerId,
-		entities[1].id,
-	);
-	const customerAfter =
-		await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		const entity1 = await autumnV2_1.entities.get<ApiEntityV2>(
+			customerId,
+			entities[0].id,
+		);
+		const entity2 = await autumnV2_1.entities.get<ApiEntityV2>(
+			customerId,
+			entities[1].id,
+		);
+		const customerAfter =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
 
-	expectEntityPrepaidOverage({
-		entity: entity1,
-		remaining: 50,
-		usage: 450,
-		prepaidRemaining: 50,
-		usageBasedUsage: 0,
-	});
-	expectEntityPrepaidOverage({
-		entity: entity2,
-		remaining: 100,
-		usage: 400,
-		prepaidRemaining: 100,
-		usageBasedUsage: 0,
-	});
-	expectBalanceCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Messages,
-		remaining: 150,
-		usage: 850,
-	});
+		expectEntityPrepaidOverage({
+			entity: entity1,
+			remaining: 50,
+			usage: 450,
+			prepaidRemaining: 50,
+			usageBasedUsage: 0,
+		});
+		expectEntityPrepaidOverage({
+			entity: entity2,
+			remaining: 100,
+			usage: 400,
+			prepaidRemaining: 100,
+			usageBasedUsage: 0,
+		});
+		expectBalanceCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Messages,
+			remaining: 150,
+			usage: 850,
+		});
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("update-quantity-prepaid-overage-entities: per-entity feature decrease adjusts both entities")}`, async () => {
-	const customerId = "qty-prepaid-overage-per-entity-decrease";
-	const product = buildPerEntityPrepaidOverageProduct({
-		id: "per-entity-prepaid-overage-decrease",
-	});
+test.concurrent(
+	`${chalk.yellowBright("update-quantity-prepaid-overage-entities: per-entity feature decrease adjusts both entities")}`,
+	async () => {
+		const customerId = "qty-prepaid-overage-per-entity-decrease";
+		const product = buildPerEntityPrepaidOverageProduct({
+			id: "per-entity-prepaid-overage-decrease",
+		});
 
-	const { autumnV2_1, ctx, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialQuantity },
-				],
-			}),
-			s.track({
-				featureId: TestFeature.Messages,
-				entityIndex: 0,
-				value: 450,
-				timeout: 2000,
-			}),
-			s.track({
-				featureId: TestFeature.Messages,
-				entityIndex: 1,
-				value: 400,
-				timeout: 2000,
-			}),
-		],
-	});
+		const { autumnV2_1, ctx, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialQuantity },
+					],
+				}),
+				s.track({
+					featureId: TestFeature.Messages,
+					entityIndex: 0,
+					value: 450,
+					timeout: 2000,
+				}),
+				s.track({
+					featureId: TestFeature.Messages,
+					entityIndex: 1,
+					value: 400,
+					timeout: 2000,
+				}),
+			],
+		});
 
-	await autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
-		customer_id: customerId,
-		plan_id: product.id,
-		feature_quantities: [
-			{
-				feature_id: TestFeature.Messages,
-				quantity: decreasedQuantity,
+		await autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
+			customer_id: customerId,
+			plan_id: product.id,
+			feature_quantities: [
+				{
+					feature_id: TestFeature.Messages,
+					quantity: decreasedQuantity,
+				},
+			],
+			recalculate_balances: {
+				enabled: true,
 			},
-		],
-		recalculate_balances: {
-			enabled: true,
-		},
-	});
+		});
 
-	const entity1 = await autumnV2_1.entities.get<ApiEntityV2>(
-		customerId,
-		entities[0].id,
-	);
-	const entity2 = await autumnV2_1.entities.get<ApiEntityV2>(
-		customerId,
-		entities[1].id,
-	);
-	const customerAfter =
-		await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		const entity1 = await autumnV2_1.entities.get<ApiEntityV2>(
+			customerId,
+			entities[0].id,
+		);
+		const entity2 = await autumnV2_1.entities.get<ApiEntityV2>(
+			customerId,
+			entities[1].id,
+		);
+		const customerAfter =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
 
-	expectEntityPrepaidOverage({
-		entity: entity1,
-		remaining: 0,
-		usage: 450,
-		prepaidRemaining: 0,
-		usageBasedUsage: 250,
-	});
-	expectEntityPrepaidOverage({
-		entity: entity2,
-		remaining: 0,
-		usage: 400,
-		prepaidRemaining: 0,
-		usageBasedUsage: 200,
-	});
-	expectBalanceCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Messages,
-		remaining: 0,
-		usage: 850,
-	});
+		expectEntityPrepaidOverage({
+			entity: entity1,
+			remaining: 0,
+			usage: 450,
+			prepaidRemaining: 0,
+			usageBasedUsage: 250,
+		});
+		expectEntityPrepaidOverage({
+			entity: entity2,
+			remaining: 0,
+			usage: 400,
+			prepaidRemaining: 0,
+			usageBasedUsage: 200,
+		});
+		expectBalanceCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Messages,
+			remaining: 0,
+			usage: 850,
+		});
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("update-quantity-prepaid-overage-entities: entity product increase only adjusts targeted entity")}`, async () => {
-	const customerId = "qty-prepaid-overage-entity-product-increase";
-	const product = buildEntityProductPrepaidOverage({
-		id: "entity-product-prepaid-overage-increase",
-	});
+test.concurrent(
+	`${chalk.yellowBright("update-quantity-prepaid-overage-entities: entity product increase only adjusts targeted entity")}`,
+	async () => {
+		const customerId = "qty-prepaid-overage-entity-product-increase";
+		const product = buildEntityProductPrepaidOverage({
+			id: "entity-product-prepaid-overage-increase",
+		});
 
-	const { autumnV2_1, ctx, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				entityIndex: 0,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialQuantity },
-				],
-			}),
-			s.billing.attach({
-				productId: product.id,
-				entityIndex: 1,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialQuantity },
-				],
-			}),
-			s.track({
-				featureId: TestFeature.Messages,
-				entityIndex: 0,
-				value: 450,
-				timeout: 2000,
-			}),
-			s.track({
-				featureId: TestFeature.Messages,
-				entityIndex: 1,
-				value: 400,
-				timeout: 2000,
-			}),
-		],
-	});
+		const { autumnV2_1, ctx, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					entityIndex: 0,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialQuantity },
+					],
+				}),
+				s.billing.attach({
+					productId: product.id,
+					entityIndex: 1,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialQuantity },
+					],
+				}),
+				s.track({
+					featureId: TestFeature.Messages,
+					entityIndex: 0,
+					value: 450,
+					timeout: 2000,
+				}),
+				s.track({
+					featureId: TestFeature.Messages,
+					entityIndex: 1,
+					value: 400,
+					timeout: 2000,
+				}),
+			],
+		});
 
-	await autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
-		customer_id: customerId,
-		entity_id: entities[0].id,
-		plan_id: product.id,
-		feature_quantities: [
-			{
-				feature_id: TestFeature.Messages,
-				quantity: increasedQuantity,
+		await autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
+			customer_id: customerId,
+			entity_id: entities[0].id,
+			plan_id: product.id,
+			feature_quantities: [
+				{
+					feature_id: TestFeature.Messages,
+					quantity: increasedQuantity,
+				},
+			],
+			recalculate_balances: {
+				enabled: true,
 			},
-		],
-		recalculate_balances: {
-			enabled: true,
-		},
-	});
+		});
 
-	const entity1 = await autumnV2_1.entities.get<ApiEntityV2>(
-		customerId,
-		entities[0].id,
-	);
-	const entity2 = await autumnV2_1.entities.get<ApiEntityV2>(
-		customerId,
-		entities[1].id,
-	);
+		const entity1 = await autumnV2_1.entities.get<ApiEntityV2>(
+			customerId,
+			entities[0].id,
+		);
+		const entity2 = await autumnV2_1.entities.get<ApiEntityV2>(
+			customerId,
+			entities[1].id,
+		);
 
-	expectEntityPrepaidOverage({
-		entity: entity1,
-		remaining: 50,
-		usage: 450,
-		prepaidRemaining: 50,
-		usageBasedUsage: 0,
-	});
-	expectEntityPrepaidOverage({
-		entity: entity2,
-		remaining: 0,
-		usage: 400,
-		prepaidRemaining: 0,
-		usageBasedUsage: 100,
-	});
+		expectEntityPrepaidOverage({
+			entity: entity1,
+			remaining: 50,
+			usage: 450,
+			prepaidRemaining: 50,
+			usageBasedUsage: 0,
+		});
+		expectEntityPrepaidOverage({
+			entity: entity2,
+			remaining: 0,
+			usage: 400,
+			prepaidRemaining: 0,
+			usageBasedUsage: 100,
+		});
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("update-quantity-prepaid-overage-entities: entity product decrease only adjusts targeted entity")}`, async () => {
-	const customerId = "qty-prepaid-overage-entity-product-decrease";
-	const product = buildEntityProductPrepaidOverage({
-		id: "entity-product-prepaid-overage-decrease",
-	});
+test.concurrent(
+	`${chalk.yellowBright("update-quantity-prepaid-overage-entities: entity product decrease only adjusts targeted entity")}`,
+	async () => {
+		const customerId = "qty-prepaid-overage-entity-product-decrease";
+		const product = buildEntityProductPrepaidOverage({
+			id: "entity-product-prepaid-overage-decrease",
+		});
 
-	const { autumnV2_1, ctx, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				entityIndex: 0,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialQuantity },
-				],
-			}),
-			s.billing.attach({
-				productId: product.id,
-				entityIndex: 1,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialQuantity },
-				],
-			}),
-			s.track({
-				featureId: TestFeature.Messages,
-				entityIndex: 0,
-				value: 450,
-				timeout: 2000,
-			}),
-			s.track({
-				featureId: TestFeature.Messages,
-				entityIndex: 1,
-				value: 400,
-				timeout: 2000,
-			}),
-		],
-	});
+		const { autumnV2_1, ctx, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					entityIndex: 0,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialQuantity },
+					],
+				}),
+				s.billing.attach({
+					productId: product.id,
+					entityIndex: 1,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialQuantity },
+					],
+				}),
+				s.track({
+					featureId: TestFeature.Messages,
+					entityIndex: 0,
+					value: 450,
+					timeout: 2000,
+				}),
+				s.track({
+					featureId: TestFeature.Messages,
+					entityIndex: 1,
+					value: 400,
+					timeout: 2000,
+				}),
+			],
+		});
 
-	await autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
-		customer_id: customerId,
-		entity_id: entities[1].id,
-		plan_id: product.id,
-		feature_quantities: [
-			{
-				feature_id: TestFeature.Messages,
-				quantity: decreasedQuantity,
+		await autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
+			customer_id: customerId,
+			entity_id: entities[1].id,
+			plan_id: product.id,
+			feature_quantities: [
+				{
+					feature_id: TestFeature.Messages,
+					quantity: decreasedQuantity,
+				},
+			],
+			recalculate_balances: {
+				enabled: true,
 			},
-		],
-		recalculate_balances: {
-			enabled: true,
-		},
-	});
+		});
 
-	const entity1 = await autumnV2_1.entities.get<ApiEntityV2>(
-		customerId,
-		entities[0].id,
-	);
-	const entity2 = await autumnV2_1.entities.get<ApiEntityV2>(
-		customerId,
-		entities[1].id,
-	);
+		const entity1 = await autumnV2_1.entities.get<ApiEntityV2>(
+			customerId,
+			entities[0].id,
+		);
+		const entity2 = await autumnV2_1.entities.get<ApiEntityV2>(
+			customerId,
+			entities[1].id,
+		);
 
-	expectEntityPrepaidOverage({
-		entity: entity1,
-		remaining: 0,
-		usage: 450,
-		prepaidRemaining: 0,
-		usageBasedUsage: 150,
-	});
-	expectEntityPrepaidOverage({
-		entity: entity2,
-		remaining: 0,
-		usage: 400,
-		prepaidRemaining: 0,
-		usageBasedUsage: 200,
-	});
+		expectEntityPrepaidOverage({
+			entity: entity1,
+			remaining: 0,
+			usage: 450,
+			prepaidRemaining: 0,
+			usageBasedUsage: 150,
+		});
+		expectEntityPrepaidOverage({
+			entity: entity2,
+			remaining: 0,
+			usage: 400,
+			prepaidRemaining: 0,
+			usageBasedUsage: 200,
+		});
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);

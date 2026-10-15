@@ -69,8 +69,12 @@ test.concurrent(
 		const after = await usagePriceForFeature({ ctx, productId: pro.id });
 		const featureAfter = await getFeatureRow({ ctx });
 
-		expect(featureAfter.stripe_product_id).toBe(featureBefore.stripe_product_id);
-		expect(after.config.stripe_product_id).toBe(featureBefore.stripe_product_id);
+		expect(featureAfter.stripe_product_id).toBe(
+			featureBefore.stripe_product_id,
+		);
+		expect(after.config.stripe_product_id).toBe(
+			featureBefore.stripe_product_id,
+		);
 		expect(after.config.stripe_price_id).toBe(before.config.stripe_price_id);
 	},
 );
@@ -123,6 +127,8 @@ test.concurrent(
 
 		const after = await usagePriceForFeature({ ctx, productId: pro.id });
 		expect(after.config.stripe_price_id).toBeString();
-		expect(after.config.stripe_price_id).not.toBe(before.config.stripe_price_id);
+		expect(after.config.stripe_price_id).not.toBe(
+			before.config.stripe_price_id,
+		);
 	},
 );

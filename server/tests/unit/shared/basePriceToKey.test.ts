@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { basePriceToKey, BillingInterval } from "@autumn/shared";
+import { BillingInterval, basePriceToKey } from "@autumn/shared";
 
 type BasePriceParams = Parameters<typeof basePriceToKey>[0]["price"];
 
@@ -13,7 +13,11 @@ const price = (overrides: Record<string, unknown> = {}) =>
 
 const keyOf = (value: BasePriceParams) => basePriceToKey({ price: value });
 
-const expectSame = (a: BasePriceParams, b: BasePriceParams, expected: boolean) => {
+const expectSame = (
+	a: BasePriceParams,
+	b: BasePriceParams,
+	expected: boolean,
+) => {
 	expect(keyOf(a) === keyOf(b)).toBe(expected);
 	expect(keyOf(b) === keyOf(a)).toBe(expected);
 };
@@ -52,15 +56,35 @@ describe("basePriceToKey", () => {
 
 	describe("interval_count (unset means 1)", () => {
 		test("unset / null equal 1; 1 vs 2 differ", () => {
-			expectSame(price({ interval_count: undefined }), price({ interval_count: 1 }), true);
-			expectSame(price({ interval_count: null }), price({ interval_count: 1 }), true);
+			expectSame(
+				price({ interval_count: undefined }),
+				price({ interval_count: 1 }),
+				true,
+			);
+			expectSame(
+				price({ interval_count: null }),
+				price({ interval_count: 1 }),
+				true,
+			);
 			expectSame(price(), price({ interval_count: 1 }), true);
-			expectSame(price({ interval_count: 1 }), price({ interval_count: 2 }), false);
-			expectSame(price({ interval_count: undefined }), price({ interval_count: 2 }), false);
+			expectSame(
+				price({ interval_count: 1 }),
+				price({ interval_count: 2 }),
+				false,
+			);
+			expectSame(
+				price({ interval_count: undefined }),
+				price({ interval_count: 2 }),
+				false,
+			);
 		});
 
 		test("0 is preserved (not collapsed to 1)", () => {
-			expectSame(price({ interval_count: 0 }), price({ interval_count: 1 }), false);
+			expectSame(
+				price({ interval_count: 0 }),
+				price({ interval_count: 1 }),
+				false,
+			);
 		});
 	});
 

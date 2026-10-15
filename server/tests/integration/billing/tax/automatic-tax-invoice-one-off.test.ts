@@ -6,9 +6,9 @@
  */
 
 import { expect, test } from "bun:test";
-import chalk from "chalk";
 import { products } from "@tests/utils/fixtures/products.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
+import chalk from "chalk";
 
 const auAddress = {
 	country: "AU",

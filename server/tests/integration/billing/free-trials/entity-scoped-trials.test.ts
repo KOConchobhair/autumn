@@ -52,8 +52,7 @@ const activeTrialForEntity = async ({
 	});
 
 	return fullCustomer.customer_products.find(
-		(cp) =>
-			cp.entity_id === entityId && cp.status === CusProductStatus.Active,
+		(cp) => cp.entity_id === entityId && cp.status === CusProductStatus.Active,
 	);
 };
 
@@ -168,7 +167,10 @@ test.concurrent(
 		const entityId = entities[0].id;
 
 		const firstTrial = await activeTrialForEntity({ customerId, entityId });
-		expect(firstTrial?.free_trial_id, "First attach should trial").not.toBeNull();
+		expect(
+			firstTrial?.free_trial_id,
+			"First attach should trial",
+		).not.toBeNull();
 		const productId = firstTrial!.product.id;
 
 		// Free trial off, then back: cancel immediately and re-attach the same plan.

@@ -137,7 +137,8 @@ test.concurrent(
 				{
 					plan_id: planId,
 					items: [monthlyMessagesItem(700)],
-					versioning: "new_version", active: true,
+					versioning: "new_version",
+					active: true,
 				},
 			],
 		});

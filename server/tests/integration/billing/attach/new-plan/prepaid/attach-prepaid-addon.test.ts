@@ -33,85 +33,89 @@ import chalk from "chalk";
 // - 2 invoices for the add-on attaches (+ 1 for main = 3 total)
 // - Stripe subscription has 2 separate inline items for the add-ons
 // ═══════════════════════════════════════════════════════════════════
-test.concurrent(`${chalk.yellowBright("attach prepaid addon: attach tiered prepaid add-on twice")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+test.concurrent(
+	`${chalk.yellowBright("attach prepaid addon: attach tiered prepaid add-on twice")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
 
-	const mainPlan = products.pro({ id: "main", items: [messagesItem] });
+		const mainPlan = products.pro({ id: "main", items: [messagesItem] });
 
-	// Tiered prepaid add-on: 100 included, then $10/100 units graduated
-	const prepaidAddon = products.base({
-		id: "prepaid-addon",
-		isAddOn: true,
-		items: [
-			items.tieredPrepaidMessages({
-				includedUsage: 100,
-				billingUnits: 100,
-				tiers: [
-					{ to: 500, amount: 10 },
-					{ to: "inf", amount: 5 },
-				],
-			}),
-		],
-	});
+		// Tiered prepaid add-on: 100 included, then $10/100 units graduated
+		const prepaidAddon = products.base({
+			id: "prepaid-addon",
+			isAddOn: true,
+			items: [
+				items.tieredPrepaidMessages({
+					includedUsage: 100,
+					billingUnits: 100,
+					tiers: [
+						{ to: 500, amount: 10 },
+						{ to: "inf", amount: 5 },
+					],
+				}),
+			],
+		});
 
-	const { customerId, autumnV1, ctx } = await initScenario({
-		customerId: "attach-prepaid-addon-twice",
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [mainPlan, prepaidAddon] }),
-		],
-		actions: [
-			s.billing.attach({ productId: mainPlan.id }),
-			s.billing.attach({
-				productId: prepaidAddon.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: 200 }],
-			}),
-		],
-	});
+		const { customerId, autumnV1, ctx } = await initScenario({
+			customerId: "attach-prepaid-addon-twice",
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [mainPlan, prepaidAddon] }),
+			],
+			actions: [
+				s.billing.attach({ productId: mainPlan.id }),
+				s.billing.attach({
+					productId: prepaidAddon.id,
+					options: [{ feature_id: TestFeature.Messages, quantity: 200 }],
+				}),
+			],
+		});
 
-	// First add-on already attached in setup. Now attach the same one again.
-	const attachParams: AttachParamsV0Input = {
-		customer_id: customerId,
-		product_id: prepaidAddon.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: 300 }],
-	};
+		// First add-on already attached in setup. Now attach the same one again.
+		const attachParams: AttachParamsV0Input = {
+			customer_id: customerId,
+			product_id: prepaidAddon.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: 300 }],
+		};
 
-	// 1. Preview second add-on
-	// (300 - 100 included) / 100 = 2 packs @ $10 = $20
-	const preview = await autumnV1.billing.previewAttach<AttachParamsV0Input>(attachParams);
-	expect(preview.total).toEqual(20);
+		// 1. Preview second add-on
+		// (300 - 100 included) / 100 = 2 packs @ $10 = $20
+		const preview =
+			await autumnV1.billing.previewAttach<AttachParamsV0Input>(attachParams);
+		expect(preview.total).toEqual(20);
 
-	// 2. Attach second instance
-	await autumnV1.billing.attach<AttachParamsV0Input>(attachParams);
+		// 2. Attach second instance
+		await autumnV1.billing.attach<AttachParamsV0Input>(attachParams);
 
-	// 3. Verify
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// 3. Verify
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer,
-		active: [mainPlan.id, prepaidAddon.id],
-	});
+		await expectCustomerProducts({
+			customer,
+			active: [mainPlan.id, prepaidAddon.id],
+		});
 
-	// Messages: 100 (main) + 200 (addon 1) + 300 (addon 2) = 600
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: 600,
-	});
+		// Messages: 100 (main) + 200 (addon 1) + 300 (addon 2) = 600
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: 600,
+		});
 
-	// Invoices: 1 (main) + 1 (first addon) + 1 (second addon) = 3
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 3,
-		latestTotal: 20,
-	});
+		// Invoices: 1 (main) + 1 (first addon) + 1 (second addon) = 3
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 3,
+			latestTotal: 20,
+		});
 
-	// Stripe subscription should have separate inline items for each add-on
-	await expectStripeSubscriptionCorrect({
-		ctx,
-		customerId,
-	});
-});
+		// Stripe subscription should have separate inline items for each add-on
+		await expectStripeSubscriptionCorrect({
+			ctx,
+			customerId,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // Test 2: Attach flat prepaid add-on twice, verify quantities don't stack
@@ -127,72 +131,76 @@ test.concurrent(`${chalk.yellowBright("attach prepaid addon: attach tiered prepa
 // - Messages: 100 + 200 + 400 = 700
 // - Stripe subscription has 2 inline items (not 1 merged item with qty 6)
 // ═══════════════════════════════════════════════════════════════════
-test.concurrent(`${chalk.yellowBright("attach prepaid addon: flat prepaid add-on twice")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+test.concurrent(
+	`${chalk.yellowBright("attach prepaid addon: flat prepaid add-on twice")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
 
-	const mainPlan = products.pro({ id: "main", items: [messagesItem] });
+		const mainPlan = products.pro({ id: "main", items: [messagesItem] });
 
-	const prepaidAddon = products.base({
-		id: "flat-addon",
-		isAddOn: true,
-		items: [
-			items.prepaidMessages({
-				includedUsage: 0,
-				billingUnits: 100,
-				price: 10,
-			}),
-		],
-	});
+		const prepaidAddon = products.base({
+			id: "flat-addon",
+			isAddOn: true,
+			items: [
+				items.prepaidMessages({
+					includedUsage: 0,
+					billingUnits: 100,
+					price: 10,
+				}),
+			],
+		});
 
-	const { customerId, autumnV1, ctx } = await initScenario({
-		customerId: "attach-flat-addon-twice",
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [mainPlan, prepaidAddon] }),
-		],
-		actions: [
-			s.billing.attach({ productId: mainPlan.id }),
-			s.billing.attach({
-				productId: prepaidAddon.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: 200 }],
-			}),
-		],
-	});
+		const { customerId, autumnV1, ctx } = await initScenario({
+			customerId: "attach-flat-addon-twice",
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [mainPlan, prepaidAddon] }),
+			],
+			actions: [
+				s.billing.attach({ productId: mainPlan.id }),
+				s.billing.attach({
+					productId: prepaidAddon.id,
+					options: [{ feature_id: TestFeature.Messages, quantity: 200 }],
+				}),
+			],
+		});
 
-	const attachParams: AttachParamsV0Input = {
-		customer_id: customerId,
-		product_id: prepaidAddon.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: 400 }],
-	};
+		const attachParams: AttachParamsV0Input = {
+			customer_id: customerId,
+			product_id: prepaidAddon.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: 400 }],
+		};
 
-	// 1. Preview: 400/100 = 4 packs @ $10 = $40
-	const preview = await autumnV1.billing.previewAttach<AttachParamsV0Input>(attachParams);
-	expect(preview.total).toEqual(40);
+		// 1. Preview: 400/100 = 4 packs @ $10 = $40
+		const preview =
+			await autumnV1.billing.previewAttach<AttachParamsV0Input>(attachParams);
+		expect(preview.total).toEqual(40);
 
-	// 2. Attach
-	await autumnV1.billing.attach<AttachParamsV0Input>(attachParams);
+		// 2. Attach
+		await autumnV1.billing.attach<AttachParamsV0Input>(attachParams);
 
-	// 3. Verify
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// 3. Verify
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer,
-		active: [mainPlan.id, prepaidAddon.id],
-	});
+		await expectCustomerProducts({
+			customer,
+			active: [mainPlan.id, prepaidAddon.id],
+		});
 
-	// Messages: 100 (main) + 200 (addon 1) + 400 (addon 2) = 700
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: 700,
-	});
+		// Messages: 100 (main) + 200 (addon 1) + 400 (addon 2) = 700
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: 700,
+		});
 
-	// Invoices: 1 (main) + 1 (first addon) + 1 (second addon) = 3
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 3,
-		latestTotal: 40,
-	});
+		// Invoices: 1 (main) + 1 (first addon) + 1 (second addon) = 3
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 3,
+			latestTotal: 40,
+		});
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);

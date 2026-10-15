@@ -45,11 +45,12 @@ const formatCustomize = (customize: any) => {
 		return [];
 	}
 
-	const addItems = customize.add_items?.map((item: Record<string, any>) =>
-		`+${formatItem(item)}`,
+	const addItems = customize.add_items?.map(
+		(item: Record<string, any>) => `+${formatItem(item)}`,
 	);
-	const removeItems = customize.remove_items?.map((item: Record<string, any>) =>
-		`-${item.feature_id ?? "unknown"}${item.interval ? `/${item.interval}` : ""}`,
+	const removeItems = customize.remove_items?.map(
+		(item: Record<string, any>) =>
+			`-${item.feature_id ?? "unknown"}${item.interval ? `/${item.interval}` : ""}`,
 	);
 
 	return [...(addItems ?? []), ...(removeItems ?? [])];
@@ -92,7 +93,7 @@ const formatCatalogPreview = (preview: CatalogPreviewUpdateResponse) => ({
 		archive: featureChanges.will_archive,
 		blocked: featureChanges.blocked,
 		reason: featureChanges.blocked_reason,
-		expanded: Object.prototype.hasOwnProperty.call(featureChanges, "feature"),
+		expanded: Object.hasOwn(featureChanges, "feature"),
 	})),
 });
 
@@ -171,10 +172,9 @@ export const expectCatalogPreview = ({
 					`item ${expectedItem.featureId} on ${planId}`,
 				).toBeDefined();
 				if (typeof expectedItem.included !== "undefined") {
-					expect(
-						item?.included,
-						`included for ${expectedItem.featureId}`,
-					).toBe(expectedItem.included);
+					expect(item?.included, `included for ${expectedItem.featureId}`).toBe(
+						expectedItem.included,
+					);
 				}
 			}
 		}

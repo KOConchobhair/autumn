@@ -42,10 +42,7 @@ import { uniqueTestId } from "../catalog-v2/utils/uniqueTestId.js";
  * A second config dir for the same org — initAtmnScenario mints one org per
  * call, so a second scenario would be a different catalog, not a second dir.
  */
-const TMP_ROOT = join(
-	import.meta.dir,
-	"../../../../packages/atmn/test/.tmp",
-);
+const TMP_ROOT = join(import.meta.dir, "../../../../packages/atmn/test/.tmp");
 
 const openConfigDir = (): {
 	cwd: string;

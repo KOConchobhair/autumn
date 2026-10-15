@@ -20,7 +20,7 @@
  */
 
 import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
-import { type DbUsageAlert, type EntityBillingControls } from "@autumn/shared";
+import type { DbUsageAlert, EntityBillingControls } from "@autumn/shared";
 import {
 	getTestSvixAppId,
 	setupWebhookTest,

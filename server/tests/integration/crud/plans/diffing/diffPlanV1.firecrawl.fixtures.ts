@@ -1,8 +1,7 @@
-import { type ApiPlanV1 } from "@autumn/shared";
-import { findById } from "./utils/findById.js";
-
+import type { ApiPlanV1 } from "@autumn/shared";
 // Bun-native JSON import (module: Preserve + bundler resolution).
 import firecrawlDump from "./firecrawl-plans.json" with { type: "json" };
+import { findById } from "./utils/findById.js";
 
 const items = firecrawlDump.items as ApiPlanV1[];
 

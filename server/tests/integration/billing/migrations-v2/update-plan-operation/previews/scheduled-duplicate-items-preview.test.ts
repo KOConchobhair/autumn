@@ -15,7 +15,10 @@ import {
 	expectMigrationPreviewCorrect,
 	getPreviewItemChanges,
 } from "./expectMigrationPreviewCorrect";
-import type { PreviewMigrateCustomer, PreviewPlanChange } from "./previewTestUtils";
+import type {
+	PreviewMigrateCustomer,
+	PreviewPlanChange,
+} from "./previewTestUtils";
 import { runUpdatePlanPreview } from "./previewTestUtils";
 
 const getPreviewPlanId = (change: PreviewPlanChange): string | undefined =>
@@ -29,7 +32,8 @@ const getUpdatedPlanChanges = ({
 	planId: string;
 }) =>
 	preview.plan_changes.filter(
-		(change) => change.action === "updated" && getPreviewPlanId(change) === planId,
+		(change) =>
+			change.action === "updated" && getPreviewPlanId(change) === planId,
 	);
 
 const getCreatedFeatureIds = (change: PreviewPlanChange) =>

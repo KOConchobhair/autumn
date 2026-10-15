@@ -15,8 +15,8 @@ import { describe, expect, test } from "bun:test";
 import {
 	type Feature,
 	FeatureType,
-	findUsageWindowAnchor,
 	type FullSubject,
+	findUsageWindowAnchor,
 } from "@autumn/shared";
 
 const looseEntitlement = ({

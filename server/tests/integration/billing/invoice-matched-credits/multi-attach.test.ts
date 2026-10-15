@@ -74,7 +74,10 @@ test.concurrent(
 
 		const preview = await autumnV1.billing.previewMultiAttach({
 			customer_id: customerId,
-			plans: [{ plan_id: `premium_${customerId}` }, { plan_id: `addon_${customerId}` }],
+			plans: [
+				{ plan_id: `premium_${customerId}` },
+				{ plan_id: `addon_${customerId}` },
+			],
 		});
 
 		expect(preview.total).toBeDefined();
@@ -90,7 +93,10 @@ test.concurrent(
 
 		await autumnV1.billing.multiAttach({
 			customer_id: customerId,
-			plans: [{ plan_id: `premium_${customerId}` }, { plan_id: `addon_${customerId}` }],
+			plans: [
+				{ plan_id: `premium_${customerId}` },
+				{ plan_id: `addon_${customerId}` },
+			],
 		});
 
 		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);

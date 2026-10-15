@@ -18,7 +18,8 @@ const seats = { feature_id: "seats", included: 5 };
 const customize = (overrides: Record<string, unknown> = {}) =>
 	overrides as DiffedCustomizePlanV1;
 
-const keyOf = (value: DiffedCustomizePlanV1) => customizeToKey({ customize: value });
+const keyOf = (value: DiffedCustomizePlanV1) =>
+	customizeToKey({ customize: value });
 
 const expectSame = (
 	a: DiffedCustomizePlanV1,
@@ -44,7 +45,11 @@ describe("customizeToKey", () => {
 		});
 
 		test("equal objects are same; interval_count unset equals 1", () => {
-			expectSame(customize({ price: set }), customize({ price: { ...set } }), true);
+			expectSame(
+				customize({ price: set }),
+				customize({ price: { ...set } }),
+				true,
+			);
 			expectSame(
 				customize({ price: set }),
 				customize({ price: { ...set, interval_count: 1 } }),
@@ -61,7 +66,11 @@ describe("customizeToKey", () => {
 	describe("add_items", () => {
 		test("omitted, null, and empty are same", () => {
 			expectSame(customize(), customize({ add_items: [] }), true);
-			expectSame(customize({ add_items: null }), customize({ add_items: [] }), true);
+			expectSame(
+				customize({ add_items: null }),
+				customize({ add_items: [] }),
+				true,
+			);
 		});
 
 		test("order does not matter", () => {
@@ -125,14 +134,20 @@ describe("customizeToKey", () => {
 			expectSame(
 				customize({
 					remove_items: [
-						{ feature_id: "messages", billing_method: BillingMethod.UsageBased },
+						{
+							feature_id: "messages",
+							billing_method: BillingMethod.UsageBased,
+						},
 						{ feature_id: "seats" },
 					],
 				}),
 				customize({
 					remove_items: [
 						{ feature_id: "seats" },
-						{ feature_id: "messages", billing_method: BillingMethod.UsageBased },
+						{
+							feature_id: "messages",
+							billing_method: BillingMethod.UsageBased,
+						},
 					],
 				}),
 				true,
@@ -343,7 +358,11 @@ describe("customizeToKey", () => {
 		test("omitted vs null vs object are all distinct", () => {
 			expectSame(customize(), customize({ free_trial: null }), false);
 			expectSame(customize(), customize({ free_trial: set }), false);
-			expectSame(customize({ free_trial: null }), customize({ free_trial: set }), false);
+			expectSame(
+				customize({ free_trial: null }),
+				customize({ free_trial: set }),
+				false,
+			);
 		});
 	});
 
@@ -462,18 +481,28 @@ describe("customizeToKey", () => {
 			expectSame(customize(), customize({ upsert_licenses: [] }), true);
 			expectSame(
 				customize({
-					upsert_licenses: [{ license_plan_id: "seat", customize: { add_items: [messages] } }],
+					upsert_licenses: [
+						{ license_plan_id: "seat", customize: { add_items: [messages] } },
+					],
 				}),
 				customize({
-					upsert_licenses: [{ license_plan_id: "pack", customize: { add_items: [messages] } }],
+					upsert_licenses: [
+						{ license_plan_id: "pack", customize: { add_items: [messages] } },
+					],
 				}),
 				false,
 			);
 		});
 
 		test("order of licenses does not matter", () => {
-			const seat = { license_plan_id: "seat", customize: { add_items: [messages] } };
-			const pack = { license_plan_id: "pack", customize: { add_items: [seats] } };
+			const seat = {
+				license_plan_id: "seat",
+				customize: { add_items: [messages] },
+			};
+			const pack = {
+				license_plan_id: "pack",
+				customize: { add_items: [seats] },
+			};
 			expectSame(
 				customize({ upsert_licenses: [seat, pack] }),
 				customize({ upsert_licenses: [pack, seat] }),

@@ -16,53 +16,56 @@ import chalk from "chalk";
 // passing feature_quantities for the one-off prepaid.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("custom-plan: increase monthly usage with one-off prepaid present (no quantity)")}`, async () => {
-	const monthlyMessagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const oneOffMessagesItem = items.oneOffMessages({
-		includedUsage: 0,
-		billingUnits: 100,
-		price: 10,
-	});
+test.concurrent(
+	`${chalk.yellowBright("custom-plan: increase monthly usage with one-off prepaid present (no quantity)")}`,
+	async () => {
+		const monthlyMessagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const oneOffMessagesItem = items.oneOffMessages({
+			includedUsage: 0,
+			billingUnits: 100,
+			price: 10,
+		});
 
-	const pro = products.pro({
-		items: [monthlyMessagesItem, oneOffMessagesItem],
-	});
+		const pro = products.pro({
+			items: [monthlyMessagesItem, oneOffMessagesItem],
+		});
 
-	const { customerId, autumnV1, ctx } = await initScenario({
-		customerId: "oneoff-no-qty-update",
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
+		const { customerId, autumnV1, ctx } = await initScenario({
+			customerId: "oneoff-no-qty-update",
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	const updatedMonthlyMessagesItem = items.monthlyMessages({
-		includedUsage: 200,
-	});
-	const monthlyPriceItem = items.monthlyPrice();
+		const updatedMonthlyMessagesItem = items.monthlyMessages({
+			includedUsage: 200,
+		});
+		const monthlyPriceItem = items.monthlyPrice();
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: pro.id,
-		items: [updatedMonthlyMessagesItem, monthlyPriceItem, oneOffMessagesItem],
-	};
+		const updateParams = {
+			customer_id: customerId,
+			product_id: pro.id,
+			items: [updatedMonthlyMessagesItem, monthlyPriceItem, oneOffMessagesItem],
+		};
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
 
-	expect(preview.total).toBe(0);
+		expect(preview.total).toBe(0);
 
-	await autumnV1.subscriptions.update(updateParams);
+		await autumnV1.subscriptions.update(updateParams);
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 200,
-		balance: 200,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 200,
+			balance: 200,
+			usage: 0,
+		});
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);

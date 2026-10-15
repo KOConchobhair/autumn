@@ -21,80 +21,77 @@ import {
 	runVersionRepointMigration,
 } from "../utils/versionRepointTestUtils";
 
-test.skip(
-	`${chalk.yellowBright("batch version repoint transitions: lifetime free item carries without reset scheduling")}`,
-	async () => {
-		const stem = `bvrt-lifetime-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-		const customerId = `${stem}-customer`;
-		const plan = products.base({
-			id: `${stem}-plan`,
-			items: [items.lifetimeMessages({ includedUsage: 100 })],
-		});
-		const { ctx, autumnV2_3 } = await initScenario({
-			customerId,
-			setup: [s.customer({ testClock: false }), s.products({ list: [plan] })],
-			actions: [
-				s.billing.attach({ productId: plan.id }),
-				s.track({
-					featureId: TestFeature.Messages,
-					value: 30,
-					timeout: 2_000,
-				}),
+test.skip(`${chalk.yellowBright("batch version repoint transitions: lifetime free item carries without reset scheduling")}`, async () => {
+	const stem = `bvrt-lifetime-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+	const customerId = `${stem}-customer`;
+	const plan = products.base({
+		id: `${stem}-plan`,
+		items: [items.lifetimeMessages({ includedUsage: 100 })],
+	});
+	const { ctx, autumnV2_3 } = await initScenario({
+		customerId,
+		setup: [s.customer({ testClock: false }), s.products({ list: [plan] })],
+		actions: [
+			s.billing.attach({ productId: plan.id }),
+			s.track({
+				featureId: TestFeature.Messages,
+				value: 30,
+				timeout: 2_000,
+			}),
+		],
+	});
+	// No reset config on the v2 item: still a lifetime grant.
+	await mintPlanVersion({
+		client: autumnV2_3,
+		planId: plan.id,
+		items: [{ feature_id: TestFeature.Messages, included: 250 }],
+	});
+	const before = await readRepointableCustomerPlanRow({
+		ctx,
+		customerId,
+		planId: plan.id,
+	});
+	const rowBefore = await readScopedFeatureRow({
+		ctx,
+		customerId,
+		featureId: TestFeature.Messages,
+	});
+	expect(rowBefore.next_reset_at).toBeNull();
+
+	const { result } = await runVersionRepointMigration({
+		ctx,
+		migrationClient: autumnV2_3,
+		migrationId: `${stem}-migration`,
+		filter: { customer: { plan: { plan_id: plan.id, version: 1 } } },
+		operations: {
+			customer: [
+				{
+					type: "update_plan",
+					plan_filter: { plan_id: plan.id, version: 1 },
+					version: 2,
+				},
 			],
-		});
-		// No reset config on the v2 item: still a lifetime grant.
-		await mintPlanVersion({
-			client: autumnV2_3,
-			planId: plan.id,
-			items: [{ feature_id: TestFeature.Messages, included: 250 }],
-		});
-		const before = await readRepointableCustomerPlanRow({
-			ctx,
-			customerId,
-			planId: plan.id,
-		});
-		const rowBefore = await readScopedFeatureRow({
-			ctx,
-			customerId,
-			featureId: TestFeature.Messages,
-		});
-		expect(rowBefore.next_reset_at).toBeNull();
+		},
+	});
 
-		const { result } = await runVersionRepointMigration({
-			ctx,
-			migrationClient: autumnV2_3,
-			migrationId: `${stem}-migration`,
-			filter: { customer: { plan: { plan_id: plan.id, version: 1 } } },
-			operations: {
-				customer: [
-					{
-						type: "update_plan",
-						plan_filter: { plan_id: plan.id, version: 1 },
-						version: 2,
-					},
-				],
-			},
-		});
+	await expectVersionRepointedOnce({
+		ctx,
+		customerId,
+		planId: plan.id,
+		before,
+		targetVersion: 2,
+		result,
+	});
 
-		await expectVersionRepointedOnce({
-			ctx,
-			customerId,
-			planId: plan.id,
-			before,
-			targetVersion: 2,
-			result,
-		});
-
-		const rowAfter = await readScopedFeatureRow({
-			ctx,
-			customerId,
-			featureId: TestFeature.Messages,
-		});
-		expect(rowAfter.id).toBe(rowBefore.id);
-		expect(rowAfter.entitlement_id).not.toBe(rowBefore.entitlement_id);
-		// 100 - 30 usage, then +150 allowance delta; still no reset scheduled.
-		expect(rowAfter.balance).toBe(220);
-		expect(rowAfter.next_reset_at).toBeNull();
-		expect(rowAfter.reset_cycle_anchor).toBeNull();
-	},
-);
+	const rowAfter = await readScopedFeatureRow({
+		ctx,
+		customerId,
+		featureId: TestFeature.Messages,
+	});
+	expect(rowAfter.id).toBe(rowBefore.id);
+	expect(rowAfter.entitlement_id).not.toBe(rowBefore.entitlement_id);
+	// 100 - 30 usage, then +150 allowance delta; still no reset scheduled.
+	expect(rowAfter.balance).toBe(220);
+	expect(rowAfter.next_reset_at).toBeNull();
+	expect(rowAfter.reset_cycle_anchor).toBeNull();
+});

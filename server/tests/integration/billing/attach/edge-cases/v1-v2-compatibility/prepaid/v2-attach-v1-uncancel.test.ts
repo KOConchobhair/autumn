@@ -53,91 +53,95 @@ import chalk from "chalk";
 // TEST 1: BASIC RENEW - Same quantity
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("v2→v1 uncancel: basic renew with same quantity")}`, async () => {
-	const customerId = "v2-v1-uncancel-basic";
-	const billingUnits = 100;
-	const includedUsage = 100;
-	const pricePerPack = 10;
+test.concurrent(
+	`${chalk.yellowBright("v2→v1 uncancel: basic renew with same quantity")}`,
+	async () => {
+		const customerId = "v2-v1-uncancel-basic";
+		const billingUnits = 100;
+		const includedUsage = 100;
+		const pricePerPack = 10;
 
-	const prepaidItem = items.prepaidMessages({
-		includedUsage,
-		billingUnits,
-		price: pricePerPack,
-		config: {
-			on_increase: OnIncrease.ProrateImmediately,
-			on_decrease: OnDecrease.ProrateImmediately,
-		},
-	});
+		const prepaidItem = items.prepaidMessages({
+			includedUsage,
+			billingUnits,
+			price: pricePerPack,
+			config: {
+				on_increase: OnIncrease.ProrateImmediately,
+				on_decrease: OnDecrease.ProrateImmediately,
+			},
+		});
 
-	const priceItem = items.monthlyPrice({ price: 30 });
-	const pro = products.base({
-		id: "pro",
-		items: [prepaidItem, priceItem],
-	});
+		const priceItem = items.monthlyPrice({ price: 30 });
+		const pro = products.base({
+			id: "pro",
+			items: [prepaidItem, priceItem],
+		});
 
-	// Initial: 500 total units (including 100 allowance)
-	// = 400 prepaid units = 4 packs
-	const initialTotalUnits = 500;
+		// Initial: 500 total units (including 100 allowance)
+		// = 400 prepaid units = 4 packs
+		const initialTotalUnits = 500;
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [
-			// V2 attach
-			s.billing.attach({
-				productId: pro.id,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialTotalUnits },
-				],
-			}),
-			// Cancel the product
-			s.cancel({ productId: pro.id }),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [
+				// V2 attach
+				s.billing.attach({
+					productId: pro.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialTotalUnits },
+					],
+				}),
+				// Cancel the product
+				s.cancel({ productId: pro.id }),
+			],
+		});
 
-	// Verify customer is canceled but still has access until period end
-	const customerCanceled =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductCanceling({
-		customer: customerCanceled,
-		productId: pro.id,
-	});
+		// Verify customer is canceled but still has access until period end
+		const customerCanceled =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductCanceling({
+			customer: customerCanceled,
+			productId: pro.id,
+		});
 
-	// V1 attach to same product (renew flow)
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		// V1 attach to same product (renew flow)
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
 
-	// Verify customer is renewed (no longer canceled)
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({
-		customer: customerAfter,
-		productId: pro.id,
-	});
+		// Verify customer is renewed (no longer canceled)
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({
+			customer: customerAfter,
+			productId: pro.id,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Messages,
-		includedUsage: initialTotalUnits,
-		balance: initialTotalUnits,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Messages,
+			includedUsage: initialTotalUnits,
+			balance: initialTotalUnits,
+			usage: 0,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		billingVersion: BillingVersion.V1,
-	});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			billingVersion: BillingVersion.V1,
+		});
 
-	// Should still have only 1 invoice (no new charge for renew)
-	await expectCustomerInvoiceCorrect({
-		customerId,
-		count: 1,
-	});
-});
+		// Should still have only 1 invoice (no new charge for renew)
+		await expectCustomerInvoiceCorrect({
+			customerId,
+			count: 1,
+		});
+	},
+);

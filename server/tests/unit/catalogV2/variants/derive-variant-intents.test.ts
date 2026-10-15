@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { products } from "@tests/utils/fixtures/db/products";
 import { deriveVariantIntents } from "@/internal/catalogV2/actions/updateCatalog/compute/computeUpsertProductsPlan/derive/deriveVariantIntents";
 import type { ProductStatesContext } from "@/internal/catalogV2/actions/updateCatalog/types/updateCatalogContext";
 import type { UpsertProductPlan } from "@/internal/catalogV2/actions/updateCatalog/types/upsertProductPlan";
 import { emptyVersioningFlags } from "@/internal/customers/cusProducts/repos/getVersioningUsage.js";
-import { products } from "@tests/utils/fixtures/db/products";
 
 const emptyStates = ({
 	planIds,

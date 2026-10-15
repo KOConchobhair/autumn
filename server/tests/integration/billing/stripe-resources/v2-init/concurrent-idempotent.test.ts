@@ -64,9 +64,7 @@ const attachSamePlanConcurrently = async ({
 
 	await Promise.all([
 		autumnV2_3.billing.attach<AttachParamsV1Input>(attachBody(customerId)),
-		autumnV2_3.billing.attach<AttachParamsV1Input>(
-			attachBody(otherCustomerId),
-		),
+		autumnV2_3.billing.attach<AttachParamsV1Input>(attachBody(otherCustomerId)),
 	]);
 
 	await Promise.all([
@@ -96,16 +94,15 @@ const attachSamePlanConcurrently = async ({
 
 	expectV2StripeSlotsCorrect({ price, kind, label: customerId });
 
-	const otherStripeCustomerId = otherCustomers.get(otherCustomerId)?.customer
-		.processor?.id;
+	const otherStripeCustomerId =
+		otherCustomers.get(otherCustomerId)?.customer.processor?.id;
 	await expectSingleStripePriceInitialized({
 		price,
 		kind,
 		stripeCli: ctx.stripeCli,
-		stripeCustomerIds: [
-			customer?.processor?.id,
-			otherStripeCustomerId,
-		].filter((id): id is string => Boolean(id)),
+		stripeCustomerIds: [customer?.processor?.id, otherStripeCustomerId].filter(
+			(id): id is string => Boolean(id),
+		),
 		label: customerId,
 	});
 };
@@ -136,9 +133,7 @@ test.concurrent(
 			product: plan,
 			kind: "prepaid",
 			featureId: TestFeature.Messages,
-			featureQuantities: [
-				{ feature_id: TestFeature.Messages, quantity: 100 },
-			],
+			featureQuantities: [{ feature_id: TestFeature.Messages, quantity: 100 }],
 		});
 	},
 );

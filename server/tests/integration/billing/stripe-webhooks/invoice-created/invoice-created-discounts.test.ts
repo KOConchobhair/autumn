@@ -64,71 +64,74 @@ const getStripeInfo = async ({ customerId }: { customerId: string }) => {
  * - discount.coupon_name should match the coupon name
  * - discount.amount_used should be ~$4 (20% of $20)
  */
-test.concurrent(`${chalk.yellowBright("invoice.created discounts: subscription 20% discount persisted to Autumn invoice")}`, async () => {
-	const customerId = "inv-created-disc-sub-20pct";
+test.concurrent(
+	`${chalk.yellowBright("invoice.created discounts: subscription 20% discount persisted to Autumn invoice")}`,
+	async () => {
+		const customerId = "inv-created-disc-sub-20pct";
 
-	const pro = products.pro({
-		id: "pro",
-		items: [items.dashboard()],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [items.dashboard()],
+		});
 
-	const { autumnV1, testClockId } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.attach({ productId: pro.id })],
-	});
+		const { autumnV1, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [s.attach({ productId: pro.id })],
+		});
 
-	const { stripeCli, subscription, fullCustomer } = await getStripeInfo({
-		customerId,
-	});
+		const { stripeCli, subscription, fullCustomer } = await getStripeInfo({
+			customerId,
+		});
 
-	// Create a 20% off coupon with a name
-	const couponName = "Test 20% Off Coupon";
-	const coupon = await stripeCli.coupons.create({
-		percent_off: 20,
-		duration: "forever",
-		name: couponName,
-	});
+		// Create a 20% off coupon with a name
+		const couponName = "Test 20% Off Coupon";
+		const coupon = await stripeCli.coupons.create({
+			percent_off: 20,
+			duration: "forever",
+			name: couponName,
+		});
 
-	// Apply coupon to the subscription
-	await stripeCli.subscriptions.update(subscription.id, {
-		discounts: [{ coupon: coupon.id }],
-	});
+		// Apply coupon to the subscription
+		await stripeCli.subscriptions.update(subscription.id, {
+			discounts: [{ coupon: coupon.id }],
+		});
 
-	// Advance to next billing cycle - this triggers invoice.created webhook
-	await advanceTestClock({
-		stripeCli,
-		testClockId: testClockId!,
-		numberOfMonths: 1,
-	});
+		// Advance to next billing cycle - this triggers invoice.created webhook
+		await advanceTestClock({
+			stripeCli,
+			testClockId: testClockId!,
+			numberOfMonths: 1,
+		});
 
-	// Wait for webhook processing
-	await new Promise((resolve) => setTimeout(resolve, 5000));
+		// Wait for webhook processing
+		await new Promise((resolve) => setTimeout(resolve, 5000));
 
-	// Query the Autumn invoice from DB
-	const invoices = await InvoiceService.list({
-		db: ctx.db,
-		internalCustomerId: fullCustomer.internal_id,
-	});
+		// Query the Autumn invoice from DB
+		const invoices = await InvoiceService.list({
+			db: ctx.db,
+			internalCustomerId: fullCustomer.internal_id,
+		});
 
-	// Should have 2 invoices: initial + renewal
-	expect(invoices.length).toBeGreaterThanOrEqual(2);
+		// Should have 2 invoices: initial + renewal
+		expect(invoices.length).toBeGreaterThanOrEqual(2);
 
-	// Get the latest invoice (renewal invoice with discount)
-	const latestInvoice = invoices[0];
+		// Get the latest invoice (renewal invoice with discount)
+		const latestInvoice = invoices[0];
 
-	// Verify the discount is present
-	expect(latestInvoice.status).toBe(InvoiceStatus.Draft);
-	expect(latestInvoice.discounts).toBeDefined();
-	expect(latestInvoice.discounts.length).toBe(1);
+		// Verify the discount is present
+		expect(latestInvoice.status).toBe(InvoiceStatus.Draft);
+		expect(latestInvoice.discounts).toBeDefined();
+		expect(latestInvoice.discounts.length).toBe(1);
 
-	const discount = latestInvoice.discounts[0];
-	expect(discount.coupon_name).toBe(couponName);
-	expect(discount.stripe_coupon_id).toBe(coupon.id);
+		const discount = latestInvoice.discounts[0];
+		expect(discount.coupon_name).toBe(couponName);
+		expect(discount.stripe_coupon_id).toBe(coupon.id);
 
-	// 20% of $20 = $4
-	expect(discount.amount_used).toBe(4);
-});
+		// 20% of $20 = $4
+		expect(discount.amount_used).toBe(4);
+	},
+);

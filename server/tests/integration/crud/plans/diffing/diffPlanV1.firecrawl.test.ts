@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { ApiPlanV1 } from "@autumn/shared";
 import {
-	applyDiff,
 	type ApplyDiffOutput,
+	applyDiff,
 } from "@autumn/shared/utils/planV1Utils/diff/applyDiff.js";
+import { diffPlanV1 } from "@autumn/shared/utils/planV1Utils/diff/diffPlanV1.js";
 import {
 	growthBase,
 	growthVariants,
@@ -14,7 +15,6 @@ import {
 	standardBase,
 	standardVariants,
 } from "./diffPlanV1.firecrawl.fixtures.js";
-import { diffPlanV1 } from "@autumn/shared/utils/planV1Utils/diff/diffPlanV1.js";
 import { normalizePlan } from "./utils/normalizePlan.js";
 
 // --- test matrix ---

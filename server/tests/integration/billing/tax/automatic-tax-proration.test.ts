@@ -9,11 +9,11 @@
  */
 
 import { expect, test } from "bun:test";
-import chalk from "chalk";
-import type Stripe from "stripe";
 import { products } from "@tests/utils/fixtures/products.js";
 import type { TestContext } from "@tests/utils/testInitUtils/createTestContext.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
+import chalk from "chalk";
+import type Stripe from "stripe";
 
 const auAddress = {
 	country: "AU",
@@ -41,8 +41,12 @@ async function assertProrationTaxed({
 	expect(prorationInvoice.automatic_tax.enabled).toBe(true);
 
 	const lines = prorationInvoice.lines.data;
-	const negativeLines = lines.filter((l: Stripe.InvoiceLineItem) => l.amount < 0);
-	const positiveLines = lines.filter((l: Stripe.InvoiceLineItem) => l.amount > 0);
+	const negativeLines = lines.filter(
+		(l: Stripe.InvoiceLineItem) => l.amount < 0,
+	);
+	const positiveLines = lines.filter(
+		(l: Stripe.InvoiceLineItem) => l.amount > 0,
+	);
 	expect(negativeLines.length).toBeGreaterThan(0);
 	expect(positiveLines.length).toBeGreaterThan(0);
 

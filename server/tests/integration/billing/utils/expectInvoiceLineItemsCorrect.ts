@@ -258,8 +258,7 @@ const validateExpectedLineItem = (
 		if (disc.hasDiscounts !== undefined) {
 			for (const li of matching) {
 				const discounts = getDiscounts(li);
-				const hasEffectiveDiscounts =
-					discounts.some((d) => d.amount_off !== 0);
+				const hasEffectiveDiscounts = discounts.some((d) => d.amount_off !== 0);
 				expect(
 					hasEffectiveDiscounts,
 					`Expected hasDiscounts=${disc.hasDiscounts} for [${filterDesc}] (li ${li.id}), got ${hasEffectiveDiscounts} (${discounts.length} discounts, effective=${discounts.filter((d) => d.amount_off !== 0).length})`,

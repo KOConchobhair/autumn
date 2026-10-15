@@ -18,8 +18,7 @@
  *  Green (after fix): duplicate code is rejected at the reward layer (or handled).
  */
 
-import { test, expect } from "bun:test";
-import chalk from "chalk";
+import { expect, test } from "bun:test";
 import {
 	CouponDurationType,
 	type CreateReward,
@@ -27,6 +26,7 @@ import {
 	RewardType,
 } from "@autumn/shared";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
+import chalk from "chalk";
 
 const buildReward = ({
 	id,
@@ -52,128 +52,119 @@ const buildReward = ({
 	},
 });
 
-test(
-	`${chalk.yellowBright("rewards bug1: duplicate id+code with different discount is rejected")}`,
-	async () => {
-		const customerId = "rcd-bug1-cust";
-		const suffix = `${Date.now()}`.slice(-7);
-		const rewardId = `rcd-dupe-${suffix}`;
-		const code = `RCDDUPE${suffix}`;
+test(`${chalk.yellowBright("rewards bug1: duplicate id+code with different discount is rejected")}`, async () => {
+	const customerId = "rcd-bug1-cust";
+	const suffix = `${Date.now()}`.slice(-7);
+	const rewardId = `rcd-dupe-${suffix}`;
+	const code = `RCDDUPE${suffix}`;
 
-		const { autumnV2_2 } = await initScenario({
-			customerId,
-			setup: [s.customer({})],
-			actions: [],
-		});
+	const { autumnV2_2 } = await initScenario({
+		customerId,
+		setup: [s.customer({})],
+		actions: [],
+	});
 
-		// First create: fixed $3000 off
+	// First create: fixed $3000 off
+	await autumnV2_2.post(
+		"/rewards",
+		buildReward({
+			id: rewardId,
+			code,
+			type: RewardType.FixedDiscount,
+			value: 3000,
+		}),
+	);
+
+	// Second create: SAME id + code, but 100% percentage off
+	let errorCode: string | undefined;
+	try {
 		await autumnV2_2.post(
 			"/rewards",
 			buildReward({
 				id: rewardId,
 				code,
-				type: RewardType.FixedDiscount,
-				value: 3000,
+				type: RewardType.PercentageDiscount,
+				value: 100,
 			}),
 		);
+	} catch (e) {
+		errorCode = (e as { code?: string }).code;
+	}
 
-		// Second create: SAME id + code, but 100% percentage off
-		let errorCode: string | undefined;
-		try {
-			await autumnV2_2.post(
-				"/rewards",
-				buildReward({
-					id: rewardId,
-					code,
-					type: RewardType.PercentageDiscount,
-					value: 100,
-				}),
-			);
-		} catch (e) {
-			errorCode = (e as { code?: string }).code;
-		}
+	// Duplicate id must be rejected with the specific reward-layer error, not
+	// silently accepted (which used to create a 2nd row).
+	expect(errorCode).toBe(ErrCode.DuplicateRewardId);
+});
 
-		// Duplicate id must be rejected with the specific reward-layer error, not
-		// silently accepted (which used to create a 2nd row).
-		expect(errorCode).toBe(ErrCode.DuplicateRewardId);
-	},
-);
+test(`${chalk.yellowBright("rewards bug1b: duplicate promo codes within one payload are rejected before Stripe")}`, async () => {
+	const customerId = "rcd-bug1b-cust";
+	const suffix = `${Date.now()}`.slice(-7);
+	const code = `RCDINTRA${suffix}`;
 
-test(
-	`${chalk.yellowBright("rewards bug1b: duplicate promo codes within one payload are rejected before Stripe")}`,
-	async () => {
-		const customerId = "rcd-bug1b-cust";
-		const suffix = `${Date.now()}`.slice(-7);
-		const code = `RCDINTRA${suffix}`;
+	const { autumnV2_2 } = await initScenario({
+		customerId,
+		setup: [s.customer({})],
+		actions: [],
+	});
 
-		const { autumnV2_2 } = await initScenario({
-			customerId,
-			setup: [s.customer({})],
-			actions: [],
-		});
+	const reward = buildReward({
+		id: `rcd-intra-${suffix}`,
+		code,
+		type: RewardType.FixedDiscount,
+		value: 3000,
+	});
+	reward.promo_codes = [{ code }, { code }];
 
-		const reward = buildReward({
-			id: `rcd-intra-${suffix}`,
+	let errorCode: string | undefined;
+	try {
+		await autumnV2_2.post("/rewards", reward);
+	} catch (e) {
+		errorCode = (e as { code?: string }).code;
+	}
+
+	// Must be caught at the reward layer, not leak PromoCodeAlreadyExistsInStripe.
+	expect(errorCode).toBe(ErrCode.DuplicatePromoCode);
+});
+
+test(`${chalk.yellowBright("rewards bug2: reusing an active promo code must not leak a raw Stripe error")}`, async () => {
+	const customerId = "rcd-bug2-cust";
+	const suffix = `${Date.now()}`.slice(-7);
+	const code = `RCDRECREATE${suffix}`;
+
+	const { autumnV2_2 } = await initScenario({
+		customerId,
+		setup: [s.customer({})],
+		actions: [],
+	});
+
+	// First reward owns an active promo for `code`.
+	await autumnV2_2.post(
+		"/rewards",
+		buildReward({
+			id: `rcd-recreate-a-${suffix}`,
 			code,
 			type: RewardType.FixedDiscount,
 			value: 3000,
-		});
-		reward.promo_codes = [{ code }, { code }];
+		}),
+	);
 
-		let errorCode: string | undefined;
-		try {
-			await autumnV2_2.post("/rewards", reward);
-		} catch (e) {
-			errorCode = (e as { code?: string }).code;
-		}
-
-		// Must be caught at the reward layer, not leak PromoCodeAlreadyExistsInStripe.
-		expect(errorCode).toBe(ErrCode.DuplicatePromoCode);
-	},
-);
-
-test(
-	`${chalk.yellowBright("rewards bug2: reusing an active promo code must not leak a raw Stripe error")}`,
-	async () => {
-		const customerId = "rcd-bug2-cust";
-		const suffix = `${Date.now()}`.slice(-7);
-		const code = `RCDRECREATE${suffix}`;
-
-		const { autumnV2_2 } = await initScenario({
-			customerId,
-			setup: [s.customer({})],
-			actions: [],
-		});
-
-		// First reward owns an active promo for `code`.
+	// Second reward reuses the same code (Bug 1 lets this through to Stripe).
+	let errorCode: string | undefined;
+	try {
 		await autumnV2_2.post(
 			"/rewards",
 			buildReward({
-				id: `rcd-recreate-a-${suffix}`,
+				id: `rcd-recreate-b-${suffix}`,
 				code,
-				type: RewardType.FixedDiscount,
-				value: 3000,
+				type: RewardType.PercentageDiscount,
+				value: 100,
 			}),
 		);
+	} catch (e) {
+		errorCode = (e as { code?: string }).code;
+	}
 
-		// Second reward reuses the same code (Bug 1 lets this through to Stripe).
-		let errorCode: string | undefined;
-		try {
-			await autumnV2_2.post(
-				"/rewards",
-				buildReward({
-					id: `rcd-recreate-b-${suffix}`,
-					code,
-					type: RewardType.PercentageDiscount,
-					value: 100,
-				}),
-			);
-		} catch (e) {
-			errorCode = (e as { code?: string }).code;
-		}
-
-		// Must reject the duplicate code cleanly at the reward layer, not leak the
-		// low-level Stripe guard (PromoCodeAlreadyExistsInStripe).
-		expect(errorCode).toBe(ErrCode.DuplicatePromoCode);
-	},
-);
+	// Must reject the duplicate code cleanly at the reward layer, not leak the
+	// low-level Stripe guard (PromoCodeAlreadyExistsInStripe).
+	expect(errorCode).toBe(ErrCode.DuplicatePromoCode);
+});

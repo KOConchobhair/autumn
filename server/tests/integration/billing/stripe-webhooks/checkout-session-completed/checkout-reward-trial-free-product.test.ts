@@ -48,7 +48,9 @@ const customerHasProduct = async ({
 	productId: string;
 }) => {
 	const customer = await autumnV1.customers.get(customerId);
-	return (customer.products ?? []).some((p: { id: string }) => p.id === productId);
+	return (customer.products ?? []).some(
+		(p: { id: string }) => p.id === productId,
+	);
 };
 
 test.concurrent(

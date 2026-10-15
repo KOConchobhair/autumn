@@ -129,9 +129,9 @@ describe("findReusableStripeResources — fixed", () => {
 		});
 		donor.internal_product_id = "ip_pro_v1";
 
-		expect(find({ target, candidates: [candidate({ price: donor })] })?.id).toBe(
-			"pr_a",
-		);
+		expect(
+			find({ target, candidates: [candidate({ price: donor })] })?.id,
+		).toBe("pr_a");
 		expect(
 			getPriceCurrencyStripeId({
 				config: target.config,
@@ -153,8 +153,12 @@ describe("findReusableStripeResources — fixed", () => {
 			config: { interval: BillingInterval.Year, stripe_price_id: "price_year" },
 		});
 
-		expect(find({ target, candidates: [candidate({ price: cheaper })] })).toBeNull();
-		expect(find({ target, candidates: [candidate({ price: yearly })] })).toBeNull();
+		expect(
+			find({ target, candidates: [candidate({ price: cheaper })] }),
+		).toBeNull();
+		expect(
+			find({ target, candidates: [candidate({ price: yearly })] }),
+		).toBeNull();
 		expect(target.config.stripe_price_id).toBeFalsy();
 	});
 
@@ -182,9 +186,9 @@ describe("findReusableStripeResources — fixed", () => {
 			},
 		});
 
-		expect(find({ target, candidates: [candidate({ price: donor })] })?.id).toBe(
-			"pr_a",
-		);
+		expect(
+			find({ target, candidates: [candidate({ price: donor })] })?.id,
+		).toBe("pr_a");
 		expect(
 			getPriceCurrencyStripeId({
 				config: target.config,

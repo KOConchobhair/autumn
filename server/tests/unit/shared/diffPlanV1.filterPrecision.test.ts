@@ -16,8 +16,8 @@ import { describe, expect, test } from "bun:test";
 import {
 	type ApiPlanV1,
 	AppEnv,
-	planItemFilterMatchKey,
 	PlanItemFilterPrecision,
+	planItemFilterMatchKey,
 	ResetInterval,
 } from "@autumn/shared";
 import { planItemFiltersEqual } from "@autumn/shared/utils/planV1Utils/diff/comparePlanItems.js";
@@ -140,9 +140,9 @@ describe("diffPlanV1 filterPrecision", () => {
 			interval: ResetInterval.Month,
 			interval_count: 1,
 		};
-		expect(
-			planItemFiltersEqual(identity, { ...identity, included: 100 }),
-		).toBe(false);
+		expect(planItemFiltersEqual(identity, { ...identity, included: 100 })).toBe(
+			false,
+		);
 		expect(
 			planItemFiltersEqual(
 				{ ...identity, included: 100 },

@@ -46,8 +46,9 @@ test.concurrent(
 			starts_at: startsAt,
 			discounts: [{ reward_id: coupon.id }],
 		};
-		const preview =
-			(await autumnV2_2.billing.previewAttach(params)) as AttachPreviewResponse;
+		const preview = (await autumnV2_2.billing.previewAttach(
+			params,
+		)) as AttachPreviewResponse;
 
 		expect(preview.subtotal).toBe(40);
 		expect(preview.total).toBe(35);

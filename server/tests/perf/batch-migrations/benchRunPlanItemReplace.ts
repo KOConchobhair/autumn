@@ -351,9 +351,7 @@ const main = async () => {
 	console.log(
 		`bench: repointed ${counts.repointed}, stale ${counts.stale}${ranToCompletion ? " (expected 0 stale)" : ""}`,
 	);
-	console.log(
-		`bench: wrong balance ${counts.wrong_balance} (expected 0)`,
-	);
+	console.log(`bench: wrong balance ${counts.wrong_balance} (expected 0)`);
 	console.log(
 		`bench: shared dataset rows ${counts.shared} (expected ${sharedBefore}, untouched)`,
 	);

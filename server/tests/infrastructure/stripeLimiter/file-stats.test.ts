@@ -34,7 +34,10 @@ afterEach(() => {
 const createClient = ({
 	status = 200,
 	delayMs = 0,
-}: { status?: number; delayMs?: number } = {}) =>
+}: {
+	status?: number;
+	delayMs?: number;
+} = {}) =>
 	applyTwStripeConcurrencyLimit({
 		client: new Stripe(`sk_test_file_stats_${crypto.randomUUID()}`, {
 			maxNetworkRetries: 0,

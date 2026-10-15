@@ -3,9 +3,8 @@ import type { TestContext } from "@tests/utils/testInitUtils/createTestContext";
 import type Stripe from "stripe";
 import { getStripeSubscription } from "./stripeSubscriptionUtils";
 
-type StripeCancellationDetails = NonNullable<
-	Stripe.Subscription.CancellationDetails
->;
+type StripeCancellationDetails =
+	NonNullable<Stripe.Subscription.CancellationDetails>;
 
 /**
  * Asserts Stripe stored cancellation_details on the customer's subscription.
@@ -27,9 +26,8 @@ export const expectStripeCancellationDetailsCorrect = async ({
 		subscriptionId ??
 		(await getStripeSubscription({ customerId })).subscription.id;
 
-	const subscription = await ctx.stripeCli.subscriptions.retrieve(
-		stripeSubscriptionId,
-	);
+	const subscription =
+		await ctx.stripeCli.subscriptions.retrieve(stripeSubscriptionId);
 
 	if (feedback !== undefined) {
 		expect(subscription.cancellation_details?.feedback).toBe(feedback);

@@ -235,5 +235,7 @@ test(`${chalk.yellowBright("usage-alert credit system: remaining_percentage thre
 
 	expect(result).not.toBeNull();
 	expect(result?.payload.data.feature_id).toBe(TestFeature.Credits);
-	expect(result?.payload.data.usage_alert.threshold_type).toBe("remaining_percentage");
+	expect(result?.payload.data.usage_alert.threshold_type).toBe(
+		"remaining_percentage",
+	);
 });

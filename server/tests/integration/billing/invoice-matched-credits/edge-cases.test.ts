@@ -120,7 +120,9 @@ test.concurrent(
 		expect(preview.total).toBeDefined();
 		expect(preview.outgoing.length).toBeGreaterThanOrEqual(1);
 
-		const outgoingPro = preview.outgoing.find((c: { plan_id: string }) => c.plan_id === pro.id);
+		const outgoingPro = preview.outgoing.find(
+			(c: { plan_id: string }) => c.plan_id === pro.id,
+		);
 		expect(outgoingPro).toBeDefined();
 
 		await autumnV1.billing.multiAttach({

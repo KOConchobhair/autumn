@@ -16,7 +16,9 @@ const sse = (obj: unknown, status = 200) =>
 	);
 
 test(`${chalk.yellowBright("callRcMcpTool: posts JSON-RPC tools/call with bearer + parses SSE result")}`, async () => {
-	const fetchImpl = mock(() => sse({ result: { isError: false, content: [] } }));
+	const fetchImpl = mock(() =>
+		sse({ result: { isError: false, content: [] } }),
+	);
 
 	const result = await callRcMcpTool({
 		accessToken: "atk_abc",
@@ -25,9 +27,14 @@ test(`${chalk.yellowBright("callRcMcpTool: posts JSON-RPC tools/call with bearer
 		fetchImpl: fetchImpl as unknown as typeof fetch,
 	});
 
-	const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+	const [url, init] = fetchImpl.mock.calls[0] as unknown as [
+		string,
+		RequestInit,
+	];
 	expect(url.toString()).toBe("https://mcp.revenuecat.ai/mcp");
-	expect((init.headers as Record<string, string>).Authorization).toBe("Bearer atk_abc");
+	expect((init.headers as Record<string, string>).Authorization).toBe(
+		"Bearer atk_abc",
+	);
 	const sent = JSON.parse(init.body as string);
 	expect(sent).toMatchObject({
 		method: "tools/call",
@@ -38,7 +45,9 @@ test(`${chalk.yellowBright("callRcMcpTool: posts JSON-RPC tools/call with bearer
 
 test(`${chalk.yellowBright("callRcMcpTool: throws when the tool reports isError")}`, async () => {
 	const fetchImpl = mock(() =>
-		sse({ result: { isError: true, content: [{ type: "text", text: "nope" }] } }),
+		sse({
+			result: { isError: true, content: [{ type: "text", text: "nope" }] },
+		}),
 	);
 	await expect(
 		callRcMcpTool({

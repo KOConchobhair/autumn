@@ -6,18 +6,14 @@ export type ExpectedPlan = {
 	quantity?: number;
 	entity_id?: string;
 	expire_previous?: boolean;
-	customize?:
-		| null
-		| {
-				price?:
-					| null
-					| {
-							amount?: number;
-							interval?: string;
-							interval_count?: number;
-							stripe_price_id?: string;
-					  };
-		  };
+	customize?: null | {
+		price?: null | {
+			amount?: number;
+			interval?: string;
+			interval_count?: number;
+			stripe_price_id?: string;
+		};
+	};
 	feature_quantities?: {
 		feature_id: string;
 		quantity?: number;

@@ -44,7 +44,10 @@ test(`${chalk.yellowBright("migration-setup: paid plan multi-version")}`, async 
 			items.monthlyMessages({ includedUsage: 200 }),
 		],
 	});
-	await autumnV1.billing.attach({ customer_id: "migpaid-v2", product_id: pro.id });
+	await autumnV1.billing.attach({
+		customer_id: "migpaid-v2",
+		product_id: pro.id,
+	});
 
 	await autumnV1.products.update(pro.id, {
 		items: [
@@ -52,7 +55,10 @@ test(`${chalk.yellowBright("migration-setup: paid plan multi-version")}`, async 
 			items.monthlyMessages({ includedUsage: 300 }),
 		],
 	});
-	await autumnV1.billing.attach({ customer_id: "migpaid-v3", product_id: pro.id });
+	await autumnV1.billing.attach({
+		customer_id: "migpaid-v3",
+		product_id: pro.id,
+	});
 
 	await autumnV1.products.update(pro.id, {
 		items: [
@@ -60,7 +66,10 @@ test(`${chalk.yellowBright("migration-setup: paid plan multi-version")}`, async 
 			items.monthlyMessages({ includedUsage: 500 }),
 		],
 	});
-	await autumnV1.billing.attach({ customer_id: "migpaid-v4", product_id: pro.id });
+	await autumnV1.billing.attach({
+		customer_id: "migpaid-v4",
+		product_id: pro.id,
+	});
 
 	await autumnV1.products.update(pro.id, {
 		items: [

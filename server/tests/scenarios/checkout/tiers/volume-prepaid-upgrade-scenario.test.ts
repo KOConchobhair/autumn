@@ -27,66 +27,61 @@ const VOLUME_TIERS = [
 	{ to: "inf" as const, amount: 5 },
 ];
 
-test(
-	`${chalk.yellowBright("tiers: volume prepaid upgrade - starter → pro with 800 messages (tier 2 rate)")}`,
-	async () => {
-		const customerId = "tiers-volume-prepaid-upgrade";
+test(`${chalk.yellowBright("tiers: volume prepaid upgrade - starter → pro with 800 messages (tier 2 rate)")}`, async () => {
+	const customerId = "tiers-volume-prepaid-upgrade";
 
-		// Starter: simple monthly plan
-		const starter = products.base({
-			id: "starter",
-			items: [
-				items.dashboard(),
-				items.monthlyMessages({ includedUsage: 100 }),
-				items.monthlyPrice({ price: 19 }),
-			],
-		});
+	// Starter: simple monthly plan
+	const starter = products.base({
+		id: "starter",
+		items: [
+			items.dashboard(),
+			items.monthlyMessages({ includedUsage: 100 }),
+			items.monthlyPrice({ price: 19 }),
+		],
+	});
 
-		// Pro: volume-based tiered prepaid messages ($49/mo)
-		// 8 packs at 800 units → all charged at tier-2 rate ($5/pack) = $40
-		const pro = products.base({
-			id: "pro",
-			items: [
-				items.dashboard(),
-				items.adminRights(),
-				items.volumePrepaidMessages({
-					includedUsage: 0,
-					billingUnits: BILLING_UNITS,
-					tiers: VOLUME_TIERS,
-				}),
-				items.monthlyPrice({ price: 49 }),
-			],
-		});
+	// Pro: volume-based tiered prepaid messages ($49/mo)
+	// 8 packs at 800 units → all charged at tier-2 rate ($5/pack) = $40
+	const pro = products.base({
+		id: "pro",
+		items: [
+			items.dashboard(),
+			items.adminRights(),
+			items.volumePrepaidMessages({
+				includedUsage: 0,
+				billingUnits: BILLING_UNITS,
+				tiers: VOLUME_TIERS,
+			}),
+			items.monthlyPrice({ price: 49 }),
+		],
+	});
 
-		const { autumnV1 } = await initScenario({
-			customerId,
-			setup: [
-				s.customer({ paymentMethod: "success" }),
-				s.products({ list: [starter, pro] }),
-			],
-			actions: [s.attach({ productId: "starter" })],
-		});
+	const { autumnV1 } = await initScenario({
+		customerId,
+		setup: [
+			s.customer({ paymentMethod: "success" }),
+			s.products({ list: [starter, pro] }),
+		],
+		actions: [s.attach({ productId: "starter" })],
+	});
 
-		const messagesOptions = [
-			{ feature_id: TestFeature.Messages, quantity: 800 },
-		];
+	const messagesOptions = [{ feature_id: TestFeature.Messages, quantity: 800 }];
 
-		// 1. Preview upgrade - volume: 8 packs all at $5 = $40 (not $65 graduated)
-		const upgradePreview = await autumnV1.billing.previewAttach({
-			customer_id: customerId,
-			product_id: `pro_${customerId}`,
-			options: messagesOptions,
-			redirect_mode: "always",
-		});
-		console.log("volume prepaid upgrade preview:", upgradePreview);
+	// 1. Preview upgrade - volume: 8 packs all at $5 = $40 (not $65 graduated)
+	const upgradePreview = await autumnV1.billing.previewAttach({
+		customer_id: customerId,
+		product_id: `pro_${customerId}`,
+		options: messagesOptions,
+		redirect_mode: "always",
+	});
+	console.log("volume prepaid upgrade preview:", upgradePreview);
 
-		// 2. Perform the upgrade
-		const upgradeResult = await autumnV1.billing.attach({
-			customer_id: customerId,
-			product_id: `pro_${customerId}`,
-			options: messagesOptions,
-			redirect_mode: "always",
-		});
-		console.log("volume prepaid upgrade result:", upgradeResult);
-	},
-);
+	// 2. Perform the upgrade
+	const upgradeResult = await autumnV1.billing.attach({
+		customer_id: customerId,
+		product_id: `pro_${customerId}`,
+		options: messagesOptions,
+		redirect_mode: "always",
+	});
+	console.log("volume prepaid upgrade result:", upgradeResult);
+});

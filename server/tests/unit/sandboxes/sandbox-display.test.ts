@@ -14,7 +14,9 @@ describe("sandbox display tokens (shared)", () => {
 
 	test("icon default is a non-empty phosphor icon name", () => {
 		expect(typeof DEFAULT_SANDBOX_ICON).toBe("string");
-		expect(SandboxIconSchema.safeParse(DEFAULT_SANDBOX_ICON).success).toBe(true);
+		expect(SandboxIconSchema.safeParse(DEFAULT_SANDBOX_ICON).success).toBe(
+			true,
+		);
 	});
 
 	test("colour schema accepts every allowlisted colour", () => {

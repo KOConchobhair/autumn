@@ -17,8 +17,14 @@ test(`${chalk.yellowBright("migration-setup: dense old versions")}`, async () =>
 		id: "team",
 		items: [items.monthlyMessages({ includedUsage: 100 })],
 	});
-	const v1Customers = Array.from({ length: 6 }, (_, i) => `migdense-v1-${i + 1}`);
-	const v2Customers = Array.from({ length: 3 }, (_, i) => `migdense-v2-${i + 1}`);
+	const v1Customers = Array.from(
+		{ length: 6 },
+		(_, i) => `migdense-v1-${i + 1}`,
+	);
+	const v2Customers = Array.from(
+		{ length: 3 },
+		(_, i) => `migdense-v2-${i + 1}`,
+	);
 
 	const { autumnV1 } = await initScenario({
 		customerId: v1Customers[0],

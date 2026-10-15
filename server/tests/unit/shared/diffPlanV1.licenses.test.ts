@@ -6,9 +6,9 @@
 
 import { describe, expect, test } from "bun:test";
 import {
-	AppEnv,
 	type ApiPlanLicenseV1,
 	type ApiPlanV1,
+	AppEnv,
 	BillingInterval,
 	type DiffedCustomizePlanV1,
 } from "@autumn/shared";
@@ -275,10 +275,9 @@ describe("diffPlanV1 licenses — mixed set", () => {
 				license({ license_plan_id: "alpha", included: 9 }),
 			],
 		});
-		expect(diff.upsert_licenses?.map((entry) => entry.license_plan_id)).toEqual([
-			"alpha",
-			"zeta",
-		]);
+		expect(diff.upsert_licenses?.map((entry) => entry.license_plan_id)).toEqual(
+			["alpha", "zeta"],
+		);
 	});
 });
 

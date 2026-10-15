@@ -128,9 +128,7 @@ const routes = ({
 		const statedFeatures = new Set(
 			(params.features ?? []).map((row) => row.feature_id),
 		);
-		const statedPlans = new Set(
-			(params.plans ?? []).map((row) => row.plan_id),
-		);
+		const statedPlans = new Set((params.plans ?? []).map((row) => row.plan_id));
 		return {
 			features: [
 				...(params.features ?? []).map((row) => ({

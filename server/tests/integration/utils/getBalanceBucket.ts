@@ -37,7 +37,8 @@ export const getBalanceBucket = ({
 		if (planId && bucket.plan_id !== planId) continue;
 		if (resetInterval === null && bucket.reset !== null) continue;
 		if (resetInterval && bucket.reset?.interval !== resetInterval) continue;
-		if (billingMethod && bucket.price?.billing_method !== billingMethod) continue;
+		if (billingMethod && bucket.price?.billing_method !== billingMethod)
+			continue;
 		if (
 			typeof includedGrant !== "undefined" &&
 			bucket.included_grant !== includedGrant

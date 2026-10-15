@@ -33,55 +33,58 @@ import { constructPrepaidItem } from "@/utils/scriptUtils/constructItem";
  * Expected Result:
  * - Error thrown: "Cannot create Stripe checkout when there are multiple intervals"
  */
-test.concurrent(`${chalk.yellowBright("error: multi-interval checkout not supported")}`, async () => {
-	const customerId = "stripe-checkout-error-multi-interval";
+test.concurrent(
+	`${chalk.yellowBright("error: multi-interval checkout not supported")}`,
+	async () => {
+		const customerId = "stripe-checkout-error-multi-interval";
 
-	// Monthly prepaid messages: $10/pack (100 units)
-	const monthlyPrepaidItem = items.prepaidMessages({
-		includedUsage: 0,
-		billingUnits: 100,
-		price: 10,
-	});
+		// Monthly prepaid messages: $10/pack (100 units)
+		const monthlyPrepaidItem = items.prepaidMessages({
+			includedUsage: 0,
+			billingUnits: 100,
+			price: 10,
+		});
 
-	// Annual prepaid words: $50/pack (100 units)
-	const annualPrepaidItem = constructPrepaidItem({
-		featureId: TestFeature.Words,
-		includedUsage: 0,
-		billingUnits: 100,
-		price: 50,
-		intervalCount: 12, // Annual (12 months)
-	});
+		// Annual prepaid words: $50/pack (100 units)
+		const annualPrepaidItem = constructPrepaidItem({
+			featureId: TestFeature.Words,
+			includedUsage: 0,
+			billingUnits: 100,
+			price: 50,
+			intervalCount: 12, // Annual (12 months)
+		});
 
-	// Product with both monthly and annual prepaid
-	const mixedIntervalProduct = products.base({
-		id: "mixed-interval",
-		items: [monthlyPrepaidItem, annualPrepaidItem],
-	});
+		// Product with both monthly and annual prepaid
+		const mixedIntervalProduct = products.base({
+			id: "mixed-interval",
+			items: [monthlyPrepaidItem, annualPrepaidItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }), // No payment method → checkout flow
-			s.products({ list: [mixedIntervalProduct] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }), // No payment method → checkout flow
+				s.products({ list: [mixedIntervalProduct] }),
+			],
+			actions: [],
+		});
 
-	// Attempt to attach should fail due to multi-interval checkout
-	await expectAutumnError({
-		errCode: ErrCode.InvalidRequest,
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: mixedIntervalProduct.id,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: 100 },
-					{ feature_id: TestFeature.Words, quantity: 100 },
-				],
-			});
-		},
-	});
-});
+		// Attempt to attach should fail due to multi-interval checkout
+		await expectAutumnError({
+			errCode: ErrCode.InvalidRequest,
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: mixedIntervalProduct.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: 100 },
+						{ feature_id: TestFeature.Words, quantity: 100 },
+					],
+				});
+			},
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Multi-interval checkout error with allocated users + entities
@@ -100,56 +103,59 @@ test.concurrent(`${chalk.yellowBright("error: multi-interval checkout not suppor
  * Expected Result:
  * - Error thrown: "Cannot create Stripe checkout when there are multiple intervals"
  */
-test.concurrent(`${chalk.yellowBright("error: multi-interval checkout with allocated users")}`, async () => {
-	const customerId = "stripe-checkout-error-multi-allocated";
-	const userCount = 5;
+test.concurrent(
+	`${chalk.yellowBright("error: multi-interval checkout with allocated users")}`,
+	async () => {
+		const customerId = "stripe-checkout-error-multi-allocated";
+		const userCount = 5;
 
-	// Monthly allocated users: $10/user
-	const allocatedUsersItem = items.allocatedUsers({
-		includedUsage: 0,
-	});
+		// Monthly allocated users: $10/user
+		const allocatedUsersItem = items.allocatedUsers({
+			includedUsage: 0,
+		});
 
-	// Annual prepaid words: $50/pack (100 units)
-	const annualPrepaidItem = constructPrepaidItem({
-		featureId: TestFeature.Words,
-		includedUsage: 0,
-		billingUnits: 100,
-		price: 50,
-		intervalCount: 12, // Annual (12 months)
-	});
+		// Annual prepaid words: $50/pack (100 units)
+		const annualPrepaidItem = constructPrepaidItem({
+			featureId: TestFeature.Words,
+			includedUsage: 0,
+			billingUnits: 100,
+			price: 50,
+			intervalCount: 12, // Annual (12 months)
+		});
 
-	// Product with both monthly allocated users and annual prepaid
-	const mixedIntervalProduct = products.base({
-		id: "mixed-interval-allocated",
-		items: [allocatedUsersItem, annualPrepaidItem],
-	});
+		// Product with both monthly allocated users and annual prepaid
+		const mixedIntervalProduct = products.base({
+			id: "mixed-interval-allocated",
+			items: [allocatedUsersItem, annualPrepaidItem],
+		});
 
-	const { autumnV1, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }), // No payment method → checkout flow
-			s.products({ list: [mixedIntervalProduct] }),
-			// Create 5 user entities BEFORE attach
-			s.entities({ count: userCount, featureId: TestFeature.Users }),
-		],
-		actions: [],
-	});
+		const { autumnV1, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }), // No payment method → checkout flow
+				s.products({ list: [mixedIntervalProduct] }),
+				// Create 5 user entities BEFORE attach
+				s.entities({ count: userCount, featureId: TestFeature.Users }),
+			],
+			actions: [],
+		});
 
-	// Verify we have 5 entities
-	expect(entities.length).toBe(userCount);
+		// Verify we have 5 entities
+		expect(entities.length).toBe(userCount);
 
-	// Attempt to attach should fail due to multi-interval checkout
-	await expectAutumnError({
-		errCode: ErrCode.InvalidRequest,
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: mixedIntervalProduct.id,
-				options: [{ feature_id: TestFeature.Words, quantity: 100 }],
-			});
-		},
-	});
-});
+		// Attempt to attach should fail due to multi-interval checkout
+		await expectAutumnError({
+			errCode: ErrCode.InvalidRequest,
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: mixedIntervalProduct.id,
+					options: [{ feature_id: TestFeature.Words, quantity: 100 }],
+				});
+			},
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: Zero price checkout error (allocated messages, no usage)
@@ -167,37 +173,40 @@ test.concurrent(`${chalk.yellowBright("error: multi-interval checkout with alloc
  * Expected Result:
  * - Error thrown
  */
-test.concurrent(`${chalk.yellowBright("error: zero price checkout (allocated, no usage)")}`, async () => {
-	const customerId = "stripe-checkout-error-zero-allocated";
+test.concurrent(
+	`${chalk.yellowBright("error: zero price checkout (allocated, no usage)")}`,
+	async () => {
+		const customerId = "stripe-checkout-error-zero-allocated";
 
-	// Allocated messages: $10/unit, no included usage
-	const allocatedUsersItem = items.allocatedUsers({ includedUsage: 0 });
+		// Allocated messages: $10/unit, no included usage
+		const allocatedUsersItem = items.allocatedUsers({ includedUsage: 0 });
 
-	// Base product (no base price) with allocated messages
-	const base = products.base({
-		id: "zero-allocated",
-		items: [allocatedUsersItem],
-	});
+		// Base product (no base price) with allocated messages
+		const base = products.base({
+			id: "zero-allocated",
+			items: [allocatedUsersItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }), // No payment method → checkout flow
-			s.products({ list: [base] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }), // No payment method → checkout flow
+				s.products({ list: [base] }),
+			],
+			actions: [],
+		});
 
-	// Attempt to attach should fail - $0 total not allowed in checkout
-	await expectAutumnError({
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: base.id,
-			});
-		},
-	});
-});
+		// Attempt to attach should fail - $0 total not allowed in checkout
+		await expectAutumnError({
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: base.id,
+				});
+			},
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 4: Zero price checkout error (prepaid messages, quantity 0)
@@ -215,39 +224,42 @@ test.concurrent(`${chalk.yellowBright("error: zero price checkout (allocated, no
  * Expected Result:
  * - Error thrown
  */
-test.concurrent(`${chalk.yellowBright("error: zero price checkout (prepaid, quantity 0)")}`, async () => {
-	const customerId = "stripe-checkout-error-zero-prepaid";
+test.concurrent(
+	`${chalk.yellowBright("error: zero price checkout (prepaid, quantity 0)")}`,
+	async () => {
+		const customerId = "stripe-checkout-error-zero-prepaid";
 
-	// Prepaid messages: $10/pack (100 units), no included usage
-	const prepaidMessagesItem = items.prepaidMessages({
-		includedUsage: 0,
-		billingUnits: 100,
-		price: 10,
-	});
+		// Prepaid messages: $10/pack (100 units), no included usage
+		const prepaidMessagesItem = items.prepaidMessages({
+			includedUsage: 0,
+			billingUnits: 100,
+			price: 10,
+		});
 
-	// Base product (no base price) with prepaid messages
-	const base = products.base({
-		id: "zero-prepaid",
-		items: [prepaidMessagesItem],
-	});
+		// Base product (no base price) with prepaid messages
+		const base = products.base({
+			id: "zero-prepaid",
+			items: [prepaidMessagesItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }), // No payment method → checkout flow
-			s.products({ list: [base] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }), // No payment method → checkout flow
+				s.products({ list: [base] }),
+			],
+			actions: [],
+		});
 
-	// Attempt to attach with quantity 0 should fail - $0 total not allowed in checkout
-	await expectAutumnError({
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: base.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: 0 }],
-			});
-		},
-	});
-});
+		// Attempt to attach with quantity 0 should fail - $0 total not allowed in checkout
+		await expectAutumnError({
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: base.id,
+					options: [{ feature_id: TestFeature.Messages, quantity: 0 }],
+				});
+			},
+		});
+	},
+);

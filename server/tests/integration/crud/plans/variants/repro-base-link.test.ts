@@ -5,7 +5,7 @@ import {
 	type CreatePlanParamsV2Input,
 	ResetInterval,
 } from "@autumn/shared";
-import { TestFeature, getFeatures } from "@tests/setup/v2Features";
+import { getFeatures, TestFeature } from "@tests/setup/v2Features";
 import ctx from "@tests/utils/testInitUtils/createTestContext.js";
 import chalk from "chalk";
 import { AutumnInt } from "@/external/autumn/autumnCli.js";
@@ -34,54 +34,51 @@ const msgItem = (included: number) => ({
 	reset: { interval: ResetInterval.Month },
 });
 
-test(
-	`${chalk.yellowBright("repro: dashboard-style full-body base link via V1 products route")}`,
-	async () => {
-		const baseId = "repro_base";
-		const planId = "repro_plan";
-		await autumnRpc.plans
-			.create<ApiPlanV1, CreatePlanParamsV2Input>({
-				plan_id: baseId,
-				name: `Base ${baseId}`,
-				auto_enable: false,
-				items: [msgItem(100)],
-			})
-			.catch(() => undefined);
-		await autumnRpc.plans
-			.create<ApiPlanV1, CreatePlanParamsV2Input>({
-				plan_id: planId,
-				name: `Plan ${planId}`,
-				auto_enable: false,
-				items: [msgItem(50)],
-			})
-			.catch(() => undefined);
-
-		// Mimic the dashboard SaveChangesBar -> updateProduct util body
-		const res = await autumnV1_2.products.update<ApiPlanV1>(planId, {
-			id: planId,
+test(`${chalk.yellowBright("repro: dashboard-style full-body base link via V1 products route")}`, async () => {
+	const baseId = "repro_base";
+	const planId = "repro_plan";
+	await autumnRpc.plans
+		.create<ApiPlanV1, CreatePlanParamsV2Input>({
+			plan_id: baseId,
+			name: `Base ${baseId}`,
+			auto_enable: false,
+			items: [msgItem(100)],
+		})
+		.catch(() => undefined);
+	await autumnRpc.plans
+		.create<ApiPlanV1, CreatePlanParamsV2Input>({
+			plan_id: planId,
 			name: `Plan ${planId}`,
+			auto_enable: false,
 			items: [msgItem(50)],
-			free_trial: null,
-			config: { ignore_past_due: false },
-			billing_controls: {},
-			metadata: {},
-			base_plan_id: baseId,
-		});
+		})
+		.catch(() => undefined);
 
-		console.log("RESULT", JSON.stringify(res));
+	// Mimic the dashboard SaveChangesBar -> updateProduct util body
+	const res = await autumnV1_2.products.update<ApiPlanV1>(planId, {
+		id: planId,
+		name: `Plan ${planId}`,
+		items: [msgItem(50)],
+		free_trial: null,
+		config: { ignore_past_due: false },
+		billing_controls: {},
+		metadata: {},
+		base_plan_id: baseId,
+	});
 
-		const linked = await ProductService.getFull({
-			db,
-			idOrInternalId: planId,
-			orgId: org.id,
-			env,
-		});
-		const base = await ProductService.getFull({
-			db,
-			idOrInternalId: baseId,
-			orgId: org.id,
-			env,
-		});
-		expect(linked.base_internal_product_id).toBe(base.internal_id);
-	},
-);
+	console.log("RESULT", JSON.stringify(res));
+
+	const linked = await ProductService.getFull({
+		db,
+		idOrInternalId: planId,
+		orgId: org.id,
+		env,
+	});
+	const base = await ProductService.getFull({
+		db,
+		idOrInternalId: baseId,
+		orgId: org.id,
+		env,
+	});
+	expect(linked.base_internal_product_id).toBe(base.internal_id);
+});

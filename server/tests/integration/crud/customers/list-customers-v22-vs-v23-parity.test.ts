@@ -14,10 +14,7 @@
  */
 
 import { expect, test } from "bun:test";
-import {
-	type ApiCustomerV5,
-	ApiVersion,
-} from "@autumn/shared";
+import { type ApiCustomerV5, ApiVersion } from "@autumn/shared";
 import { items } from "@tests/utils/fixtures/items.js";
 import { products } from "@tests/utils/fixtures/products.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
@@ -84,10 +81,7 @@ test.concurrent(
 
 		await initScenario({
 			customerId: "v22-v23-parity-base",
-			setup: [
-				s.customer({ testClock: false }),
-				s.products({ list: [prod] }),
-			],
+			setup: [s.customer({ testClock: false }), s.products({ list: [prod] })],
 			actions: [s.attach({ productId: prod.id })],
 		});
 
@@ -96,7 +90,10 @@ test.concurrent(
 
 		const cases = [
 			{ name: "no filters", params: {} },
-			{ name: "subscription_status=active", params: { subscription_status: "active" } },
+			{
+				name: "subscription_status=active",
+				params: { subscription_status: "active" },
+			},
 			{ name: "search", params: { search: "v22-v23-parity" } },
 			{ name: "plans", params: { plans: [{ id: prod.id }] } },
 		];

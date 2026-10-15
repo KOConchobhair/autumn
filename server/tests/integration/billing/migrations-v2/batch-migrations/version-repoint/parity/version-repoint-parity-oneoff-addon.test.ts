@@ -31,81 +31,77 @@ const lifetimeMessagesV2 = ({ included }: { included: number }) => ({
 	included,
 });
 
-test.skip(
-	`${chalk.yellowBright("batch version repoint parity: one-off addon version invoices neither lane")}`,
-	async () => {
-		const stem = uniqueStem("bvr-parity-addon");
-		const batchCustomerId = `${stem}-batch`;
-		const perCustomerId = `${stem}-customer`;
-		const addonPlan = ({ id }: { id: string }) =>
-			products.base({
-				id,
-				isAddOn: true,
-				items: [items.lifetimeMessages({ includedUsage: 100 })],
-			});
-		const batchPlan = addonPlan({ id: `${stem}-plan-a` });
-		const perCustomerPlan = addonPlan({ id: `${stem}-plan-b` });
-		const { autumnV1, autumnV2_3, ctx } = await initScenario({
-			customerId: batchCustomerId,
-			setup: [
-				s.customer({ testClock: false }),
-				s.otherCustomers([{ id: perCustomerId }]),
-				s.products({ list: [batchPlan, perCustomerPlan] }),
-			],
-			actions: [
-				s.parallel(
-					s.billing.attach({ productId: batchPlan.id }),
-					s.billing.attach({
-						customerId: perCustomerId,
-						productId: perCustomerPlan.id,
-					}),
-				),
-			],
+test.skip(`${chalk.yellowBright("batch version repoint parity: one-off addon version invoices neither lane")}`, async () => {
+	const stem = uniqueStem("bvr-parity-addon");
+	const batchCustomerId = `${stem}-batch`;
+	const perCustomerId = `${stem}-customer`;
+	const addonPlan = ({ id }: { id: string }) =>
+		products.base({
+			id,
+			isAddOn: true,
+			items: [items.lifetimeMessages({ includedUsage: 100 })],
 		});
+	const batchPlan = addonPlan({ id: `${stem}-plan-a` });
+	const perCustomerPlan = addonPlan({ id: `${stem}-plan-b` });
+	const { autumnV1, autumnV2_3, ctx } = await initScenario({
+		customerId: batchCustomerId,
+		setup: [
+			s.customer({ testClock: false }),
+			s.otherCustomers([{ id: perCustomerId }]),
+			s.products({ list: [batchPlan, perCustomerPlan] }),
+		],
+		actions: [
+			s.parallel(
+				s.billing.attach({ productId: batchPlan.id }),
+				s.billing.attach({
+					customerId: perCustomerId,
+					productId: perCustomerPlan.id,
+				}),
+			),
+		],
+	});
 
-		for (const planId of [batchPlan.id, perCustomerPlan.id]) {
-			await mintPlanVersion({
-				autumnV2_3,
-				planId,
-				items: [lifetimeMessagesV2({ included: 100 }), itemsV2.dashboard()],
-			});
-		}
-		await migrateVersionOnBatchLane({
-			ctx,
-			migrationClient: autumnV2_3,
-			migrationId: `${stem}-batch-migration`,
-			planId: batchPlan.id,
+	for (const planId of [batchPlan.id, perCustomerPlan.id]) {
+		await mintPlanVersion({
+			autumnV2_3,
+			planId,
+			items: [lifetimeMessagesV2({ included: 100 }), itemsV2.dashboard()],
 		});
-		await migrateVersionOnPerCustomerLane({
-			ctx,
-			migrationClient: autumnV2_3,
-			migrationId: `${stem}-customer-migration`,
-			planId: perCustomerPlan.id,
-			customerId: perCustomerId,
-		});
+	}
+	await migrateVersionOnBatchLane({
+		ctx,
+		migrationClient: autumnV2_3,
+		migrationId: `${stem}-batch-migration`,
+		planId: batchPlan.id,
+	});
+	await migrateVersionOnPerCustomerLane({
+		ctx,
+		migrationClient: autumnV2_3,
+		migrationId: `${stem}-customer-migration`,
+		planId: perCustomerPlan.id,
+		customerId: perCustomerId,
+	});
 
-		for (const [customerId, planId] of [
-			[batchCustomerId, batchPlan.id],
-			[perCustomerId, perCustomerPlan.id],
-		] as const) {
-			expectBalanceCorrect({
-				customer: await autumnV2_3.customers.get<ApiCustomerV5>(customerId),
-				featureId: TestFeature.Messages,
-				remaining: 100,
-				usage: 0,
-				planId,
-				nextResetAt: null,
-			});
-			await readScopedFeatureRow({
-				ctx,
-				customerId,
-				featureId: TestFeature.Dashboard,
-			});
-			const customerV3 =
-				await autumnV1.customers.get<ApiCustomerV3>(customerId);
-			expect(customerV3.features?.[TestFeature.Dashboard]).toBeDefined();
-			await expectCustomerInvoiceCorrect({ customer: customerV3, count: 0 });
-			await expectActivePlanVersion({ ctx, customerId, planId, version: 2 });
-		}
-	},
-);
+	for (const [customerId, planId] of [
+		[batchCustomerId, batchPlan.id],
+		[perCustomerId, perCustomerPlan.id],
+	] as const) {
+		expectBalanceCorrect({
+			customer: await autumnV2_3.customers.get<ApiCustomerV5>(customerId),
+			featureId: TestFeature.Messages,
+			remaining: 100,
+			usage: 0,
+			planId,
+			nextResetAt: null,
+		});
+		await readScopedFeatureRow({
+			ctx,
+			customerId,
+			featureId: TestFeature.Dashboard,
+		});
+		const customerV3 = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expect(customerV3.features?.[TestFeature.Dashboard]).toBeDefined();
+		await expectCustomerInvoiceCorrect({ customer: customerV3, count: 0 });
+		await expectActivePlanVersion({ ctx, customerId, planId, version: 2 });
+	}
+});

@@ -32,242 +32,260 @@ import { createStripeSubscriptionFromProduct } from "./utils/syncTestUtils";
 // TEST A: Tiered (graduated) pricing
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("sync-tiers: tiered graduated pricing proposals")}`, async () => {
-	const customerId = "sync-tier-graduated";
+test.concurrent(
+	`${chalk.yellowBright("sync-tiers: tiered graduated pricing proposals")}`,
+	async () => {
+		const customerId = "sync-tier-graduated";
 
-	const tieredMessages = items.tieredPrepaidMessages({
-		includedUsage: 0,
-		billingUnits: 100,
-		tiers: [
-			{ to: 500, amount: 10 },
-			{ to: "inf", amount: 5 },
-		],
-	});
-	const pro = products.pro({
-		id: "pro-tiered",
-		items: [tieredMessages],
-	});
+		const tieredMessages = items.tieredPrepaidMessages({
+			includedUsage: 0,
+			billingUnits: 100,
+			tiers: [
+				{ to: 500, amount: 10 },
+				{ to: "inf", amount: 5 },
+			],
+		});
+		const pro = products.pro({
+			id: "pro-tiered",
+			items: [tieredMessages],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	const stripeSubscription = await createStripeSubscriptionFromProduct({
-		ctx,
-		customerId,
-		productId: pro.id,
-	});
-	expect(stripeSubscription.id).toBeDefined();
-	expect(stripeSubscription.status).toBe("active");
+		const stripeSubscription = await createStripeSubscriptionFromProduct({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		expect(stripeSubscription.id).toBeDefined();
+		expect(stripeSubscription.status).toBe("active");
 
-	const proposalsResponse: SyncProposalsResponse = await autumnV1.post(
-		"/billing.sync_proposals",
-		{ customer_id: customerId },
-	);
+		const proposalsResponse: SyncProposalsResponse = await autumnV1.post(
+			"/billing.sync_proposals",
+			{ customer_id: customerId },
+		);
 
-	expect(proposalsResponse.proposals.length).toBeGreaterThanOrEqual(1);
+		expect(proposalsResponse.proposals.length).toBeGreaterThanOrEqual(1);
 
-	const matchedProposal = proposalsResponse.proposals.find(
-		(p: SyncProposal) => p.stripe_subscription_id === stripeSubscription.id,
-	);
-	expect(matchedProposal).toBeDefined();
+		const matchedProposal = proposalsResponse.proposals.find(
+			(p: SyncProposal) => p.stripe_subscription_id === stripeSubscription.id,
+		);
+		expect(matchedProposal).toBeDefined();
 
-	const tieredItem = matchedProposal!.items.find(
-		(item: SyncProposalItem) => item.billing_scheme === "tiered",
-	);
-	expect(tieredItem).toBeDefined();
-	expect(tieredItem!.billing_scheme).toBe("tiered");
-	expect(tieredItem!.tiers_mode).toBe("graduated");
-	expect(tieredItem!.currency).toBeTruthy();
+		const tieredItem = matchedProposal!.items.find(
+			(item: SyncProposalItem) => item.billing_scheme === "tiered",
+		);
+		expect(tieredItem).toBeDefined();
+		expect(tieredItem!.billing_scheme).toBe("tiered");
+		expect(tieredItem!.tiers_mode).toBe("graduated");
+		expect(tieredItem!.currency).toBeTruthy();
 
-	if (tieredItem!.tiers && tieredItem!.tiers.length > 0) {
-		expect(tieredItem!.tiers.length).toBeGreaterThanOrEqual(2);
-		for (const tier of tieredItem!.tiers) {
-			expect(tier.unit_amount !== null || tier.flat_amount !== null).toBe(true);
+		if (tieredItem!.tiers && tieredItem!.tiers.length > 0) {
+			expect(tieredItem!.tiers.length).toBeGreaterThanOrEqual(2);
+			for (const tier of tieredItem!.tiers) {
+				expect(tier.unit_amount !== null || tier.flat_amount !== null).toBe(
+					true,
+				);
+			}
 		}
-	}
 
-	await ctx.stripeCli.subscriptions.cancel(stripeSubscription.id);
-});
+		await ctx.stripeCli.subscriptions.cancel(stripeSubscription.id);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST B: Volume-based pricing
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("sync-tiers: volume-based pricing proposals")}`, async () => {
-	const customerId = "sync-tier-volume";
+test.concurrent(
+	`${chalk.yellowBright("sync-tiers: volume-based pricing proposals")}`,
+	async () => {
+		const customerId = "sync-tier-volume";
 
-	const volumeMessages = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: 100,
-		tiers: [
-			{ to: 500, amount: 10 },
-			{ to: "inf", amount: 5 },
-		],
-	});
-	const pro = products.pro({
-		id: "pro-volume",
-		items: [volumeMessages],
-	});
+		const volumeMessages = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: 100,
+			tiers: [
+				{ to: 500, amount: 10 },
+				{ to: "inf", amount: 5 },
+			],
+		});
+		const pro = products.pro({
+			id: "pro-volume",
+			items: [volumeMessages],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	const stripeSubscription = await createStripeSubscriptionFromProduct({
-		ctx,
-		customerId,
-		productId: pro.id,
-	});
-	expect(stripeSubscription.id).toBeDefined();
-	expect(stripeSubscription.status).toBe("active");
+		const stripeSubscription = await createStripeSubscriptionFromProduct({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		expect(stripeSubscription.id).toBeDefined();
+		expect(stripeSubscription.status).toBe("active");
 
-	const proposalsResponse: SyncProposalsResponse = await autumnV1.post(
-		"/billing.sync_proposals",
-		{ customer_id: customerId },
-	);
+		const proposalsResponse: SyncProposalsResponse = await autumnV1.post(
+			"/billing.sync_proposals",
+			{ customer_id: customerId },
+		);
 
-	expect(proposalsResponse.proposals.length).toBeGreaterThanOrEqual(1);
+		expect(proposalsResponse.proposals.length).toBeGreaterThanOrEqual(1);
 
-	const matchedProposal = proposalsResponse.proposals.find(
-		(p: SyncProposal) => p.stripe_subscription_id === stripeSubscription.id,
-	);
-	expect(matchedProposal).toBeDefined();
+		const matchedProposal = proposalsResponse.proposals.find(
+			(p: SyncProposal) => p.stripe_subscription_id === stripeSubscription.id,
+		);
+		expect(matchedProposal).toBeDefined();
 
-	const volumeItem = matchedProposal!.items.find(
-		(item: SyncProposalItem) => item.tiers_mode === "volume",
-	);
-	expect(volumeItem).toBeDefined();
-	expect(volumeItem!.billing_scheme).toBe("tiered");
-	expect(volumeItem!.tiers_mode).toBe("volume");
-	expect(volumeItem!.currency).toBeTruthy();
+		const volumeItem = matchedProposal!.items.find(
+			(item: SyncProposalItem) => item.tiers_mode === "volume",
+		);
+		expect(volumeItem).toBeDefined();
+		expect(volumeItem!.billing_scheme).toBe("tiered");
+		expect(volumeItem!.tiers_mode).toBe("volume");
+		expect(volumeItem!.currency).toBeTruthy();
 
-	if (volumeItem!.tiers && volumeItem!.tiers.length > 0) {
-		expect(volumeItem!.tiers.length).toBeGreaterThanOrEqual(2);
-		for (const tier of volumeItem!.tiers) {
-			expect(tier.unit_amount !== null || tier.flat_amount !== null).toBe(true);
+		if (volumeItem!.tiers && volumeItem!.tiers.length > 0) {
+			expect(volumeItem!.tiers.length).toBeGreaterThanOrEqual(2);
+			for (const tier of volumeItem!.tiers) {
+				expect(tier.unit_amount !== null || tier.flat_amount !== null).toBe(
+					true,
+				);
+			}
 		}
-	}
 
-	await ctx.stripeCli.subscriptions.cancel(stripeSubscription.id);
-});
+		await ctx.stripeCli.subscriptions.cancel(stripeSubscription.id);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST C: Usage-based (metered) pricing
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("sync-tiers: metered usage-based pricing proposals")}`, async () => {
-	const customerId = "sync-tier-metered";
+test.concurrent(
+	`${chalk.yellowBright("sync-tiers: metered usage-based pricing proposals")}`,
+	async () => {
+		const customerId = "sync-tier-metered";
 
-	const meteredMessages = items.consumableMessages({
-		includedUsage: 0,
-		price: 0.1,
-	});
-	const pro = products.pro({
-		id: "pro-metered",
-		items: [meteredMessages],
-	});
+		const meteredMessages = items.consumableMessages({
+			includedUsage: 0,
+			price: 0.1,
+		});
+		const pro = products.pro({
+			id: "pro-metered",
+			items: [meteredMessages],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	const stripeSubscription = await createStripeSubscriptionFromProduct({
-		ctx,
-		customerId,
-		productId: pro.id,
-	});
-	expect(stripeSubscription.id).toBeDefined();
-	expect(stripeSubscription.status).toBe("active");
+		const stripeSubscription = await createStripeSubscriptionFromProduct({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		expect(stripeSubscription.id).toBeDefined();
+		expect(stripeSubscription.status).toBe("active");
 
-	const proposalsResponse: SyncProposalsResponse = await autumnV1.post(
-		"/billing.sync_proposals",
-		{ customer_id: customerId },
-	);
+		const proposalsResponse: SyncProposalsResponse = await autumnV1.post(
+			"/billing.sync_proposals",
+			{ customer_id: customerId },
+		);
 
-	expect(proposalsResponse.proposals.length).toBeGreaterThanOrEqual(1);
+		expect(proposalsResponse.proposals.length).toBeGreaterThanOrEqual(1);
 
-	const matchedProposal = proposalsResponse.proposals.find(
-		(p: SyncProposal) => p.stripe_subscription_id === stripeSubscription.id,
-	);
-	expect(matchedProposal).toBeDefined();
+		const matchedProposal = proposalsResponse.proposals.find(
+			(p: SyncProposal) => p.stripe_subscription_id === stripeSubscription.id,
+		);
+		expect(matchedProposal).toBeDefined();
 
-	const meteredItem = matchedProposal!.items.find(
-		(item: SyncProposalItem) => item.recurring_usage_type === "metered",
-	);
-	expect(meteredItem).toBeDefined();
-	expect(meteredItem!.recurring_usage_type).toBe("metered");
-	expect(meteredItem!.currency).toBeTruthy();
+		const meteredItem = matchedProposal!.items.find(
+			(item: SyncProposalItem) => item.recurring_usage_type === "metered",
+		);
+		expect(meteredItem).toBeDefined();
+		expect(meteredItem!.recurring_usage_type).toBe("metered");
+		expect(meteredItem!.currency).toBeTruthy();
 
-	if (meteredItem!.unit_amount !== null) {
-		expect(meteredItem!.unit_amount).toBeGreaterThan(0);
-	}
+		if (meteredItem!.unit_amount !== null) {
+			expect(meteredItem!.unit_amount).toBeGreaterThan(0);
+		}
 
-	await ctx.stripeCli.subscriptions.cancel(stripeSubscription.id);
-});
+		await ctx.stripeCli.subscriptions.cancel(stripeSubscription.id);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST D: Metered volume pricing
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("sync-tiers: metered volume pricing proposals show a volume metered price on net tiers with no free tier")}`, async () => {
-	const customerId = "sync-tier-metered-volume";
+test.concurrent(
+	`${chalk.yellowBright("sync-tiers: metered volume pricing proposals show a volume metered price on net tiers with no free tier")}`,
+	async () => {
+		const customerId = "sync-tier-metered-volume";
 
-	const volumeMessages = items.volumeConsumableMessages({ includedUsage: 100 });
-	const pro = products.pro({
-		id: "pro-metered-volume",
-		items: [volumeMessages],
-	});
+		const volumeMessages = items.volumeConsumableMessages({
+			includedUsage: 100,
+		});
+		const pro = products.pro({
+			id: "pro-metered-volume",
+			items: [volumeMessages],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	const stripeSubscription = await createStripeSubscriptionFromProduct({
-		ctx,
-		customerId,
-		productId: pro.id,
-	});
+		const stripeSubscription = await createStripeSubscriptionFromProduct({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
 
-	const proposalsResponse: SyncProposalsResponse = await autumnV1.post(
-		"/billing.sync_proposals",
-		{ customer_id: customerId },
-	);
-	const matchedProposal = proposalsResponse.proposals.find(
-		(p: SyncProposal) => p.stripe_subscription_id === stripeSubscription.id,
-	);
-	const volumeItem = matchedProposal?.items.find(
-		(item: SyncProposalItem) =>
-			item.recurring_usage_type === "metered" && item.tiers_mode === "volume",
-	);
+		const proposalsResponse: SyncProposalsResponse = await autumnV1.post(
+			"/billing.sync_proposals",
+			{ customer_id: customerId },
+		);
+		const matchedProposal = proposalsResponse.proposals.find(
+			(p: SyncProposal) => p.stripe_subscription_id === stripeSubscription.id,
+		);
+		const volumeItem = matchedProposal?.items.find(
+			(item: SyncProposalItem) =>
+				item.recurring_usage_type === "metered" && item.tiers_mode === "volume",
+		);
 
-	expect(volumeItem).toBeDefined();
-	expect(volumeItem!.matched_price_id).toBeTruthy();
-	// Stripe quantity is usage past the 100 included, so tiers stay net: 0-500 @ 10¢, 501+ @ 5¢.
-	expect(volumeItem!.tiers).toEqual([
-		{ up_to: 500, unit_amount: 10, flat_amount: null },
-		{ up_to: null, unit_amount: 5, flat_amount: null },
-	]);
+		expect(volumeItem).toBeDefined();
+		expect(volumeItem!.matched_price_id).toBeTruthy();
+		// Stripe quantity is usage past the 100 included, so tiers stay net: 0-500 @ 10¢, 501+ @ 5¢.
+		expect(volumeItem!.tiers).toEqual([
+			{ up_to: 500, unit_amount: 10, flat_amount: null },
+			{ up_to: null, unit_amount: 5, flat_amount: null },
+		]);
 
-	await ctx.stripeCli.subscriptions.cancel(stripeSubscription.id);
-});
+		await ctx.stripeCli.subscriptions.cancel(stripeSubscription.id);
+	},
+);

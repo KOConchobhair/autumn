@@ -2,9 +2,6 @@
  * Switching a variant on one subscription must preserve the other subscription's group usage. */
 
 import { test } from "bun:test";
-import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
-import { TestFeature } from "@tests/setup/v2Features";
-import chalk from "chalk";
 import {
 	createCustomBasePriceForProduct,
 	createExternalStripeSubscription,
@@ -17,6 +14,9 @@ import {
 	updateBaseSubscriptionItemToVariant,
 	waitForCustomerProducts,
 } from "@tests/integration/billing/stripe-webhooks/utils/sharedStripeProductAutoSyncUtils";
+import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
+import { TestFeature } from "@tests/setup/v2Features";
+import chalk from "chalk";
 
 test(`${chalk.yellowBright("customer.subscription.updated auto-sync: separate subscription switch preserves other group usage")}`, async () => {
 	const customerId = "sub-updated-shared-separate-switch";
@@ -32,9 +32,7 @@ test(`${chalk.yellowBright("customer.subscription.updated auto-sync: separate su
 				baseAmount: 20,
 				featureId: TestFeature.Messages,
 				baseIncluded: 25_000,
-				variants: [
-					{ id: groupAVariantId, amount: 35, included: 150_000 },
-				],
+				variants: [{ id: groupAVariantId, amount: 35, included: 150_000 }],
 			},
 			{
 				baseId: "shared_separate_switch_b_base",
@@ -79,10 +77,7 @@ test(`${chalk.yellowBright("customer.subscription.updated auto-sync: separate su
 	const groupASubscription = await createExternalStripeSubscription({
 		ctx,
 		customerId,
-		items: [
-			{ price: groupAPrice.id },
-			{ price: wrongGroupAUsagePrice.id },
-		],
+		items: [{ price: groupAPrice.id }, { price: wrongGroupAUsagePrice.id }],
 	});
 	expectStripeSubscriptionCreated({ subscription: groupASubscription });
 

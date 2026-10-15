@@ -5,7 +5,10 @@ const autumn = new AutumnInt({ version: ApiVersion.V2_3 });
 const customerId = "props-demo";
 
 const TOTAL_EVENTS = 1060;
-const ATTR_KEYS = Array.from({ length: 120 }, (_, i) => `attr_${String(i).padStart(3, "0")}`);
+const ATTR_KEYS = Array.from(
+	{ length: 120 },
+	(_, i) => `attr_${String(i).padStart(3, "0")}`,
+);
 const MODELS = ["gpt-4o", "claude-sonnet-4", "gemini-pro"];
 const ENVIRONMENTS = ["production", "staging"];
 const CHUNK = 25;
@@ -39,7 +42,8 @@ for (let start = 0; start < TOTAL_EVENTS; start += CHUNK) {
 		},
 	);
 	await Promise.all(batch);
-	if (start % 250 === 0) console.log(`progress: ${sent} sent, ${failed} failed`);
+	if (start % 250 === 0)
+		console.log(`progress: ${sent} sent, ${failed} failed`);
 }
 
 console.log(`done: ${sent} sent, ${failed} failed`);

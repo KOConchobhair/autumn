@@ -45,8 +45,14 @@ const fixedPrice = ({ id }: { id: string }) =>
 	}) as unknown as Price;
 
 test("recurring prepaid beats one-off prepaid of the same feature", () => {
-	const oneOff = prepaidPrice({ id: "pr_one_off", interval: BillingInterval.OneOff });
-	const monthly = prepaidPrice({ id: "pr_monthly", interval: BillingInterval.Month });
+	const oneOff = prepaidPrice({
+		id: "pr_one_off",
+		interval: BillingInterval.OneOff,
+	});
+	const monthly = prepaidPrice({
+		id: "pr_monthly",
+		interval: BillingInterval.Month,
+	});
 
 	const target = findPrepaidQuantityTargetPrice({
 		prices: [fixedPrice({ id: "pr_base" }), oneOff, monthly],
@@ -54,14 +60,27 @@ test("recurring prepaid beats one-off prepaid of the same feature", () => {
 	});
 
 	expect(target?.id).toBe("pr_monthly");
-	expect(isLosingPrepaidQuantityPrice({ price: oneOff, prices: [oneOff, monthly] })).toBe(true);
-	expect(isLosingPrepaidQuantityPrice({ price: monthly, prices: [oneOff, monthly] })).toBe(false);
+	expect(
+		isLosingPrepaidQuantityPrice({ price: oneOff, prices: [oneOff, monthly] }),
+	).toBe(true);
+	expect(
+		isLosingPrepaidQuantityPrice({ price: monthly, prices: [oneOff, monthly] }),
+	).toBe(false);
 });
 
 test("shortest interval wins among recurring prepaid prices", () => {
-	const yearly = prepaidPrice({ id: "pr_yearly", interval: BillingInterval.Year });
-	const monthly = prepaidPrice({ id: "pr_monthly", interval: BillingInterval.Month });
-	const quarterly = prepaidPrice({ id: "pr_quarterly", interval: BillingInterval.Quarter });
+	const yearly = prepaidPrice({
+		id: "pr_yearly",
+		interval: BillingInterval.Year,
+	});
+	const monthly = prepaidPrice({
+		id: "pr_monthly",
+		interval: BillingInterval.Month,
+	});
+	const quarterly = prepaidPrice({
+		id: "pr_quarterly",
+		interval: BillingInterval.Quarter,
+	});
 
 	const target = findPrepaidQuantityTargetPrice({
 		prices: [yearly, quarterly, monthly],
@@ -77,7 +96,10 @@ test("interval count breaks ties within the same interval", () => {
 		interval: BillingInterval.Month,
 		intervalCount: 3,
 	});
-	const monthly = prepaidPrice({ id: "pr_monthly", interval: BillingInterval.Month });
+	const monthly = prepaidPrice({
+		id: "pr_monthly",
+		interval: BillingInterval.Month,
+	});
 
 	const target = findPrepaidQuantityTargetPrice({
 		prices: [threeMonthly, monthly],
@@ -88,7 +110,10 @@ test("interval count breaks ties within the same interval", () => {
 });
 
 test("a lone one-off prepaid price still wins its own feature", () => {
-	const oneOff = prepaidPrice({ id: "pr_one_off", interval: BillingInterval.OneOff });
+	const oneOff = prepaidPrice({
+		id: "pr_one_off",
+		interval: BillingInterval.OneOff,
+	});
 
 	const target = findPrepaidQuantityTargetPrice({
 		prices: [fixedPrice({ id: "pr_base" }), oneOff],
@@ -96,7 +121,9 @@ test("a lone one-off prepaid price still wins its own feature", () => {
 	});
 
 	expect(target?.id).toBe("pr_one_off");
-	expect(isLosingPrepaidQuantityPrice({ price: oneOff, prices: [oneOff] })).toBe(false);
+	expect(
+		isLosingPrepaidQuantityPrice({ price: oneOff, prices: [oneOff] }),
+	).toBe(false);
 });
 
 test("prices of other features never participate", () => {
@@ -140,7 +167,11 @@ const cusEntForPrice = ({
 }: {
 	price: Price;
 	siblingPrices: Price[];
-	options: { feature_id: string; quantity: number; upcoming_quantity?: number }[];
+	options: {
+		feature_id: string;
+		quantity: number;
+		upcoming_quantity?: number;
+	}[];
 }) =>
 	({
 		customer_product_id: "cus_prod_1",
@@ -162,9 +193,17 @@ const cusEntForPrice = ({
 	}) as unknown as FullCusEntWithFullCusProduct;
 
 test("losing prepaid price reads a zeroed options copy, not undefined", () => {
-	const oneOff = prepaidPrice({ id: "pr_one_off", interval: BillingInterval.OneOff });
-	const monthly = prepaidPrice({ id: "pr_monthly", interval: BillingInterval.Month });
-	const options = [{ feature_id: "messages", quantity: 3, upcoming_quantity: 5 }];
+	const oneOff = prepaidPrice({
+		id: "pr_one_off",
+		interval: BillingInterval.OneOff,
+	});
+	const monthly = prepaidPrice({
+		id: "pr_monthly",
+		interval: BillingInterval.Month,
+	});
+	const options = [
+		{ feature_id: "messages", quantity: 3, upcoming_quantity: 5 },
+	];
 
 	const losingOptions = customerEntitlementToOptions({
 		customerEntitlement: cusEntForPrice({

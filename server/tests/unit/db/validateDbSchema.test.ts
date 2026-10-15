@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { setTimeout } from "node:timers/promises";
-import { validateDbSchema } from "@/db/validateDbSchema.js";
 import type { DrizzleCli } from "@/db/initDrizzle.js";
+import { validateDbSchema } from "@/db/validateDbSchema.js";
 
 describe("validateDbSchema", () => {
 	test("limits concurrent table validation queries", async () => {

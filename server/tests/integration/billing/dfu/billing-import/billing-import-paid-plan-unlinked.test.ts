@@ -5,9 +5,9 @@
 
 import { expect, test } from "bun:test";
 import {
-	type FlashClient,
 	callFlash,
 	createRealStripeCustomer,
+	type FlashClient,
 } from "@tests/integration/billing/dfu/billing-import/utils/flashTestUtils.js";
 import { TestFeature } from "@tests/setup/v2Features.js";
 import { items } from "@tests/utils/fixtures/items.js";

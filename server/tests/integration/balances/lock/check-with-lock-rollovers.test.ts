@@ -59,87 +59,98 @@ const makeFreeProd = () =>
 //   Final: r[0]=0, r[1]=20, main=100. Total=120.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.concurrent(`${chalk.yellowBright("lock-rollover RO-1: lock across two rollovers + main, confirm with refund crossing main→rollover[1] boundary")}`, async () => {
-	const freeProd = makeFreeProd();
-	const customerId = "lock-ro-1";
-	const lockKey = `${customerId}-lock`;
+test.concurrent(
+	`${chalk.yellowBright("lock-rollover RO-1: lock across two rollovers + main, confirm with refund crossing main→rollover[1] boundary")}`,
+	async () => {
+		const freeProd = makeFreeProd();
+		const customerId = "lock-ro-1";
+		const lockKey = `${customerId}-lock`;
 
-	const { autumnV2_1, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: false }), s.products({ list: [freeProd] })],
-		actions: [
-			s.attach({ productId: freeProd.id }),
-			// Cycle 1: no usage, reset → rollover[0]=100
-			s.resetFeature({ featureId: TestFeature.Messages }),
-			// Cycle 2: no usage, reset → rollover[1]=100
-			s.resetFeature({ featureId: TestFeature.Messages }),
-		],
-	});
+		const { autumnV2_1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [freeProd] }),
+			],
+			actions: [
+				s.attach({ productId: freeProd.id }),
+				// Cycle 1: no usage, reset → rollover[0]=100
+				s.resetFeature({ featureId: TestFeature.Messages }),
+				// Cycle 2: no usage, reset → rollover[1]=100
+				s.resetFeature({ featureId: TestFeature.Messages }),
+			],
+		});
 
-	await deleteLock({ ctx, lockId: lockKey });
+		await deleteLock({ ctx, lockId: lockKey });
 
-	// Verify state after setup: r[0]=100, r[1]=100, main=100. Total=300.
-	const afterSetup = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer: afterSetup,
-		featureId: TestFeature.Messages,
-		remaining: 300,
-		rollovers: [{ balance: 100 }, { balance: 100 }],
-	});
+		// Verify state after setup: r[0]=100, r[1]=100, main=100. Total=300.
+		const afterSetup =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer: afterSetup,
+			featureId: TestFeature.Messages,
+			remaining: 300,
+			rollovers: [{ balance: 100 }, { balance: 100 }],
+		});
 
-	// check lock=250: exhausts r[0]=100, r[1]=100, deducts 50 from main.
-	// Receipt: [r[0]:100, r[1]:100, main:50]
-	await autumnV2_1.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		required_balance: 250,
-		lock: { enabled: true, lock_id: lockKey },
-	});
+		// check lock=250: exhausts r[0]=100, r[1]=100, deducts 50 from main.
+		// Receipt: [r[0]:100, r[1]:100, main:50]
+		await autumnV2_1.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			required_balance: 250,
+			lock: { enabled: true, lock_id: lockKey },
+		});
 
-	const afterCheck = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer: afterCheck,
-		featureId: TestFeature.Messages,
-		remaining: 50,
-		rollovers: [{ balance: 0 }, { balance: 0 }],
-	});
+		const afterCheck =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer: afterCheck,
+			featureId: TestFeature.Messages,
+			remaining: 50,
+			rollovers: [{ balance: 0 }, { balance: 0 }],
+		});
 
-	// confirm override=180 → delta = -70 → refund 70.
-	// LIFO: unwind main=50 fully → main=100. Remaining=20.
-	// Unwind r[1]=20 → r[1]=20. r[0] stays 0.
-	// Final: r[0]=0, r[1]=20, main=100. Total=120.
-	await autumnV2_1.balances.finalize({
-		lock_id: lockKey,
-		action: "confirm",
-		override_value: 80,
-	});
+		// confirm override=180 → delta = -70 → refund 70.
+		// LIFO: unwind main=50 fully → main=100. Remaining=20.
+		// Unwind r[1]=20 → r[1]=20. r[0] stays 0.
+		// Final: r[0]=0, r[1]=20, main=100. Total=120.
+		await autumnV2_1.balances.finalize({
+			lock_id: lockKey,
+			action: "confirm",
+			override_value: 80,
+		});
 
-	const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 220,
-		rollovers: [{ balance: 20 }, { balance: 100 }],
-	});
+		const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 220,
+			rollovers: [{ balance: 20 }, { balance: 100 }],
+		});
 
-	// Events newest-first: finalize(-70), check(250). No track events (resets don't emit).
-	await expectCustomerEventsCorrect({
-		customerId,
-		events: [{ value: -170 }, { value: 250 }],
-	});
+		// Events newest-first: finalize(-70), check(250). No track events (resets don't emit).
+		await expectCustomerEventsCorrect({
+			customerId,
+			events: [{ value: -170 }, { value: 250 }],
+		});
 
-	await timeout(3000);
+		await timeout(3000);
 
-	const customerDb = await autumnV2_1.customers.get<ApiCustomerV5>(customerId, {
-		skip_cache: "true",
-	});
-	expectBalanceCorrect({
-		customer: customerDb,
-		featureId: TestFeature.Messages,
-		remaining: 220,
-		rollovers: [{ balance: 20 }, { balance: 100 }],
-	});
-});
+		const customerDb = await autumnV2_1.customers.get<ApiCustomerV5>(
+			customerId,
+			{
+				skip_cache: "true",
+			},
+		);
+		expectBalanceCorrect({
+			customer: customerDb,
+			featureId: TestFeature.Messages,
+			remaining: 220,
+			rollovers: [{ balance: 20 }, { balance: 100 }],
+		});
+	},
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RO-3: Additional deduction past rollover boundary
@@ -159,82 +170,93 @@ test.concurrent(`${chalk.yellowBright("lock-rollover RO-1: lock across two rollo
 // Event value = override_value - locked_value = 150-30 = 120.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.concurrent(`${chalk.yellowBright("lock-rollover RO-3: lock within rollover, confirm with extra deduction past rollover→main boundary")}`, async () => {
-	const freeProd = makeFreeProd();
-	const customerId = "lock-ro-3";
-	const lockKey = `${customerId}-lock`;
+test.concurrent(
+	`${chalk.yellowBright("lock-rollover RO-3: lock within rollover, confirm with extra deduction past rollover→main boundary")}`,
+	async () => {
+		const freeProd = makeFreeProd();
+		const customerId = "lock-ro-3";
+		const lockKey = `${customerId}-lock`;
 
-	const { autumnV2_1, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: false }), s.products({ list: [freeProd] })],
-		actions: [
-			s.attach({ productId: freeProd.id }),
-			// No usage before reset → full rollover of 100
-			s.resetFeature({ featureId: TestFeature.Messages }),
-		],
-	});
+		const { autumnV2_1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [freeProd] }),
+			],
+			actions: [
+				s.attach({ productId: freeProd.id }),
+				// No usage before reset → full rollover of 100
+				s.resetFeature({ featureId: TestFeature.Messages }),
+			],
+		});
 
-	await deleteLock({ ctx, lockId: lockKey });
+		await deleteLock({ ctx, lockId: lockKey });
 
-	// Verify state after setup: r[0]=100, main=100. Total=200.
-	const afterSetup = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer: afterSetup,
-		featureId: TestFeature.Messages,
-		remaining: 200,
-		rollovers: [{ balance: 100 }],
-	});
+		// Verify state after setup: r[0]=100, main=100. Total=200.
+		const afterSetup =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer: afterSetup,
+			featureId: TestFeature.Messages,
+			remaining: 200,
+			rollovers: [{ balance: 100 }],
+		});
 
-	// check lock=30: deducts 30 from r[0].
-	// Receipt: [r[0]:30]
-	await autumnV2_1.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		required_balance: 30,
-		lock: { enabled: true, lock_id: lockKey },
-	});
+		// check lock=30: deducts 30 from r[0].
+		// Receipt: [r[0]:30]
+		await autumnV2_1.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			required_balance: 30,
+			lock: { enabled: true, lock_id: lockKey },
+		});
 
-	const afterCheck = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer: afterCheck,
-		featureId: TestFeature.Messages,
-		remaining: 170,
-		rollovers: [{ balance: 70 }],
-	});
+		const afterCheck =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer: afterCheck,
+			featureId: TestFeature.Messages,
+			remaining: 170,
+			rollovers: [{ balance: 70 }],
+		});
 
-	// confirm override=150 → delta = +120 → additional deduction of 120.
-	// Fully unwind receipt (restore 30 to r[0] → r[0]=100), then re-deduct 150.
-	// Re-deduct 150: r[0]=100→0, main=100→50.
-	// Final: r[0]=0, main=50. Total=50.
-	await autumnV2_1.balances.finalize({
-		lock_id: lockKey,
-		action: "confirm",
-		override_value: 150,
-	});
+		// confirm override=150 → delta = +120 → additional deduction of 120.
+		// Fully unwind receipt (restore 30 to r[0] → r[0]=100), then re-deduct 150.
+		// Re-deduct 150: r[0]=100→0, main=100→50.
+		// Final: r[0]=0, main=50. Total=50.
+		await autumnV2_1.balances.finalize({
+			lock_id: lockKey,
+			action: "confirm",
+			override_value: 150,
+		});
 
-	const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 50,
-		rollovers: [{ balance: 0 }],
-	});
+		const customer = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 50,
+			rollovers: [{ balance: 0 }],
+		});
 
-	// Events newest-first: finalize(delta=120), check(30). No track events.
-	await expectCustomerEventsCorrect({
-		customerId,
-		events: [{ value: 120 }, { value: 30 }],
-	});
+		// Events newest-first: finalize(delta=120), check(30). No track events.
+		await expectCustomerEventsCorrect({
+			customerId,
+			events: [{ value: 120 }, { value: 30 }],
+		});
 
-	await timeout(3000);
+		await timeout(3000);
 
-	const customerDb = await autumnV2_1.customers.get<ApiCustomerV5>(customerId, {
-		skip_cache: "true",
-	});
-	expectBalanceCorrect({
-		customer: customerDb,
-		featureId: TestFeature.Messages,
-		remaining: 50,
-		rollovers: [{ balance: 0 }],
-	});
-});
+		const customerDb = await autumnV2_1.customers.get<ApiCustomerV5>(
+			customerId,
+			{
+				skip_cache: "true",
+			},
+		);
+		expectBalanceCorrect({
+			customer: customerDb,
+			featureId: TestFeature.Messages,
+			remaining: 50,
+			rollovers: [{ balance: 0 }],
+		});
+	},
+);

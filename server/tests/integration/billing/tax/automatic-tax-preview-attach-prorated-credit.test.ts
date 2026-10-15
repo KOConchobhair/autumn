@@ -49,199 +49,208 @@ const auAddress = {
 // `prorationInvoice.subtotal * 1.1` for the same jurisdiction.
 const AU_GST_RATE = 0.1;
 
-test.concurrent(`${chalk.yellowBright(
-	"automatic-tax-preview-attach-prorated-credit (upgrade with proration credit): preview taxes net subtotal, not positive lines alone",
-)}`, async () => {
-	const customerId = "tax-preview-prorated-credit-upgrade";
-	const proProd = products.pro({ id: "pro", items: [] });
-	const premiumProd = products.premium({ id: "premium", items: [] });
+test.concurrent(
+	`${chalk.yellowBright(
+		"automatic-tax-preview-attach-prorated-credit (upgrade with proration credit): preview taxes net subtotal, not positive lines alone",
+	)}`,
+	async () => {
+		const customerId = "tax-preview-prorated-credit-upgrade";
+		const proProd = products.pro({ id: "pro", items: [] });
+		const premiumProd = products.premium({ id: "premium", items: [] });
 
-	const { autumnV2_2 } = await initScenario({
-		customerId,
-		setup: [
-			s.platform.create({
-				configOverrides: { automatic_tax: true },
-				taxRegistrations: ["AU"],
-			}),
-			s.customer({
-				testClock: true,
-				paymentMethod: "success",
-				stripeCustomerOverrides: { address: auAddress },
-			}),
-			s.products({ list: [proProd, premiumProd] }),
-		],
-		actions: [
-			s.billing.attach({ productId: "pro" }),
-			s.advanceTestClock({ days: 15 }),
-		],
-	});
+		const { autumnV2_2 } = await initScenario({
+			customerId,
+			setup: [
+				s.platform.create({
+					configOverrides: { automatic_tax: true },
+					taxRegistrations: ["AU"],
+				}),
+				s.customer({
+					testClock: true,
+					paymentMethod: "success",
+					stripeCustomerOverrides: { address: auAddress },
+				}),
+				s.products({ list: [proProd, premiumProd] }),
+			],
+			actions: [
+				s.billing.attach({ productId: "pro" }),
+				s.advanceTestClock({ days: 15 }),
+			],
+		});
 
-	// Pro $20/mo attached, advanced ~15 days into a 30-day cycle.
-	// Preview switching to Premium $50/mo immediately:
-	//   Premium prorated charge:   ~ +$25 (15 days remaining x $50 / 30)
-	//   Unused Pro credit:         ~ -$10 (15 days remaining x $20 / 30)
-	//   netSubtotal:               ~  $15
-	// Bug: tax = positiveSum * rate    = 25 * 0.10 = $2.50
-	// Fix: tax = netSubtotal * rate   = 15 * 0.10 = $1.50
-	const preview = (await autumnV2_2.billing.previewAttach({
-		customer_id: customerId,
-		plan_id: `premium_${customerId}`,
-	})) as AttachPreviewResponse;
+		// Pro $20/mo attached, advanced ~15 days into a 30-day cycle.
+		// Preview switching to Premium $50/mo immediately:
+		//   Premium prorated charge:   ~ +$25 (15 days remaining x $50 / 30)
+		//   Unused Pro credit:         ~ -$10 (15 days remaining x $20 / 30)
+		//   netSubtotal:               ~  $15
+		// Bug: tax = positiveSum * rate    = 25 * 0.10 = $2.50
+		// Fix: tax = netSubtotal * rate   = 15 * 0.10 = $1.50
+		const preview = (await autumnV2_2.billing.previewAttach({
+			customer_id: customerId,
+			plan_id: `premium_${customerId}`,
+		})) as AttachPreviewResponse;
 
-	expect(preview.tax).toBeDefined();
-	expect(preview.tax?.status).toBe("complete");
+		expect(preview.tax).toBeDefined();
+		expect(preview.tax?.status).toBe("complete");
 
-	// Compute expected tax from the preview's actual line items so we're
-	// robust to small proration timing wobble (Stripe rounds based on
-	// exact second of test-clock advance).
-	const immediateLineItemsTotal = preview.line_items.reduce(
-		(sum, li) => sum + li.total,
-		0,
-	);
-	const expectedTax = immediateLineItemsTotal * AU_GST_RATE;
+		// Compute expected tax from the preview's actual line items so we're
+		// robust to small proration timing wobble (Stripe rounds based on
+		// exact second of test-clock advance).
+		const immediateLineItemsTotal = preview.line_items.reduce(
+			(sum, li) => sum + li.total,
+			0,
+		);
+		const expectedTax = immediateLineItemsTotal * AU_GST_RATE;
 
-	console.log(
-		`[preview-tax-prorated-credit upgrade] line_items_total=${immediateLineItemsTotal} expectedTax=${expectedTax} actualTax=${preview.tax?.total}`,
-	);
+		console.log(
+			`[preview-tax-prorated-credit upgrade] line_items_total=${immediateLineItemsTotal} expectedTax=${expectedTax} actualTax=${preview.tax?.total}`,
+		);
 
-	// Sanity: there ARE both positive and negative proration lines.
-	const positiveLines = preview.line_items.filter((li) => li.total > 0);
-	const negativeLines = preview.line_items.filter((li) => li.total < 0);
-	expect(positiveLines.length).toBeGreaterThan(0);
-	expect(negativeLines.length).toBeGreaterThan(0);
+		// Sanity: there ARE both positive and negative proration lines.
+		const positiveLines = preview.line_items.filter((li) => li.total > 0);
+		const negativeLines = preview.line_items.filter((li) => li.total < 0);
+		expect(positiveLines.length).toBeGreaterThan(0);
+		expect(negativeLines.length).toBeGreaterThan(0);
 
-	// Sanity: the positive sum is meaningfully larger than the net subtotal,
-	// so the bug's overstatement is observable.
-	const positiveSum = positiveLines.reduce((sum, li) => sum + li.total, 0);
-	expect(positiveSum).toBeGreaterThan(immediateLineItemsTotal + 5);
+		// Sanity: the positive sum is meaningfully larger than the net subtotal,
+		// so the bug's overstatement is observable.
+		const positiveSum = positiveLines.reduce((sum, li) => sum + li.total, 0);
+		expect(positiveSum).toBeGreaterThan(immediateLineItemsTotal + 5);
 
-	// Core assertion: tax matches net subtotal x rate (within ±$0.05 to
-	// absorb proration rounding). The buggy value is positiveSum * rate
-	// which is comfortably outside this band.
-	expect(preview.tax?.total).toBeGreaterThanOrEqual(expectedTax - 0.05);
-	expect(preview.tax?.total).toBeLessThanOrEqual(expectedTax + 0.05);
-});
+		// Core assertion: tax matches net subtotal x rate (within ±$0.05 to
+		// absorb proration rounding). The buggy value is positiveSum * rate
+		// which is comfortably outside this band.
+		expect(preview.tax?.total).toBeGreaterThanOrEqual(expectedTax - 0.05);
+		expect(preview.tax?.total).toBeLessThanOrEqual(expectedTax + 0.05);
+	},
+);
 
-test.concurrent(`${chalk.yellowBright(
-	"automatic-tax-preview-attach-prorated-credit (downgrade, credit exceeds new charge): preview returns negative tax credit",
-)}`, async () => {
-	const customerId = "tax-preview-prorated-credit-downgrade";
-	const proProd = products.pro({ id: "pro", items: [] });
-	const premiumProd = products.premium({ id: "premium", items: [] });
+test.concurrent(
+	`${chalk.yellowBright(
+		"automatic-tax-preview-attach-prorated-credit (downgrade, credit exceeds new charge): preview returns negative tax credit",
+	)}`,
+	async () => {
+		const customerId = "tax-preview-prorated-credit-downgrade";
+		const proProd = products.pro({ id: "pro", items: [] });
+		const premiumProd = products.premium({ id: "premium", items: [] });
 
-	const { autumnV2_2 } = await initScenario({
-		customerId,
-		setup: [
-			s.platform.create({
-				configOverrides: { automatic_tax: true },
-				taxRegistrations: ["AU"],
-			}),
-			s.customer({
-				testClock: true,
-				paymentMethod: "success",
-				stripeCustomerOverrides: { address: auAddress },
-			}),
-			s.products({ list: [proProd, premiumProd] }),
-		],
-		actions: [
-			s.billing.attach({ productId: "premium" }),
-			s.advanceTestClock({ days: 5 }),
-		],
-	});
+		const { autumnV2_2 } = await initScenario({
+			customerId,
+			setup: [
+				s.platform.create({
+					configOverrides: { automatic_tax: true },
+					taxRegistrations: ["AU"],
+				}),
+				s.customer({
+					testClock: true,
+					paymentMethod: "success",
+					stripeCustomerOverrides: { address: auAddress },
+				}),
+				s.products({ list: [proProd, premiumProd] }),
+			],
+			actions: [
+				s.billing.attach({ productId: "premium" }),
+				s.advanceTestClock({ days: 5 }),
+			],
+		});
 
-	// Premium $50/mo attached, advanced ~5 days into a 30-day cycle.
-	// Preview immediate downgrade to Pro $20/mo:
-	//   Pro prorated charge:        ~ +$16.67 (25 days x $20 / 30)
-	//   Unused Premium credit:      ~ -$41.67 (25 days x $50 / 30)
-	//   netSubtotal:                ~ -$25.00  (credit exceeds charge)
-	// Bug: tax = 0, omitting the tax credit from the preview
-	// Fix: tax = netSubtotal * rate = ~$-2.50
-	const preview = (await autumnV2_2.billing.previewAttach({
-		customer_id: customerId,
-		plan_id: `pro_${customerId}`,
-		plan_schedule: "immediate",
-	})) as AttachPreviewResponse;
+		// Premium $50/mo attached, advanced ~5 days into a 30-day cycle.
+		// Preview immediate downgrade to Pro $20/mo:
+		//   Pro prorated charge:        ~ +$16.67 (25 days x $20 / 30)
+		//   Unused Premium credit:      ~ -$41.67 (25 days x $50 / 30)
+		//   netSubtotal:                ~ -$25.00  (credit exceeds charge)
+		// Bug: tax = 0, omitting the tax credit from the preview
+		// Fix: tax = netSubtotal * rate = ~$-2.50
+		const preview = (await autumnV2_2.billing.previewAttach({
+			customer_id: customerId,
+			plan_id: `pro_${customerId}`,
+			plan_schedule: "immediate",
+		})) as AttachPreviewResponse;
 
-	expect(preview.tax).toBeDefined();
-	expect(preview.tax?.status).toBe("complete");
+		expect(preview.tax).toBeDefined();
+		expect(preview.tax?.status).toBe("complete");
 
-	// Sanity: net subtotal of immediate line items is <= 0.
-	const immediateLineItemsTotal = preview.line_items.reduce(
-		(sum, li) => sum + li.total,
-		0,
-	);
-	console.log(
-		`[preview-tax-prorated-credit downgrade] line_items_total=${immediateLineItemsTotal} actualTax=${preview.tax?.total}`,
-	);
-	expect(immediateLineItemsTotal).toBeLessThanOrEqual(0);
+		// Sanity: net subtotal of immediate line items is <= 0.
+		const immediateLineItemsTotal = preview.line_items.reduce(
+			(sum, li) => sum + li.total,
+			0,
+		);
+		console.log(
+			`[preview-tax-prorated-credit downgrade] line_items_total=${immediateLineItemsTotal} actualTax=${preview.tax?.total}`,
+		);
+		expect(immediateLineItemsTotal).toBeLessThanOrEqual(0);
 
-	// Sanity: there's still a positive line that the buggy code would tax.
-	const positiveLines = preview.line_items.filter((li) => li.total > 0);
-	expect(positiveLines.length).toBeGreaterThan(0);
+		// Sanity: there's still a positive line that the buggy code would tax.
+		const positiveLines = preview.line_items.filter((li) => li.total > 0);
+		expect(positiveLines.length).toBeGreaterThan(0);
 
-	const expectedTax = immediateLineItemsTotal * AU_GST_RATE;
+		const expectedTax = immediateLineItemsTotal * AU_GST_RATE;
 
-	// Core assertion: tax mirrors the negative net subtotal.
-	expect(preview.tax?.total).toBeGreaterThanOrEqual(expectedTax - 0.05);
-	expect(preview.tax?.total).toBeLessThanOrEqual(expectedTax + 0.05);
-	expect(preview.tax?.amount_exclusive).toBeGreaterThanOrEqual(
-		expectedTax - 0.05,
-	);
-	expect(preview.tax?.amount_exclusive).toBeLessThanOrEqual(
-		expectedTax + 0.05,
-	);
-	expect(preview.tax?.amount_inclusive).toBe(0);
-});
+		// Core assertion: tax mirrors the negative net subtotal.
+		expect(preview.tax?.total).toBeGreaterThanOrEqual(expectedTax - 0.05);
+		expect(preview.tax?.total).toBeLessThanOrEqual(expectedTax + 0.05);
+		expect(preview.tax?.amount_exclusive).toBeGreaterThanOrEqual(
+			expectedTax - 0.05,
+		);
+		expect(preview.tax?.amount_exclusive).toBeLessThanOrEqual(
+			expectedTax + 0.05,
+		);
+		expect(preview.tax?.amount_inclusive).toBe(0);
+	},
+);
 
-test.concurrent(`${chalk.yellowBright(
-	"automatic-tax-preview-attach-prorated-credit (all-positive new attach): regression guard, no proration so tax is unchanged",
-)}`, async () => {
-	const customerId = "tax-preview-prorated-credit-no-credit";
-	const proProd = products.pro({ id: "pro", items: [] });
+test.concurrent(
+	`${chalk.yellowBright(
+		"automatic-tax-preview-attach-prorated-credit (all-positive new attach): regression guard, no proration so tax is unchanged",
+	)}`,
+	async () => {
+		const customerId = "tax-preview-prorated-credit-no-credit";
+		const proProd = products.pro({ id: "pro", items: [] });
 
-	const { autumnV2_2 } = await initScenario({
-		customerId,
-		setup: [
-			s.platform.create({
-				configOverrides: { automatic_tax: true },
-				taxRegistrations: ["AU"],
-			}),
-			s.customer({
-				testClock: false,
-				paymentMethod: "success",
-				stripeCustomerOverrides: { address: auAddress },
-			}),
-			s.products({ list: [proProd] }),
-		],
-		// No prior attach — preview is for a fresh customer with no
-		// existing subscription, so there are no proration credits.
-		actions: [],
-	});
+		const { autumnV2_2 } = await initScenario({
+			customerId,
+			setup: [
+				s.platform.create({
+					configOverrides: { automatic_tax: true },
+					taxRegistrations: ["AU"],
+				}),
+				s.customer({
+					testClock: false,
+					paymentMethod: "success",
+					stripeCustomerOverrides: { address: auAddress },
+				}),
+				s.products({ list: [proProd] }),
+			],
+			// No prior attach — preview is for a fresh customer with no
+			// existing subscription, so there are no proration credits.
+			actions: [],
+		});
 
-	const preview = (await autumnV2_2.billing.previewAttach({
-		customer_id: customerId,
-		plan_id: `pro_${customerId}`,
-	})) as AttachPreviewResponse;
+		const preview = (await autumnV2_2.billing.previewAttach({
+			customer_id: customerId,
+			plan_id: `pro_${customerId}`,
+		})) as AttachPreviewResponse;
 
-	expect(preview.tax).toBeDefined();
-	expect(preview.tax?.status).toBe("complete");
+		expect(preview.tax).toBeDefined();
+		expect(preview.tax?.status).toBe("complete");
 
-	// Only positive line items, no negatives.
-	const negativeLines = preview.line_items.filter((li) => li.total < 0);
-	expect(negativeLines.length).toBe(0);
+		// Only positive line items, no negatives.
+		const negativeLines = preview.line_items.filter((li) => li.total < 0);
+		expect(negativeLines.length).toBe(0);
 
-	// Tax = sum of all line items * rate (which equals positive sum here
-	// since no negatives). Same expectation before and after fix.
-	const immediateLineItemsTotal = preview.line_items.reduce(
-		(sum, li) => sum + li.total,
-		0,
-	);
-	const expectedTax = immediateLineItemsTotal * AU_GST_RATE;
+		// Tax = sum of all line items * rate (which equals positive sum here
+		// since no negatives). Same expectation before and after fix.
+		const immediateLineItemsTotal = preview.line_items.reduce(
+			(sum, li) => sum + li.total,
+			0,
+		);
+		const expectedTax = immediateLineItemsTotal * AU_GST_RATE;
 
-	console.log(
-		`[preview-tax-prorated-credit no-credit] line_items_total=${immediateLineItemsTotal} expectedTax=${expectedTax} actualTax=${preview.tax?.total}`,
-	);
+		console.log(
+			`[preview-tax-prorated-credit no-credit] line_items_total=${immediateLineItemsTotal} expectedTax=${expectedTax} actualTax=${preview.tax?.total}`,
+		);
 
-	expect(preview.tax?.total).toBeGreaterThanOrEqual(expectedTax - 0.05);
-	expect(preview.tax?.total).toBeLessThanOrEqual(expectedTax + 0.05);
-});
+		expect(preview.tax?.total).toBeGreaterThanOrEqual(expectedTax - 0.05);
+		expect(preview.tax?.total).toBeLessThanOrEqual(expectedTax + 0.05);
+	},
+);

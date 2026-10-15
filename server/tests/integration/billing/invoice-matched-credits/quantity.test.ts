@@ -57,15 +57,16 @@ test.concurrent(
 			waitForSeconds: 20,
 		});
 
-		const customerBefore = await autumnV1.customers.get<ApiCustomerV3>(
-			customerId,
-		);
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 		const invoiceCountBefore = customerBefore.invoices?.length ?? 0;
 
 		const preview = await autumnV1.subscriptions.previewUpdate({
 			customer_id: customerId,
 			product_id: product.id,
-			options: [{ feature_id: TestFeature.Messages, quantity: 5 * BILLING_UNITS }],
+			options: [
+				{ feature_id: TestFeature.Messages, quantity: 5 * BILLING_UNITS },
+			],
 		});
 
 		// Decreasing units mid-cycle yields a prorated credit.
@@ -74,7 +75,9 @@ test.concurrent(
 		await autumnV1.subscriptions.update({
 			customer_id: customerId,
 			product_id: product.id,
-			options: [{ feature_id: TestFeature.Messages, quantity: 5 * BILLING_UNITS }],
+			options: [
+				{ feature_id: TestFeature.Messages, quantity: 5 * BILLING_UNITS },
+			],
 		});
 
 		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
@@ -159,15 +162,16 @@ test.concurrent(
 			waitForSeconds: 20,
 		});
 
-		const customerBefore = await autumnV1.customers.get<ApiCustomerV3>(
-			customerId,
-		);
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 		const invoiceCountBefore = customerBefore.invoices?.length ?? 0;
 
 		const preview = await autumnV1.subscriptions.previewUpdate({
 			customer_id: customerId,
 			product_id: product.id,
-			options: [{ feature_id: TestFeature.Messages, quantity: 5 * BILLING_UNITS }],
+			options: [
+				{ feature_id: TestFeature.Messages, quantity: 5 * BILLING_UNITS },
+			],
 		});
 
 		expect(preview.total).toBeLessThan(0);
@@ -175,7 +179,9 @@ test.concurrent(
 		await autumnV1.subscriptions.update({
 			customer_id: customerId,
 			product_id: product.id,
-			options: [{ feature_id: TestFeature.Messages, quantity: 5 * BILLING_UNITS }],
+			options: [
+				{ feature_id: TestFeature.Messages, quantity: 5 * BILLING_UNITS },
+			],
 		});
 
 		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);

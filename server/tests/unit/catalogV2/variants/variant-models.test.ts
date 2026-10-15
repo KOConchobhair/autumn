@@ -35,7 +35,9 @@ describe("variant pointer", () => {
 		expect(withId.base_internal_product_id).toBe("prod_team_v2");
 
 		const { base_internal_product_id: _dropped, ...missing } = pointerRow(null);
-		expect(ProductSchema.parse(missing).base_internal_product_id).toBeUndefined();
+		expect(
+			ProductSchema.parse(missing).base_internal_product_id,
+		).toBeUndefined();
 	});
 
 	test("pointer move is a details change; null and omitted compare equal", () => {
@@ -57,9 +59,9 @@ describe("declaredVariants copy", () => {
 	const variants = [{ variant_plan_id: "team-eu", name: "Team EU" }];
 
 	test("direct keeps variants[]; siblings and other sources drop them", () => {
-		expect(
-			declaredVariantsForSource({ source: "direct", variants }),
-		).toEqual(variants);
+		expect(declaredVariantsForSource({ source: "direct", variants })).toEqual(
+			variants,
+		);
 		expect(
 			declaredVariantsForSource({ source: "all_versions", variants }),
 		).toBeUndefined();
@@ -79,8 +81,8 @@ describe("variant preview + params", () => {
 			version: 2,
 			version_slug: "v2",
 			active: true,
-deleted_at: null,
-previous_version_slug: null,
+			deleted_at: null,
+			previous_version_slug: null,
 			state: { has_customers: false, will_archive: false },
 			variant_action: "propagated",
 			sibling_versions: [
@@ -89,8 +91,8 @@ previous_version_slug: null,
 					version: 1,
 					version_slug: "v1",
 					active: false,
-deleted_at: null,
-previous_version_slug: null,
+					deleted_at: null,
+					previous_version_slug: null,
 					state: { has_customers: false, will_archive: false },
 					variant_action: "unchanged",
 				},
@@ -104,8 +106,8 @@ previous_version_slug: null,
 			version: 1,
 			version_slug: "v1",
 			active: true,
-deleted_at: null,
-previous_version_slug: null,
+			deleted_at: null,
+			previous_version_slug: null,
 			action: "update",
 			state: { has_customers: false, will_archive: false },
 			versioning: null,
@@ -149,4 +151,3 @@ previous_version_slug: null,
 		});
 	});
 });
-

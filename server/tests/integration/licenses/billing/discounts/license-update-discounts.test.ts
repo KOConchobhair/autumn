@@ -78,9 +78,7 @@ test.concurrent(
 			direction: "charge",
 			subtotal: 100,
 			total: 50,
-			discounts: [
-				{ rewardId: coupon.id, percentOff: 50, amountOff: 50 },
-			],
+			discounts: [{ rewardId: coupon.id, percentOff: 50, amountOff: 50 }],
 		});
 		expectLicenseDiscountPreviewCorrect({
 			preview,
@@ -343,9 +341,7 @@ test.concurrent(
 			direction: "charge",
 			subtotal: 60,
 			total: 30,
-			discounts: [
-				{ rewardId: coupon.id, percentOff: 50, amountOff: 30 },
-			],
+			discounts: [{ rewardId: coupon.id, percentOff: 50, amountOff: 30 }],
 		});
 		expectLicensePreviewLineCorrect({
 			preview,
@@ -404,22 +400,21 @@ test.concurrent(
 			group: "update-carried-seat-licenses",
 			items: [items.monthlyPrice({ price: 10 })],
 		});
-		const { autumnV1, autumnV2_3, ctx, testClockId } =
-			await initScenario({
-				customerId,
-				setup: [
-					s.customer({ paymentMethod: "success", testClock: true }),
-					s.products({ list: [parent, seat] }),
-				],
-				actions: [
-					s.licenses.link({
-						parentProductId: parent.id,
-						licenseProductId: seat.id,
-						included: 0,
-						customize: customLicensePriceConfig({ amount: 20 }),
-					}),
-				],
-			});
+		const { autumnV1, autumnV2_3, ctx, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [parent, seat] }),
+			],
+			actions: [
+				s.licenses.link({
+					parentProductId: parent.id,
+					licenseProductId: seat.id,
+					included: 0,
+					customize: customLicensePriceConfig({ amount: 20 }),
+				}),
+			],
+		});
 
 		if (!testClockId) throw new Error("Expected a Stripe test clock");
 		const seatStripeProductId = await getPlanStripeProductId({
@@ -461,9 +456,7 @@ test.concurrent(
 			direction: "refund",
 			subtotal: -30,
 			total: -30,
-			discounts: [
-				{ rewardId: coupon.id, percentOff: 50, amountOff: 30 },
-			],
+			discounts: [{ rewardId: coupon.id, percentOff: 50, amountOff: 30 }],
 		});
 		expectLicensePreviewLineCorrect({
 			preview,
@@ -471,9 +464,7 @@ test.concurrent(
 			direction: "charge",
 			subtotal: 20,
 			total: 10,
-			discounts: [
-				{ rewardId: coupon.id, percentOff: 50, amountOff: 10 },
-			],
+			discounts: [{ rewardId: coupon.id, percentOff: 50, amountOff: 10 }],
 		});
 		expectLicenseDiscountPreviewCorrect({
 			preview,

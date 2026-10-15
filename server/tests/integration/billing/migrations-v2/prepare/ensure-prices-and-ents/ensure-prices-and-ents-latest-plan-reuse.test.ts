@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import {
 	ApiVersion,
-	findPriceByFeatureId,
 	type FullProduct,
+	findPriceByFeatureId,
 	type Price,
 } from "@autumn/shared";
 import { TestFeature } from "@tests/setup/v2Features";

@@ -32,132 +32,138 @@ import chalk from "chalk";
 
 // ─── Test 1: Flat amount only (per-unit = 0) ─────────────────────────────────
 
-test.concurrent(`${chalk.yellowBright("attach-prepaid-volume-flat: flat_amount only")}`, async () => {
-	const customerId = "vol-flat-only-attach";
-	const quantity = 50;
+test.concurrent(
+	`${chalk.yellowBright("attach-prepaid-volume-flat: flat_amount only")}`,
+	async () => {
+		const customerId = "vol-flat-only-attach";
+		const quantity = 50;
 
-	// Tier 1: 0-100 → $0/unit, $20 flat. Tier 2: 101+ → $0/unit, $50 flat.
-	// 50 units → falls in tier 1 → 50 × $0 + $20 = $20
-	const expectedTotal = 20;
+		// Tier 1: 0-100 → $0/unit, $20 flat. Tier 2: 101+ → $0/unit, $50 flat.
+		// 50 units → falls in tier 1 → 50 × $0 + $20 = $20
+		const expectedTotal = 20;
 
-	const volumeItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: 1,
-		tiers: [
-			{ to: 100, amount: 0, flat_amount: 20 },
-			{ to: "inf", amount: 0, flat_amount: 50 },
-		],
-	});
+		const volumeItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: 1,
+			tiers: [
+				{ to: 100, amount: 0, flat_amount: 20 },
+				{ to: "inf", amount: 0, flat_amount: 50 },
+			],
+		});
 
-	const product = products.base({
-		id: "vol-flat-only",
-		items: [volumeItem],
-	});
+		const product = products.base({
+			id: "vol-flat-only",
+			items: [volumeItem],
+		});
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+			],
+			actions: [],
+		});
 
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity }],
-	});
-	expect(preview.total).toBe(expectedTotal);
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity }],
+		});
+		expect(preview.total).toBe(expectedTotal);
 
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity }],
-	});
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity }],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({ customer, productId: product.id });
+		await expectProductActive({ customer, productId: product.id });
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: quantity,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: quantity,
+			usage: 0,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: expectedTotal,
-	});
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: expectedTotal,
+		});
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
 
 // ─── Test 2: Mixed per-unit amount + flat_amount ─────────────────────────────
 
-test.concurrent(`${chalk.yellowBright("attach-prepaid-volume-flat: mixed per-unit + flat_amount")}`, async () => {
-	const customerId = "vol-flat-mixed-attach";
-	const quantity = 50;
+test.concurrent(
+	`${chalk.yellowBright("attach-prepaid-volume-flat: mixed per-unit + flat_amount")}`,
+	async () => {
+		const customerId = "vol-flat-mixed-attach";
+		const quantity = 50;
 
-	// Tier 1: 0-100 → $1/unit, $10 flat. Tier 2: 101+ → $0.50/unit, $25 flat.
-	// 50 units → falls in tier 1 → 50 × $1 + $10 = $60
-	const expectedTotal = 60;
+		// Tier 1: 0-100 → $1/unit, $10 flat. Tier 2: 101+ → $0.50/unit, $25 flat.
+		// 50 units → falls in tier 1 → 50 × $1 + $10 = $60
+		const expectedTotal = 60;
 
-	const volumeItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: 1,
-		tiers: [
-			{ to: 100, amount: 1, flat_amount: 10 },
-			{ to: "inf", amount: 0.5, flat_amount: 25 },
-		],
-	});
+		const volumeItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: 1,
+			tiers: [
+				{ to: 100, amount: 1, flat_amount: 10 },
+				{ to: "inf", amount: 0.5, flat_amount: 25 },
+			],
+		});
 
-	const product = products.base({
-		id: "vol-flat-mixed",
-		items: [volumeItem],
-	});
+		const product = products.base({
+			id: "vol-flat-mixed",
+			items: [volumeItem],
+		});
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+			],
+			actions: [],
+		});
 
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity }],
-	});
-	expect(preview.total).toBe(expectedTotal);
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity }],
+		});
+		expect(preview.total).toBe(expectedTotal);
 
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity }],
-	});
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity }],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({ customer, productId: product.id });
+		await expectProductActive({ customer, productId: product.id });
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: quantity,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: quantity,
+			usage: 0,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: expectedTotal,
-	});
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: expectedTotal,
+		});
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);

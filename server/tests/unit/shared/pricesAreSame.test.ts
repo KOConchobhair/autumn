@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
-	type Price,
-	PriceType,
 	BillingInterval,
 	BillWhen,
 	Infinite,
+	type Price,
 	PriceSchema,
+	PriceType,
 } from "@autumn/shared";
 import { pricesAreSame } from "@shared/utils/productUtils/priceUtils/comparePrice/pricesAreSame";
 

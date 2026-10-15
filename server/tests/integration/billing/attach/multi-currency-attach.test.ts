@@ -1,12 +1,12 @@
-import { and, eq } from "drizzle-orm";
 import { expect, test } from "bun:test";
 import { type ApiCustomerV3, customers, ErrCode } from "@autumn/shared";
 import { expectProductActive } from "@tests/integration/billing/utils/expectCustomerProductCorrect";
+import { expectAutumnError } from "@tests/utils/expectUtils/expectErrUtils";
 import { items } from "@tests/utils/fixtures/items.js";
 import { products } from "@tests/utils/fixtures/products.js";
-import { expectAutumnError } from "@tests/utils/expectUtils/expectErrUtils";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
+import { and, eq } from "drizzle-orm";
 
 // Regression: a normal single-currency (org-default) attach must NOT be blocked.
 test.concurrent(

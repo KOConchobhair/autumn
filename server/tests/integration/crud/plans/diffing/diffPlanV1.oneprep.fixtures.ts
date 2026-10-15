@@ -1,7 +1,6 @@
-import { type ApiPlanV1 } from "@autumn/shared";
-import { findById } from "./utils/findById.js";
-
+import type { ApiPlanV1 } from "@autumn/shared";
 import oneprepDump from "./oneprep-plans.json" with { type: "json" };
+import { findById } from "./utils/findById.js";
 
 const items = oneprepDump.items as ApiPlanV1[];
 

@@ -36,36 +36,39 @@ const premium = products.premium({
 	items: [creditsItemPremium],
 });
 
-test.concurrent(`${chalk.yellowBright("list-plans-cross-version: list products cross version")}`, async () => {
-	await initScenario({
-		setup: [s.products({ list: [free, pro, premium], prefix: testCase })],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("list-plans-cross-version: list products cross version")}`,
+	async () => {
+		await initScenario({
+			setup: [s.products({ list: [free, pro, premium], prefix: testCase })],
+			actions: [],
+		});
 
-	const autumnV1 = new AutumnInt({ version: ApiVersion.V1_2 });
-	const autumnV2_0 = new AutumnInt({ version: ApiVersion.V2_0 });
-	const autumnV2_1 = new AutumnInt({ version: ApiVersion.V2_1 });
+		const autumnV1 = new AutumnInt({ version: ApiVersion.V1_2 });
+		const autumnV2_0 = new AutumnInt({ version: ApiVersion.V2_0 });
+		const autumnV2_1 = new AutumnInt({ version: ApiVersion.V2_1 });
 
-	// V2.1 - should return ApiPlanV1 schema (items, auto_enable)
-	const plansV2_1 = await autumnV2_1.products.list<ApiPlanV1[]>();
-	for (const plan of plansV2_1.list) {
-		ApiPlanV1Schema.parse(plan);
-	}
+		// V2.1 - should return ApiPlanV1 schema (items, auto_enable)
+		const plansV2_1 = await autumnV2_1.products.list<ApiPlanV1[]>();
+		for (const plan of plansV2_1.list) {
+			ApiPlanV1Schema.parse(plan);
+		}
 
-	// V2.0 - should return ApiPlan schema (features, default)
-	const plansV2_0 = await autumnV2_0.products.list<ApiPlan[]>();
-	for (const plan of plansV2_0.list) {
-		ApiPlanV0Schema.parse(plan);
-	}
+		// V2.0 - should return ApiPlan schema (features, default)
+		const plansV2_0 = await autumnV2_0.products.list<ApiPlan[]>();
+		for (const plan of plansV2_0.list) {
+			ApiPlanV0Schema.parse(plan);
+		}
 
-	// V1.2 - should return ApiProduct schema
-	const productsV1 = await autumnV1.products.list<ApiProduct[]>();
-	for (const product of productsV1.list) {
-		ApiProductSchema.parse(product);
-	}
+		// V1.2 - should return ApiProduct schema
+		const productsV1 = await autumnV1.products.list<ApiProduct[]>();
+		for (const product of productsV1.list) {
+			ApiProductSchema.parse(product);
+		}
 
-	// Verify we have the expected products
-	expect(plansV2_1.list.length).toBeGreaterThanOrEqual(3);
-	expect(plansV2_0.list.length).toBeGreaterThanOrEqual(3);
-	expect(productsV1.list.length).toBeGreaterThanOrEqual(3);
-});
+		// Verify we have the expected products
+		expect(plansV2_1.list.length).toBeGreaterThanOrEqual(3);
+		expect(plansV2_0.list.length).toBeGreaterThanOrEqual(3);
+		expect(productsV1.list.length).toBeGreaterThanOrEqual(3);
+	},
+);

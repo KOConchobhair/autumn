@@ -46,39 +46,42 @@ const disablePersistFreeOverage = async ({
 // 1. Flag off — negative balance resets to full allowance
 // ─────────────────────────────────────────────────────────────────
 
-test.concurrent(`${chalk.yellowBright("persist overage OFF: resets to full allowance when disabled")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const free = products.base({ items: [messagesItem] });
+test.concurrent(
+	`${chalk.yellowBright("persist overage OFF: resets to full allowance when disabled")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const free = products.base({ items: [messagesItem] });
 
-	const { customerId, autumnV2, ctx } = await initScenario({
-		customerId: "persist-ovg-off-basic",
-		setup: [s.customer({ testClock: false }), s.products({ list: [free] })],
-		actions: [s.attach({ productId: free.id })],
-	});
+		const { customerId, autumnV2, ctx } = await initScenario({
+			customerId: "persist-ovg-off-basic",
+			setup: [s.customer({ testClock: false }), s.products({ list: [free] })],
+			actions: [s.attach({ productId: free.id })],
+		});
 
-	await disablePersistFreeOverage({
-		orgId: ctx.org.id,
-		orgConfig: ctx.org.config,
-	});
+		await disablePersistFreeOverage({
+			orgId: ctx.org.id,
+			orgConfig: ctx.org.config,
+		});
 
-	const cusEnt = await findCustomerEntitlement({
-		ctx,
-		customerId,
-		featureId: TestFeature.Messages,
-	});
-	expect(cusEnt).toBeDefined();
+		const cusEnt = await findCustomerEntitlement({
+			ctx,
+			customerId,
+			featureId: TestFeature.Messages,
+		});
+		expect(cusEnt).toBeDefined();
 
-	await setBalanceInDb({ cusEntId: cusEnt!.id, balance: -100 });
-	await expireCusEntForReset({
-		ctx,
-		customerId,
-		featureId: TestFeature.Messages,
-	});
+		await setBalanceInDb({ cusEntId: cusEnt!.id, balance: -100 });
+		await expireCusEntForReset({
+			ctx,
+			customerId,
+			featureId: TestFeature.Messages,
+		});
 
-	const after = await autumnV2.customers.get<ApiCustomer>(customerId, {
-		skip_cache: "true",
-	});
+		const after = await autumnV2.customers.get<ApiCustomer>(customerId, {
+			skip_cache: "true",
+		});
 
-	expect(after.balances[TestFeature.Messages].current_balance).toBe(100);
-	expect(after.balances[TestFeature.Messages].usage).toBe(0);
-});
+		expect(after.balances[TestFeature.Messages].current_balance).toBe(100);
+		expect(after.balances[TestFeature.Messages].usage).toBe(0);
+	},
+);

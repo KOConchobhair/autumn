@@ -88,332 +88,346 @@ const getStripePrepaidSubscriptionItem = async ({
 // TEST 1: INCREMENT QUANTITY - MULTI BILLING UNITS (Messages)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("v2→v1 compat: increment quantity (multi billing units)")}`, async () => {
-	const customerId = "v2-v1-compat-incr-multi";
-	const billingUnits = 100;
-	const pricePerPack = 10;
-	const includedUsage = 100; // Allowance
+test.concurrent(
+	`${chalk.yellowBright("v2→v1 compat: increment quantity (multi billing units)")}`,
+	async () => {
+		const customerId = "v2-v1-compat-incr-multi";
+		const billingUnits = 100;
+		const pricePerPack = 10;
+		const includedUsage = 100; // Allowance
 
-	const prepaidItem = items.prepaidMessages({
-		includedUsage,
-		billingUnits,
-		price: pricePerPack,
-		config: {
-			on_increase: OnIncrease.ProrateImmediately,
-			on_decrease: OnDecrease.ProrateImmediately,
-		},
-	});
-
-	const priceItem = items.monthlyPrice({ price: 20 });
-	const pro = products.base({
-		id: "pro",
-		items: [prepaidItem, priceItem],
-	});
-
-	// Initial: 500 total units (including 100 allowance)
-	// = 400 prepaid units = 4 packs
-	const initialTotalUnits = 500;
-
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: pro.id,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialTotalUnits },
-				],
-			}),
-		],
-	});
-
-	// Verify initial state
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectCustomerFeatureCorrect({
-		customer: customerBefore,
-		featureId: TestFeature.Messages,
-		includedUsage: initialTotalUnits, // allowance + prepaid
-		balance: initialTotalUnits,
-		usage: 0,
-	});
-
-	const { prepaidItem: itemBefore } = await getStripePrepaidSubscriptionItem({
-		customerId,
-	});
-	expect(itemBefore).toBeDefined();
-	expect(itemBefore!.quantity).toBe(5);
-
-	// Upgrade: 500 → 800 total units (including 100 allowance)
-	// = 700 prepaid units = 7 packs
-	const updatedTotalUnits = 800;
-	const updatedPacks = (updatedTotalUnits - includedUsage) / billingUnits;
-
-	// Use V1 attach to update quantity
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		options: [
-			{
-				feature_id: TestFeature.Messages,
-				quantity: updatedPacks * billingUnits,
+		const prepaidItem = items.prepaidMessages({
+			includedUsage,
+			billingUnits,
+			price: pricePerPack,
+			config: {
+				on_increase: OnIncrease.ProrateImmediately,
+				on_decrease: OnDecrease.ProrateImmediately,
 			},
-		],
-	});
+		});
 
-	// Verify customer feature balance updated correctly
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectCustomerFeatureCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Messages,
-		includedUsage: updatedTotalUnits,
-		balance: updatedTotalUnits,
-		usage: 0,
-	});
+		const priceItem = items.monthlyPrice({ price: 20 });
+		const pro = products.base({
+			id: "pro",
+			items: [prepaidItem, priceItem],
+		});
 
-	// Verify Stripe subscription item quantity
-	const { prepaidItem: itemAfter } = await getStripePrepaidSubscriptionItem({
-		customerId,
-	});
-	expect(itemAfter).toBeDefined();
-	expect(itemAfter!.quantity).toBe(updatedPacks);
+		// Initial: 500 total units (including 100 allowance)
+		// = 400 prepaid units = 4 packs
+		const initialTotalUnits = 500;
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		billingVersion: BillingVersion.V1,
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: pro.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialTotalUnits },
+					],
+				}),
+			],
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customerId,
-		count: 2,
-		latestTotal: 3 * pricePerPack, // added 3 packs
-	});
-});
+		// Verify initial state
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerFeatureCorrect({
+			customer: customerBefore,
+			featureId: TestFeature.Messages,
+			includedUsage: initialTotalUnits, // allowance + prepaid
+			balance: initialTotalUnits,
+			usage: 0,
+		});
+
+		const { prepaidItem: itemBefore } = await getStripePrepaidSubscriptionItem({
+			customerId,
+		});
+		expect(itemBefore).toBeDefined();
+		expect(itemBefore!.quantity).toBe(5);
+
+		// Upgrade: 500 → 800 total units (including 100 allowance)
+		// = 700 prepaid units = 7 packs
+		const updatedTotalUnits = 800;
+		const updatedPacks = (updatedTotalUnits - includedUsage) / billingUnits;
+
+		// Use V1 attach to update quantity
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			options: [
+				{
+					feature_id: TestFeature.Messages,
+					quantity: updatedPacks * billingUnits,
+				},
+			],
+		});
+
+		// Verify customer feature balance updated correctly
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerFeatureCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Messages,
+			includedUsage: updatedTotalUnits,
+			balance: updatedTotalUnits,
+			usage: 0,
+		});
+
+		// Verify Stripe subscription item quantity
+		const { prepaidItem: itemAfter } = await getStripePrepaidSubscriptionItem({
+			customerId,
+		});
+		expect(itemAfter).toBeDefined();
+		expect(itemAfter!.quantity).toBe(updatedPacks);
+
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			billingVersion: BillingVersion.V1,
+		});
+
+		await expectCustomerInvoiceCorrect({
+			customerId,
+			count: 2,
+			latestTotal: 3 * pricePerPack, // added 3 packs
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: DECREMENT QUANTITY - MULTI BILLING UNITS (Messages)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("v2→v1 compat: decrement quantity (multi billing units)")}`, async () => {
-	const customerId = "v2-v1-compat-decr-multi";
-	const billingUnits = 100;
-	const pricePerPack = 10;
-	const includedUsage = 100;
+test.concurrent(
+	`${chalk.yellowBright("v2→v1 compat: decrement quantity (multi billing units)")}`,
+	async () => {
+		const customerId = "v2-v1-compat-decr-multi";
+		const billingUnits = 100;
+		const pricePerPack = 10;
+		const includedUsage = 100;
 
-	const prepaidItem = items.prepaidMessages({
-		includedUsage,
-		billingUnits,
-		price: pricePerPack,
-		config: {
-			on_increase: OnIncrease.ProrateImmediately,
-			on_decrease: OnDecrease.ProrateImmediately,
-		},
-	});
-
-	const priceItem = items.monthlyPrice({ price: 20 });
-	const pro = products.base({
-		id: "pro",
-		items: [prepaidItem, priceItem],
-	});
-
-	// Start high: 800 total units = 7 packs
-	const initialTotalUnits = 800;
-
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: pro.id,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialTotalUnits },
-				],
-			}),
-		],
-	});
-
-	// Track some usage first
-	const messagesUsed = 150;
-	await autumnV1.track(
-		{
-			customer_id: customerId,
-			feature_id: TestFeature.Messages,
-			value: messagesUsed,
-		},
-		{ timeout: 2000 },
-	);
-
-	const { prepaidItem: itemBefore } = await getStripePrepaidSubscriptionItem({
-		customerId,
-	});
-	expect(itemBefore).toBeDefined();
-	expect(itemBefore!.quantity).toBe(8);
-
-	// Downgrade: 800 → 400 total units = 3 packs
-	const downgradedTotalUnits = 400;
-	const downgradedPacks = (downgradedTotalUnits - includedUsage) / billingUnits; // 4
-
-	// Use V1 attach to update quantity
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		options: [
-			{
-				feature_id: TestFeature.Messages,
-				quantity: downgradedPacks * billingUnits,
+		const prepaidItem = items.prepaidMessages({
+			includedUsage,
+			billingUnits,
+			price: pricePerPack,
+			config: {
+				on_increase: OnIncrease.ProrateImmediately,
+				on_decrease: OnDecrease.ProrateImmediately,
 			},
-		],
-	});
+		});
 
-	// Verify customer feature balance
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectCustomerFeatureCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Messages,
-		includedUsage: downgradedTotalUnits,
-		balance: downgradedTotalUnits - messagesUsed,
-		usage: messagesUsed,
-	});
+		const priceItem = items.monthlyPrice({ price: 20 });
+		const pro = products.base({
+			id: "pro",
+			items: [prepaidItem, priceItem],
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		billingVersion: BillingVersion.V1,
-	});
+		// Start high: 800 total units = 7 packs
+		const initialTotalUnits = 800;
 
-	await expectCustomerInvoiceCorrect({
-		customerId,
-		count: 2,
-		latestTotal: -4 * pricePerPack, // removed 4 packs
-	});
-});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: pro.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialTotalUnits },
+					],
+				}),
+			],
+		});
+
+		// Track some usage first
+		const messagesUsed = 150;
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Messages,
+				value: messagesUsed,
+			},
+			{ timeout: 2000 },
+		);
+
+		const { prepaidItem: itemBefore } = await getStripePrepaidSubscriptionItem({
+			customerId,
+		});
+		expect(itemBefore).toBeDefined();
+		expect(itemBefore!.quantity).toBe(8);
+
+		// Downgrade: 800 → 400 total units = 3 packs
+		const downgradedTotalUnits = 400;
+		const downgradedPacks =
+			(downgradedTotalUnits - includedUsage) / billingUnits; // 4
+
+		// Use V1 attach to update quantity
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			options: [
+				{
+					feature_id: TestFeature.Messages,
+					quantity: downgradedPacks * billingUnits,
+				},
+			],
+		});
+
+		// Verify customer feature balance
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerFeatureCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Messages,
+			includedUsage: downgradedTotalUnits,
+			balance: downgradedTotalUnits - messagesUsed,
+			usage: messagesUsed,
+		});
+
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			billingVersion: BillingVersion.V1,
+		});
+
+		await expectCustomerInvoiceCorrect({
+			customerId,
+			count: 2,
+			latestTotal: -4 * pricePerPack, // removed 4 packs
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 4: DECREMENT WITH NO PRORATIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("v2→v1 compat: decrement with no prorations")}`, async () => {
-	const customerId = "v2-v1-compat-decr-no-prorate";
-	const billingUnits = 100;
-	const pricePerPack = 10;
-	const includedUsage = 100;
+test.concurrent(
+	`${chalk.yellowBright("v2→v1 compat: decrement with no prorations")}`,
+	async () => {
+		const customerId = "v2-v1-compat-decr-no-prorate";
+		const billingUnits = 100;
+		const pricePerPack = 10;
+		const includedUsage = 100;
 
-	const prepaidItem = items.prepaidMessages({
-		includedUsage,
-		billingUnits,
-		price: pricePerPack,
-		config: {
-			on_increase: OnIncrease.ProrateImmediately,
-			on_decrease: OnDecrease.None, // Key: no prorations on decrease
-		},
-	});
-
-	const priceItem = items.monthlyPrice({ price: 20 });
-	const pro = products.base({
-		id: "pro",
-		items: [prepaidItem, priceItem],
-	});
-
-	// Start: 600 total units = 5 packs
-	const initialTotalUnits = 600;
-	const initialPacks = (initialTotalUnits - includedUsage) / billingUnits; // 5
-
-	const { autumnV1, testClockId } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: pro.id,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialTotalUnits },
-				],
-			}),
-		],
-	});
-
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-
-	// Get initial invoice count
-	await expectCustomerInvoiceCorrect({
-		customer: customerBefore,
-		count: 1, // Initial attach invoice
-		latestTotal: (priceItem.price ?? 0) + initialPacks * pricePerPack,
-	});
-
-	// Downgrade: 600 → 300 total units = 2 packs
-	const downgradedTotalUnits = 300;
-	const downgradedPacks = (downgradedTotalUnits - includedUsage) / billingUnits; // 2
-
-	// Use V1 attach to update quantity
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		options: [
-			{
-				feature_id: TestFeature.Messages,
-				quantity: downgradedPacks * billingUnits,
+		const prepaidItem = items.prepaidMessages({
+			includedUsage,
+			billingUnits,
+			price: pricePerPack,
+			config: {
+				on_increase: OnIncrease.ProrateImmediately,
+				on_decrease: OnDecrease.None, // Key: no prorations on decrease
 			},
-		],
-	});
+		});
 
-	// With NoProrations, balance should NOT change immediately
-	// The new quantity takes effect at next billing cycle
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const priceItem = items.monthlyPrice({ price: 20 });
+		const pro = products.base({
+			id: "pro",
+			items: [prepaidItem, priceItem],
+		});
 
-	// Balance stays at initial (no immediate decrement)
-	expectCustomerFeatureCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Messages,
-		includedUsage: initialTotalUnits, // Unchanged until renewal
-		balance: initialTotalUnits,
-		usage: 0,
-	});
+		// Start: 600 total units = 5 packs
+		const initialTotalUnits = 600;
+		const initialPacks = (initialTotalUnits - includedUsage) / billingUnits; // 5
 
-	// No new invoice should be created (no prorations)
-	await expectCustomerInvoiceCorrect({
-		customer: customerAfter,
-		count: 1, // Still just the initial invoice
-	});
+		const { autumnV1, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: pro.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialTotalUnits },
+					],
+				}),
+			],
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		billingVersion: BillingVersion.V1,
-	});
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await advanceToNextInvoice({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-	});
+		// Get initial invoice count
+		await expectCustomerInvoiceCorrect({
+			customer: customerBefore,
+			count: 1, // Initial attach invoice
+			latestTotal: (priceItem.price ?? 0) + initialPacks * pricePerPack,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customerId,
-		count: 2,
-		latestTotal: downgradedPacks * pricePerPack + (priceItem.price ?? 0),
-	});
+		// Downgrade: 600 → 300 total units = 2 packs
+		const downgradedTotalUnits = 300;
+		const downgradedPacks =
+			(downgradedTotalUnits - includedUsage) / billingUnits; // 2
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		billingVersion: BillingVersion.V1,
-	});
-});
+		// Use V1 attach to update quantity
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			options: [
+				{
+					feature_id: TestFeature.Messages,
+					quantity: downgradedPacks * billingUnits,
+				},
+			],
+		});
+
+		// With NoProrations, balance should NOT change immediately
+		// The new quantity takes effect at next billing cycle
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+
+		// Balance stays at initial (no immediate decrement)
+		expectCustomerFeatureCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Messages,
+			includedUsage: initialTotalUnits, // Unchanged until renewal
+			balance: initialTotalUnits,
+			usage: 0,
+		});
+
+		// No new invoice should be created (no prorations)
+		await expectCustomerInvoiceCorrect({
+			customer: customerAfter,
+			count: 1, // Still just the initial invoice
+		});
+
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			billingVersion: BillingVersion.V1,
+		});
+
+		await advanceToNextInvoice({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+		});
+
+		await expectCustomerInvoiceCorrect({
+			customerId,
+			count: 2,
+			latestTotal: downgradedPacks * pricePerPack + (priceItem.price ?? 0),
+		});
+
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			billingVersion: BillingVersion.V1,
+		});
+	},
+);

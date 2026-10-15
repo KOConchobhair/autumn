@@ -27,238 +27,268 @@ import { products } from "@tests/utils/fixtures/products";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
 
-test.concurrent(`${chalk.yellowBright("patch update items: add boolean and metered entitlements")}`, async () => {
-	const customerId = "patch-update-items-add";
-	const pro = products.pro({ items: [] });
+test.concurrent(
+	`${chalk.yellowBright("patch update items: add boolean and metered entitlements")}`,
+	async () => {
+		const customerId = "patch-update-items-add";
+		const pro = products.pro({ items: [] });
 
-	const { autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
-
-	const updateParams: UpdateSubscriptionV1ParamsInput = {
-		customer_id: customerId,
-		plan_id: pro.id,
-		customize: {
-			add_items: [itemsV2.dashboard(), itemsV2.monthlyWords({ included: 150 })],
-		},
-	};
-
-	const preview =
-		await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
-			updateParams,
-		);
-	expect(preview.total).toBe(0);
-
-	await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
-		updateParams,
-	);
-
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectCustomerProducts({ customer, active: [pro.id] });
-	expectFlagCorrect({
-		customer,
-		featureId: TestFeature.Dashboard,
-		planId: pro.id,
-	});
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Words,
-		remaining: 150,
-		usage: 0,
-		planId: pro.id,
-	});
-	await expectNoExpiredCustomerProducts({ ctx, customerId, productId: pro.id });
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
-
-test.concurrent(`${chalk.yellowBright("patch update items: remove boolean and metered entitlements")}`, async () => {
-	const customerId = "patch-update-items-remove";
-	const pro = products.pro({
-		items: [items.dashboard(), items.monthlyWords({ includedUsage: 120 })],
-	});
-
-	const { autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
-
-	const updateParams: UpdateSubscriptionV1ParamsInput = {
-		customer_id: customerId,
-		plan_id: pro.id,
-		customize: {
-			remove_items: [
-				{ feature_id: TestFeature.Dashboard },
-				{ feature_id: TestFeature.Words },
+		const { autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
 			],
-		},
-	};
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	const preview =
-		await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
-			updateParams,
-		);
-	expect(preview.total).toBe(0);
-
-	await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
-		updateParams,
-	);
-
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectCustomerProducts({ customer, active: [pro.id] });
-	expectFlagCorrect({
-		customer,
-		featureId: TestFeature.Dashboard,
-		present: false,
-	});
-	expect(customer.balances[TestFeature.Words]).toBeUndefined();
-	await expectNoExpiredCustomerProducts({ ctx, customerId, productId: pro.id });
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
-
-test.concurrent(`${chalk.yellowBright("patch update items: replace included messages and preserve usage")}`, async () => {
-	const customerId = "patch-update-items-replace-messages";
-	const messagesUsage = 40;
-	const pro = products.pro({
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
-
-	const { autumnV1, autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
-
-	await autumnV1.track(
-		{
+		const updateParams: UpdateSubscriptionV1ParamsInput = {
 			customer_id: customerId,
-			feature_id: TestFeature.Messages,
-			value: messagesUsage,
-		},
-		{ timeout: 2000 },
-	);
+			plan_id: pro.id,
+			customize: {
+				add_items: [
+					itemsV2.dashboard(),
+					itemsV2.monthlyWords({ included: 150 }),
+				],
+			},
+		};
 
-	const updateParams: UpdateSubscriptionV1ParamsInput = {
-		customer_id: customerId,
-		plan_id: pro.id,
-		customize: {
-			remove_items: [{ feature_id: TestFeature.Messages }],
-			add_items: [itemsV2.monthlyMessages({ included: 250 })],
-		},
-	};
+		const preview =
+			await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+				updateParams,
+			);
+		expect(preview.total).toBe(0);
 
-	const preview =
-		await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+		await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
 			updateParams,
 		);
-	expect(preview.total).toBe(0);
 
-	await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
-		updateParams,
-	);
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectCustomerProducts({ customer, active: [pro.id] });
+		expectFlagCorrect({
+			customer,
+			featureId: TestFeature.Dashboard,
+			planId: pro.id,
+		});
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Words,
+			remaining: 150,
+			usage: 0,
+			planId: pro.id,
+		});
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectCustomerProducts({ customer, active: [pro.id] });
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 210,
-		usage: messagesUsage,
-		planId: pro.id,
-	});
-	await expectNoExpiredCustomerProducts({ ctx, customerId, productId: pro.id });
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+test.concurrent(
+	`${chalk.yellowBright("patch update items: remove boolean and metered entitlements")}`,
+	async () => {
+		const customerId = "patch-update-items-remove";
+		const pro = products.pro({
+			items: [items.dashboard(), items.monthlyWords({ includedUsage: 120 })],
+		});
 
-test.concurrent(`${chalk.yellowBright("patch update items: entity update only affects target entity")}`, async () => {
-	const customerId = "patch-update-items-entity";
-	const pro = products.pro({ items: [] });
+		const { autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	const { autumnV2_2, ctx, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.billing.attach({ productId: pro.id, entityIndex: 0 }),
-			s.billing.attach({ productId: pro.id, entityIndex: 1 }),
-		],
-	});
+		const updateParams: UpdateSubscriptionV1ParamsInput = {
+			customer_id: customerId,
+			plan_id: pro.id,
+			customize: {
+				remove_items: [
+					{ feature_id: TestFeature.Dashboard },
+					{ feature_id: TestFeature.Words },
+				],
+			},
+		};
 
-	const updateParams: UpdateSubscriptionV1ParamsInput = {
-		customer_id: customerId,
-		entity_id: entities[1].id,
-		plan_id: pro.id,
-		customize: {
-			add_items: [itemsV2.dashboard(), itemsV2.monthlyWords({ included: 75 })],
-		},
-	};
+		const preview =
+			await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+				updateParams,
+			);
+		expect(preview.total).toBe(0);
 
-	const preview =
-		await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+		await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
 			updateParams,
 		);
-	expect(preview.total).toBe(0);
 
-	await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
-		updateParams,
-	);
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectCustomerProducts({ customer, active: [pro.id] });
+		expectFlagCorrect({
+			customer,
+			featureId: TestFeature.Dashboard,
+			present: false,
+		});
+		expect(customer.balances[TestFeature.Words]).toBeUndefined();
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectCustomerProducts({
-		customer,
-		...(isBalanceWorkerRoute()
-			? { notPresent: [pro.id] }
-			: { active: [pro.id] }),
-	});
+test.concurrent(
+	`${chalk.yellowBright("patch update items: replace included messages and preserve usage")}`,
+	async () => {
+		const customerId = "patch-update-items-replace-messages";
+		const messagesUsage = 40;
+		const pro = products.pro({
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const entity1 = await autumnV2_2.entities.get<ApiEntityV2>(
-		customerId,
-		entities[0].id,
-	);
-	const entity2 = await autumnV2_2.entities.get<ApiEntityV2>(
-		customerId,
-		entities[1].id,
-	);
-	await expectCustomerProducts({ customer: entity1, active: [pro.id] });
-	await expectCustomerProducts({ customer: entity2, active: [pro.id] });
+		const { autumnV1, autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	expectFlagCorrect({
-		customer: entity1,
-		featureId: TestFeature.Dashboard,
-		present: false,
-	});
-	expect(entity1.balances[TestFeature.Words]).toBeUndefined();
-	expectFlagCorrect({
-		customer: entity2,
-		featureId: TestFeature.Dashboard,
-		planId: pro.id,
-	});
-	expectBalanceCorrect({
-		customer: entity2,
-		featureId: TestFeature.Words,
-		remaining: 75,
-		usage: 0,
-		planId: pro.id,
-	});
-	await expectNoExpiredCustomerProducts({
-		ctx,
-		customerId,
-		productId: pro.id,
-		entityId: entities[1].id,
-	});
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Messages,
+				value: messagesUsage,
+			},
+			{ timeout: 2000 },
+		);
+
+		const updateParams: UpdateSubscriptionV1ParamsInput = {
+			customer_id: customerId,
+			plan_id: pro.id,
+			customize: {
+				remove_items: [{ feature_id: TestFeature.Messages }],
+				add_items: [itemsV2.monthlyMessages({ included: 250 })],
+			},
+		};
+
+		const preview =
+			await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+				updateParams,
+			);
+		expect(preview.total).toBe(0);
+
+		await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
+			updateParams,
+		);
+
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectCustomerProducts({ customer, active: [pro.id] });
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 210,
+			usage: messagesUsage,
+			planId: pro.id,
+		});
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
+
+test.concurrent(
+	`${chalk.yellowBright("patch update items: entity update only affects target entity")}`,
+	async () => {
+		const customerId = "patch-update-items-entity";
+		const pro = products.pro({ items: [] });
+
+		const { autumnV2_2, ctx, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.billing.attach({ productId: pro.id, entityIndex: 0 }),
+				s.billing.attach({ productId: pro.id, entityIndex: 1 }),
+			],
+		});
+
+		const updateParams: UpdateSubscriptionV1ParamsInput = {
+			customer_id: customerId,
+			entity_id: entities[1].id,
+			plan_id: pro.id,
+			customize: {
+				add_items: [
+					itemsV2.dashboard(),
+					itemsV2.monthlyWords({ included: 75 }),
+				],
+			},
+		};
+
+		const preview =
+			await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+				updateParams,
+			);
+		expect(preview.total).toBe(0);
+
+		await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
+			updateParams,
+		);
+
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectCustomerProducts({
+			customer,
+			...(isBalanceWorkerRoute()
+				? { notPresent: [pro.id] }
+				: { active: [pro.id] }),
+		});
+
+		const entity1 = await autumnV2_2.entities.get<ApiEntityV2>(
+			customerId,
+			entities[0].id,
+		);
+		const entity2 = await autumnV2_2.entities.get<ApiEntityV2>(
+			customerId,
+			entities[1].id,
+		);
+		await expectCustomerProducts({ customer: entity1, active: [pro.id] });
+		await expectCustomerProducts({ customer: entity2, active: [pro.id] });
+
+		expectFlagCorrect({
+			customer: entity1,
+			featureId: TestFeature.Dashboard,
+			present: false,
+		});
+		expect(entity1.balances[TestFeature.Words]).toBeUndefined();
+		expectFlagCorrect({
+			customer: entity2,
+			featureId: TestFeature.Dashboard,
+			planId: pro.id,
+		});
+		expectBalanceCorrect({
+			customer: entity2,
+			featureId: TestFeature.Words,
+			remaining: 75,
+			usage: 0,
+			planId: pro.id,
+		});
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: pro.id,
+			entityId: entities[1].id,
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);

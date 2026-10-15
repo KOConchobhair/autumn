@@ -48,92 +48,97 @@ const VOLUME_TIERS = [
  *   Prepaid delta: $0
  *   Switch total = prorated base upgrade ($50 - $20 × remaining fraction) > 0
  */
-test.concurrent(`${chalk.yellowBright("attach-prepaid-volume: immediate switch, 300 units tier 1 → tier 1")}`, async () => {
-	const customerId = "attach-prepaid-volume-imm-t1";
-	const initQuantity = 300;
-	const newQuantity = 300;
+test.concurrent(
+	`${chalk.yellowBright("attach-prepaid-volume: immediate switch, 300 units tier 1 → tier 1")}`,
+	async () => {
+		const customerId = "attach-prepaid-volume-imm-t1";
+		const initQuantity = 300;
+		const newQuantity = 300;
 
-	const proItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
-	const premiumItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
+		const proItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
+		const premiumItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
 
-	const pro = products.pro({ id: "pro-volume-imm-t1", items: [proItem] });
-	const premium = products.premium({
-		id: "premium-volume-imm-t1",
-		items: [premiumItem],
-	});
+		const pro = products.pro({ id: "pro-volume-imm-t1", items: [proItem] });
+		const premium = products.premium({
+			id: "premium-volume-imm-t1",
+			items: [premiumItem],
+		});
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: pro.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: initQuantity }],
-			}),
-		],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: pro.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initQuantity },
+					],
+				}),
+			],
+		});
 
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({ customer: customerBefore, productId: pro.id });
-	expectCustomerFeatureCorrect({
-		customer: customerBefore,
-		featureId: TestFeature.Messages,
-		balance: initQuantity,
-		usage: 0,
-	});
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({ customer: customerBefore, productId: pro.id });
+		expectCustomerFeatureCorrect({
+			customer: customerBefore,
+			featureId: TestFeature.Messages,
+			balance: initQuantity,
+			usage: 0,
+		});
 
-	// Preview — prepaid delta = $0 (same tier, same quantity); only prorated base upgrade
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: premium.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
-	expect(preview.total).toEqual(30);
+		// Preview — prepaid delta = $0 (same tier, same quantity); only prorated base upgrade
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: premium.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
+		expect(preview.total).toEqual(30);
 
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-		redirect_mode: "if_required",
-	});
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+			redirect_mode: "if_required",
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectCustomerProducts({
-		customer,
-		active: [premium.id],
-		notPresent: [pro.id],
-	});
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: newQuantity,
-		usage: 0,
-	});
-	// latestTotal ≈ preview.total (prorated base upgrade, no prepaid delta)
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 2,
-		latestTotal: preview.total,
-	});
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectCustomerProducts({
+			customer,
+			active: [premium.id],
+			notPresent: [pro.id],
+		});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: newQuantity,
+			usage: 0,
+		});
+		// latestTotal ≈ preview.total (prorated base upgrade, no prepaid delta)
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 2,
+			latestTotal: preview.total,
+		});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 6: Immediate switch, 300 → 800 units, tier 1 → tier 2
@@ -149,91 +154,96 @@ test.concurrent(`${chalk.yellowBright("attach-prepaid-volume: immediate switch, 
  *   Graduated would be:  5×$10 + 3×$5  = $65  (different — confirms volume)
  *   Prepaid delta:       $40 − $30      = +$10
  */
-test.concurrent(`${chalk.yellowBright("attach-prepaid-volume: immediate switch, 300 → 800 units tier 1 → tier 2 ($40 not $65 graduated)")}`, async () => {
-	const customerId = "attach-prepaid-volume-imm-t1-t2";
-	const initQuantity = 300;
-	const newQuantity = 800;
+test.concurrent(
+	`${chalk.yellowBright("attach-prepaid-volume: immediate switch, 300 → 800 units tier 1 → tier 2 ($40 not $65 graduated)")}`,
+	async () => {
+		const customerId = "attach-prepaid-volume-imm-t1-t2";
+		const initQuantity = 300;
+		const newQuantity = 800;
 
-	const proItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
-	const premiumItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
+		const proItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
+		const premiumItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
 
-	const pro = products.pro({ id: "pro-volume-imm-t1-t2", items: [proItem] });
-	const premium = products.premium({
-		id: "premium-volume-imm-t1-t2",
-		items: [premiumItem],
-	});
+		const pro = products.pro({ id: "pro-volume-imm-t1-t2", items: [proItem] });
+		const premium = products.premium({
+			id: "premium-volume-imm-t1-t2",
+			items: [premiumItem],
+		});
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: pro.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: initQuantity }],
-			}),
-		],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: pro.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initQuantity },
+					],
+				}),
+			],
+		});
 
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({ customer: customerBefore, productId: pro.id });
-	expectCustomerFeatureCorrect({
-		customer: customerBefore,
-		featureId: TestFeature.Messages,
-		balance: initQuantity,
-		usage: 0,
-	});
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({ customer: customerBefore, productId: pro.id });
+		expectCustomerFeatureCorrect({
+			customer: customerBefore,
+			featureId: TestFeature.Messages,
+			balance: initQuantity,
+			usage: 0,
+		});
 
-	// Preview — prepaid delta = +$10 (new: $40 volume, old: $30) plus base proration
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: premium.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
-	expect(preview.total).toEqual(10 + 30);
+		// Preview — prepaid delta = +$10 (new: $40 volume, old: $30) plus base proration
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: premium.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
+		expect(preview.total).toEqual(10 + 30);
 
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-		redirect_mode: "if_required",
-	});
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+			redirect_mode: "if_required",
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectCustomerProducts({
-		customer,
-		active: [premium.id],
-		notPresent: [pro.id],
-	});
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: newQuantity,
-		usage: 0,
-	});
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 2,
-		latestTotal: preview.total,
-	});
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectCustomerProducts({
+			customer,
+			active: [premium.id],
+			notPresent: [pro.id],
+		});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: newQuantity,
+			usage: 0,
+		});
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 2,
+			latestTotal: preview.total,
+		});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 7: Immediate switch, 800 → 600 units, tier 2 → tier 2 (quantity decreases)
@@ -249,88 +259,93 @@ test.concurrent(`${chalk.yellowBright("attach-prepaid-volume: immediate switch, 
  *   Graduated would be:  5×$10 + 1×$5  = $55  (different — confirms volume)
  *   Prepaid delta:       $30 − $40      = −$10 (credit, offsets base proration)
  */
-test.concurrent(`${chalk.yellowBright("attach-prepaid-volume: immediate switch, 800 → 600 units tier 2 → tier 2 ($30 not $55 graduated)")}`, async () => {
-	const customerId = "attach-prepaid-volume-imm-t2-t2";
-	const initQuantity = 800;
-	const newQuantity = 600;
+test.concurrent(
+	`${chalk.yellowBright("attach-prepaid-volume: immediate switch, 800 → 600 units tier 2 → tier 2 ($30 not $55 graduated)")}`,
+	async () => {
+		const customerId = "attach-prepaid-volume-imm-t2-t2";
+		const initQuantity = 800;
+		const newQuantity = 600;
 
-	const proItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
-	const premiumItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
+		const proItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
+		const premiumItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
 
-	const pro = products.pro({ id: "pro-volume-imm-t2-t2", items: [proItem] });
-	const premium = products.premium({
-		id: "premium-volume-imm-t2-t2",
-		items: [premiumItem],
-	});
+		const pro = products.pro({ id: "pro-volume-imm-t2-t2", items: [proItem] });
+		const premium = products.premium({
+			id: "premium-volume-imm-t2-t2",
+			items: [premiumItem],
+		});
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: pro.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: initQuantity }],
-			}),
-		],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: pro.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initQuantity },
+					],
+				}),
+			],
+		});
 
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({ customer: customerBefore, productId: pro.id });
-	expectCustomerFeatureCorrect({
-		customer: customerBefore,
-		featureId: TestFeature.Messages,
-		balance: initQuantity,
-		usage: 0,
-	});
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({ customer: customerBefore, productId: pro.id });
+		expectCustomerFeatureCorrect({
+			customer: customerBefore,
+			featureId: TestFeature.Messages,
+			balance: initQuantity,
+			usage: 0,
+		});
 
-	// Preview — prepaid delta = −$10 (new: $30 volume, old: $40) credited against base proration
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: premium.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
-	expect(typeof preview.total).toBe("number");
+		// Preview — prepaid delta = −$10 (new: $30 volume, old: $40) credited against base proration
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: premium.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
+		expect(typeof preview.total).toBe("number");
 
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-		redirect_mode: "if_required",
-	});
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+			redirect_mode: "if_required",
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectCustomerProducts({
-		customer,
-		active: [premium.id],
-		notPresent: [pro.id],
-	});
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: newQuantity,
-		usage: 0,
-	});
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 2,
-		latestTotal: preview.total,
-	});
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectCustomerProducts({
+			customer,
+			active: [premium.id],
+			notPresent: [pro.id],
+		});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: newQuantity,
+			usage: 0,
+		});
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 2,
+			latestTotal: preview.total,
+		});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);

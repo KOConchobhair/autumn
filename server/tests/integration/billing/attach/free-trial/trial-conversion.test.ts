@@ -39,69 +39,72 @@ import { addMonths } from "date-fns";
  * - First charge of $20
  * - Features continue working
  */
-test.concurrent(`${chalk.yellowBright("trial-conversion 1: trial ends naturally - first charge")}`, async () => {
-	const customerId = "trial-conv-natural-end";
+test.concurrent(
+	`${chalk.yellowBright("trial-conversion 1: trial ends naturally - first charge")}`,
+	async () => {
+		const customerId = "trial-conv-natural-end";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 500 });
-	const proTrial = products.proWithTrial({
-		id: "pro-trial",
-		items: [messagesItem],
-		trialDays: 7,
-		cardRequired: true,
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 500 });
+		const proTrial = products.proWithTrial({
+			id: "pro-trial",
+			items: [messagesItem],
+			trialDays: 7,
+			cardRequired: true,
+		});
 
-	const { autumnV1, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [proTrial] }),
-		],
-		actions: [
-			s.billing.attach({ productId: proTrial.id }),
-			s.advanceTestClock({ toNextInvoice: true }), // Advance past trial
-		],
-	});
+		const { autumnV1, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [proTrial] }),
+			],
+			actions: [
+				s.billing.attach({ productId: proTrial.id }),
+				s.advanceTestClock({ toNextInvoice: true }), // Advance past trial
+			],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Verify product is active and NOT trialing
-	await expectProductActive({
-		customer,
-		productId: proTrial.id,
-	});
+		// Verify product is active and NOT trialing
+		await expectProductActive({
+			customer,
+			productId: proTrial.id,
+		});
 
-	await expectProductNotTrialing({
-		customer,
-		productId: proTrial.id,
-		nowMs: advancedTo,
-	});
+		await expectProductNotTrialing({
+			customer,
+			productId: proTrial.id,
+			nowMs: advancedTo,
+		});
 
-	// Verify first charge invoice
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 2,
-		latestTotal: 20, // Pro base price
-		latestInvoiceProductId: proTrial.id,
-	});
+		// Verify first charge invoice
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 2,
+			latestTotal: 20, // Pro base price
+			latestInvoiceProductId: proTrial.id,
+		});
 
-	// Verify features still available with resetsAt aligned to monthly billing cycle
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 500,
-		balance: 500, // Reset after trial end
-		usage: 0,
-	});
+		// Verify features still available with resetsAt aligned to monthly billing cycle
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 500,
+			balance: 500, // Reset after trial end
+			usage: 0,
+		});
 
-	// Verify Stripe subscription state
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		flags: { checkNotTrialing: true },
-	});
-});
+		// Verify Stripe subscription state
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			flags: { checkNotTrialing: true },
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 4: Trial ends with add-on - both products charged
@@ -115,93 +118,96 @@ test.concurrent(`${chalk.yellowBright("trial-conversion 1: trial ends naturally 
  * Expected Result:
  * - Both products charged: pro ($20) + add-on ($20) = $40
  */
-test.concurrent(`${chalk.yellowBright("trial-conversion 4: trial ends with add-on - both charged")}`, async () => {
-	const customerId = "trial-conv-with-addon";
+test.concurrent(
+	`${chalk.yellowBright("trial-conversion 4: trial ends with add-on - both charged")}`,
+	async () => {
+		const customerId = "trial-conv-with-addon";
 
-	const proMessagesItem = items.monthlyMessages({ includedUsage: 500 });
-	const proTrial = products.proWithTrial({
-		id: "pro-trial",
-		items: [proMessagesItem],
-		trialDays: 7,
-		cardRequired: true,
-	});
+		const proMessagesItem = items.monthlyMessages({ includedUsage: 500 });
+		const proTrial = products.proWithTrial({
+			id: "pro-trial",
+			items: [proMessagesItem],
+			trialDays: 7,
+			cardRequired: true,
+		});
 
-	const addonItem = items.dashboard();
-	const addonWords = items.monthlyWords({ includedUsage: 100 });
-	const addon = products.recurringAddOn({
-		id: "addon",
-		items: [addonItem, addonWords],
-	});
+		const addonItem = items.dashboard();
+		const addonWords = items.monthlyWords({ includedUsage: 100 });
+		const addon = products.recurringAddOn({
+			id: "addon",
+			items: [addonItem, addonWords],
+		});
 
-	let { autumnV1, ctx, advancedTo, testClockId } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [proTrial, addon] }),
-		],
-		actions: [
-			s.billing.attach({ productId: proTrial.id }),
-			s.advanceTestClock({ days: 3 }),
-			s.billing.attach({ productId: addon.id, timeout: 4000 }),
-		],
-	});
+		let { autumnV1, ctx, advancedTo, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [proTrial, addon] }),
+			],
+			actions: [
+				s.billing.attach({ productId: proTrial.id }),
+				s.advanceTestClock({ days: 3 }),
+				s.billing.attach({ productId: addon.id, timeout: 4000 }),
+			],
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customerId,
-		count: 2,
-		latestTotal: 0,
-		latestInvoiceProductIds: [addon.id],
-	});
+		await expectCustomerInvoiceCorrect({
+			customerId,
+			count: 2,
+			latestTotal: 0,
+			latestInvoiceProductIds: [addon.id],
+		});
 
-	const customerAfterAddonAttach =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfterAddonAttach =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expectCustomerFeatureCorrect({
-		customer: customerAfterAddonAttach,
-		featureId: TestFeature.Words,
-		includedUsage: 100,
-		balance: 100,
-		usage: 0,
-		resetsAt: advancedTo + ms.days(4),
-	});
+		expectCustomerFeatureCorrect({
+			customer: customerAfterAddonAttach,
+			featureId: TestFeature.Words,
+			includedUsage: 100,
+			balance: 100,
+			usage: 0,
+			resetsAt: advancedTo + ms.days(4),
+		});
 
-	advancedTo = await advanceTestClock({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-		numberOfDays: 14,
-	});
+		advancedTo = await advanceTestClock({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+			numberOfDays: 14,
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Verify both products are NOT trialing
-	await expectProductNotTrialing({
-		customer,
-		productId: proTrial.id,
-		nowMs: advancedTo,
-	});
+		// Verify both products are NOT trialing
+		await expectProductNotTrialing({
+			customer,
+			productId: proTrial.id,
+			nowMs: advancedTo,
+		});
 
-	await expectProductNotTrialing({
-		customer,
-		productId: addon.id,
-		nowMs: advancedTo,
-	});
+		await expectProductNotTrialing({
+			customer,
+			productId: addon.id,
+			nowMs: advancedTo,
+		});
 
-	// Verify first charge includes both products
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 3,
-		latestTotal: 40, // Pro ($20) + Add-on ($20)
-	});
+		// Verify first charge includes both products
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 3,
+			latestTotal: 40, // Pro ($20) + Add-on ($20)
+		});
 
-	// Verify Stripe subscription state
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		flags: { checkNotTrialing: true },
-	});
-});
+		// Verify Stripe subscription state
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			flags: { checkNotTrialing: true },
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 5: Scheduled downgrade activates after trial ends
@@ -217,80 +223,83 @@ test.concurrent(`${chalk.yellowBright("trial-conversion 4: trial ends with add-o
  * - Pro becomes active (not premium)
  * - Pro price charged ($20, not $50)
  */
-test.concurrent(`${chalk.yellowBright("trial-conversion 5: scheduled downgrade activates after trial")}`, async () => {
-	const customerId = "trial-conv-scheduled-downgrade";
+test.concurrent(
+	`${chalk.yellowBright("trial-conversion 5: scheduled downgrade activates after trial")}`,
+	async () => {
+		const customerId = "trial-conv-scheduled-downgrade";
 
-	const premiumMessagesItem = items.monthlyMessages({ includedUsage: 1000 });
-	const premiumTrial = products.premiumWithTrial({
-		id: "premium-trial",
-		items: [premiumMessagesItem],
-		trialDays: 14,
-		cardRequired: true,
-	});
+		const premiumMessagesItem = items.monthlyMessages({ includedUsage: 1000 });
+		const premiumTrial = products.premiumWithTrial({
+			id: "premium-trial",
+			items: [premiumMessagesItem],
+			trialDays: 14,
+			cardRequired: true,
+		});
 
-	const proMessagesItem = items.monthlyMessages({ includedUsage: 500 });
-	const pro = products.pro({
-		id: "pro",
-		items: [proMessagesItem],
-	});
+		const proMessagesItem = items.monthlyMessages({ includedUsage: 500 });
+		const pro = products.pro({
+			id: "pro",
+			items: [proMessagesItem],
+		});
 
-	const { autumnV1, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [premiumTrial, pro] }),
-		],
-		actions: [
-			s.billing.attach({ productId: premiumTrial.id }),
-			s.billing.attach({ productId: pro.id }), // Downgrade - scheduled
-			s.advanceTestClock({ toNextInvoice: true }),
-		],
-	});
+		const { autumnV1, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [premiumTrial, pro] }),
+			],
+			actions: [
+				s.billing.attach({ productId: premiumTrial.id }),
+				s.billing.attach({ productId: pro.id }), // Downgrade - scheduled
+				s.advanceTestClock({ toNextInvoice: true }),
+			],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Verify pro is active (not premium)
-	await expectProductActive({
-		customer,
-		productId: pro.id,
-	});
+		// Verify pro is active (not premium)
+		await expectProductActive({
+			customer,
+			productId: pro.id,
+		});
 
-	// Verify premium is no longer present
-	const hasPremium = customer.products.some((p) => p.id === premiumTrial.id);
-	expect(hasPremium).toBe(false);
+		// Verify premium is no longer present
+		const hasPremium = customer.products.some((p) => p.id === premiumTrial.id);
+		expect(hasPremium).toBe(false);
 
-	// Verify pro is NOT trialing
-	await expectProductNotTrialing({
-		customer,
-		productId: pro.id,
-		nowMs: advancedTo,
-	});
+		// Verify pro is NOT trialing
+		await expectProductNotTrialing({
+			customer,
+			productId: pro.id,
+			nowMs: advancedTo,
+		});
 
-	// Verify pro price charged (not premium)
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 2,
-		latestTotal: 20, // Pro price, not premium
-		latestInvoiceProductId: pro.id,
-	});
+		// Verify pro price charged (not premium)
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 2,
+			latestTotal: 20, // Pro price, not premium
+			latestInvoiceProductId: pro.id,
+		});
 
-	// Verify feature balance is pro's balance with resetsAt aligned to monthly billing cycle
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 500,
-		balance: 500,
-		usage: 0,
-		resetsAt: addMonths(Date.now() + ms.days(14), 1).getTime(),
-		toleranceMs: ms.hours(1) + ms.minutes(10),
-	});
+		// Verify feature balance is pro's balance with resetsAt aligned to monthly billing cycle
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 500,
+			balance: 500,
+			usage: 0,
+			resetsAt: addMonths(Date.now() + ms.days(14), 1).getTime(),
+			toleranceMs: ms.hours(1) + ms.minutes(10),
+		});
 
-	// Verify Stripe subscription state
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		flags: { checkNotTrialing: true },
-	});
-});
+		// Verify Stripe subscription state
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			flags: { checkNotTrialing: true },
+		});
+	},
+);

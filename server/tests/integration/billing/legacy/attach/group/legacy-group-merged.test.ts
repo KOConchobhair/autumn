@@ -38,117 +38,120 @@ import chalk from "chalk";
 // 4. g1Premium active + g2Pro active + g1Pro scheduled (downgrade within group 1)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-group-merged 1: upgrade in one group, other group unaffected")}`, async () => {
-	const customerId = "legacy-group-merged-1";
+test.concurrent(
+	`${chalk.yellowBright("legacy-group-merged 1: upgrade in one group, other group unaffected")}`,
+	async () => {
+		const customerId = "legacy-group-merged-1";
 
-	const wordsItem = items.consumableWords();
-	const proPrice = items.monthlyPrice({ price: 20 });
-	const premiumPrice = items.monthlyPrice({ price: 50 });
+		const wordsItem = items.consumableWords();
+		const proPrice = items.monthlyPrice({ price: 20 });
+		const premiumPrice = items.monthlyPrice({ price: 50 });
 
-	const g1Pro = products.base({
-		id: "g1-pro",
-		items: [wordsItem, proPrice],
-		group: "group-1",
-	});
-	const g1Premium = products.base({
-		id: "g1-premium",
-		items: [wordsItem, premiumPrice],
-		group: "group-1",
-	});
-	const g2Pro = products.base({
-		id: "g2-pro",
-		items: [wordsItem, proPrice],
-		group: "group-2",
-	});
-	const g2Premium = products.base({
-		id: "g2-premium",
-		items: [wordsItem, premiumPrice],
-		group: "group-2",
-	});
+		const g1Pro = products.base({
+			id: "g1-pro",
+			items: [wordsItem, proPrice],
+			group: "group-1",
+		});
+		const g1Premium = products.base({
+			id: "g1-premium",
+			items: [wordsItem, premiumPrice],
+			group: "group-1",
+		});
+		const g2Pro = products.base({
+			id: "g2-pro",
+			items: [wordsItem, proPrice],
+			group: "group-2",
+		});
+		const g2Premium = products.base({
+			id: "g2-premium",
+			items: [wordsItem, premiumPrice],
+			group: "group-2",
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [g1Pro, g1Premium, g2Pro, g2Premium] }),
-		],
-		actions: [s.attach({ productId: g1Pro.id })],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [g1Pro, g1Premium, g2Pro, g2Premium] }),
+			],
+			actions: [s.attach({ productId: g1Pro.id })],
+		});
 
-	// Verify g1Pro is active
-	let customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({
-		customer: customer as any,
-		productId: g1Pro.id,
-		status: "active" as unknown as CusProductStatus,
-	});
+		// Verify g1Pro is active
+		let customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({
+			customer: customer as any,
+			productId: g1Pro.id,
+			status: "active" as unknown as CusProductStatus,
+		});
 
-	// Step 2: Attach g2Pro (different group, no conflict)
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: g2Pro.id,
-	});
+		// Step 2: Attach g2Pro (different group, no conflict)
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: g2Pro.id,
+		});
 
-	customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({
-		customer: customer as any,
-		productId: g1Pro.id,
-		status: "active" as unknown as CusProductStatus,
-	});
-	expectProductAttached({
-		customer: customer as any,
-		productId: g2Pro.id,
-		status: "active" as unknown as CusProductStatus,
-	});
+		customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({
+			customer: customer as any,
+			productId: g1Pro.id,
+			status: "active" as unknown as CusProductStatus,
+		});
+		expectProductAttached({
+			customer: customer as any,
+			productId: g2Pro.id,
+			status: "active" as unknown as CusProductStatus,
+		});
 
-	// Step 3: Upgrade g1Pro to g1Premium (within group 1)
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: g1Premium.id,
-	});
+		// Step 3: Upgrade g1Pro to g1Premium (within group 1)
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: g1Premium.id,
+		});
 
-	customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({
-		customer: customer as any,
-		productId: g1Premium.id,
-		status: "active" as unknown as CusProductStatus,
-	});
-	expectProductAttached({
-		customer: customer as any,
-		productId: g2Pro.id,
-		status: "active" as unknown as CusProductStatus,
-	});
+		customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({
+			customer: customer as any,
+			productId: g1Premium.id,
+			status: "active" as unknown as CusProductStatus,
+		});
+		expectProductAttached({
+			customer: customer as any,
+			productId: g2Pro.id,
+			status: "active" as unknown as CusProductStatus,
+		});
 
-	// Step 4: Downgrade g1Premium to g1Pro (scheduled within group 1)
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: g1Pro.id,
-	});
+		// Step 4: Downgrade g1Premium to g1Pro (scheduled within group 1)
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: g1Pro.id,
+		});
 
-	customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({
-		customer: customer as any,
-		productId: g1Premium.id,
-		status: "active" as unknown as CusProductStatus,
-	});
-	expectProductAttached({
-		customer: customer as any,
-		productId: g2Pro.id,
-		status: "active" as unknown as CusProductStatus,
-	});
-	expectProductAttached({
-		customer: customer as any,
-		productId: g1Pro.id,
-		status: "scheduled" as unknown as CusProductStatus,
-	});
+		customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({
+			customer: customer as any,
+			productId: g1Premium.id,
+			status: "active" as unknown as CusProductStatus,
+		});
+		expectProductAttached({
+			customer: customer as any,
+			productId: g2Pro.id,
+			status: "active" as unknown as CusProductStatus,
+		});
+		expectProductAttached({
+			customer: customer as any,
+			productId: g1Pro.id,
+			status: "scheduled" as unknown as CusProductStatus,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Downgrade in one group, other group unaffected
@@ -163,88 +166,91 @@ test.concurrent(`${chalk.yellowBright("legacy-group-merged 1: upgrade in one gro
 // - g1Premium active + g2Premium active + g1Pro scheduled
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-group-merged 2: downgrade in one group, other group unaffected")}`, async () => {
-	const customerId = "legacy-group-merged-2";
+test.concurrent(
+	`${chalk.yellowBright("legacy-group-merged 2: downgrade in one group, other group unaffected")}`,
+	async () => {
+		const customerId = "legacy-group-merged-2";
 
-	const wordsItem = items.consumableWords();
-	const proPrice = items.monthlyPrice({ price: 20 });
-	const premiumPrice = items.monthlyPrice({ price: 50 });
+		const wordsItem = items.consumableWords();
+		const proPrice = items.monthlyPrice({ price: 20 });
+		const premiumPrice = items.monthlyPrice({ price: 50 });
 
-	const g1Pro = products.base({
-		id: "g1-pro",
-		items: [wordsItem, proPrice],
-		group: "group-1",
-	});
-	const g1Premium = products.base({
-		id: "g1-premium",
-		items: [wordsItem, premiumPrice],
-		group: "group-1",
-	});
-	const g2Pro = products.base({
-		id: "g2-pro",
-		items: [wordsItem, proPrice],
-		group: "group-2",
-	});
-	const g2Premium = products.base({
-		id: "g2-premium",
-		items: [wordsItem, premiumPrice],
-		group: "group-2",
-	});
+		const g1Pro = products.base({
+			id: "g1-pro",
+			items: [wordsItem, proPrice],
+			group: "group-1",
+		});
+		const g1Premium = products.base({
+			id: "g1-premium",
+			items: [wordsItem, premiumPrice],
+			group: "group-1",
+		});
+		const g2Pro = products.base({
+			id: "g2-pro",
+			items: [wordsItem, proPrice],
+			group: "group-2",
+		});
+		const g2Premium = products.base({
+			id: "g2-premium",
+			items: [wordsItem, premiumPrice],
+			group: "group-2",
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [g1Pro, g2Pro, g1Premium, g2Premium] }),
-		],
-		actions: [s.attach({ productId: g1Premium.id })],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [g1Pro, g2Pro, g1Premium, g2Premium] }),
+			],
+			actions: [s.attach({ productId: g1Premium.id })],
+		});
 
-	// Attach g2Premium (different group)
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: g2Premium.id,
-	});
+		// Attach g2Premium (different group)
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: g2Premium.id,
+		});
 
-	let customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({
-		customer: customer as any,
-		productId: g1Premium.id,
-		status: "active" as unknown as CusProductStatus,
-	});
-	expectProductAttached({
-		customer: customer as any,
-		productId: g2Premium.id,
-		status: "active" as unknown as CusProductStatus,
-	});
+		let customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({
+			customer: customer as any,
+			productId: g1Premium.id,
+			status: "active" as unknown as CusProductStatus,
+		});
+		expectProductAttached({
+			customer: customer as any,
+			productId: g2Premium.id,
+			status: "active" as unknown as CusProductStatus,
+		});
 
-	// Downgrade g1Premium to g1Pro (scheduled, within group 1)
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: g1Pro.id,
-	});
+		// Downgrade g1Premium to g1Pro (scheduled, within group 1)
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: g1Pro.id,
+		});
 
-	customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({
-		customer: customer as any,
-		productId: g1Premium.id,
-		status: "active" as unknown as CusProductStatus,
-	});
-	expectProductAttached({
-		customer: customer as any,
-		productId: g2Premium.id,
-		status: "active" as unknown as CusProductStatus,
-	});
-	expectProductAttached({
-		customer: customer as any,
-		productId: g1Pro.id,
-		status: "scheduled" as unknown as CusProductStatus,
-	});
+		customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({
+			customer: customer as any,
+			productId: g1Premium.id,
+			status: "active" as unknown as CusProductStatus,
+		});
+		expectProductAttached({
+			customer: customer as any,
+			productId: g2Premium.id,
+			status: "active" as unknown as CusProductStatus,
+		});
+		expectProductAttached({
+			customer: customer as any,
+			productId: g1Pro.id,
+			status: "scheduled" as unknown as CusProductStatus,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);

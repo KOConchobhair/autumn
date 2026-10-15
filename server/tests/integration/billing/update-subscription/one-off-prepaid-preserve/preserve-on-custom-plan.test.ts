@@ -7,10 +7,10 @@
  */
 
 import { expect, test } from "bun:test";
-import {
-	type ApiCustomerV3,
-	type ApiCustomerV5,
-	type UpdateSubscriptionV1ParamsInput,
+import type {
+	ApiCustomerV3,
+	ApiCustomerV5,
+	UpdateSubscriptionV1ParamsInput,
 } from "@autumn/shared";
 import { expectCustomerInvoiceCorrect } from "@tests/integration/billing/utils/expectCustomerInvoiceCorrect";
 import { expectBalanceCorrect } from "@tests/integration/utils/expectBalanceCorrect";

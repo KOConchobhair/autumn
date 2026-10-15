@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { getOAuthConsentRequestedScopesFromFields } from "@/internal/auth/oauth/handleOAuthConsentWithEnv.js";
 import { Scopes } from "@autumn/shared";
+import { getOAuthConsentRequestedScopesFromFields } from "@/internal/auth/oauth/handleOAuthConsentWithEnv.js";
 
 describe("getOAuthConsentRequestedScopesFromFields", () => {
 	test("uses top-level submitted consent scope over nested oauth_query scope", () => {

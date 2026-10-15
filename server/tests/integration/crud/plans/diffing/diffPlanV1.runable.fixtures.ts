@@ -1,7 +1,6 @@
-import { type ApiPlanV1 } from "@autumn/shared";
-import { findById } from "./utils/findById.js";
-
+import type { ApiPlanV1 } from "@autumn/shared";
 import runableDump from "./runable-plans.json" with { type: "json" };
+import { findById } from "./utils/findById.js";
 
 const items = runableDump.items as ApiPlanV1[];
 
@@ -41,7 +40,9 @@ export const creditPackVariants: ApiPlanV1[] = [
 
 // Group 2 — Plus tier
 export const plusBase = findById(items, "runable_plus_monthly");
-export const plusVariants: ApiPlanV1[] = [findById(items, "runable_plus_yearly")];
+export const plusVariants: ApiPlanV1[] = [
+	findById(items, "runable_plus_yearly"),
+];
 
 // Group 3 — Pro tier
 export const proBase = findById(items, "runable_pro_monthly");
@@ -49,7 +50,9 @@ export const proVariants: ApiPlanV1[] = [findById(items, "runable_pro_yearly")];
 
 // Group 4 — Unlimited tier
 export const unlimitedBase = findById(items, "runable_unlimited_monthly");
-export const unlimitedVariants: ApiPlanV1[] = [findById(items, "runable_unlimited_yearly")];
+export const unlimitedVariants: ApiPlanV1[] = [
+	findById(items, "runable_unlimited_yearly"),
+];
 
 // Group 5 — Free/starter
 export const freeStarterBase = findById(items, "runable_go");

@@ -1,8 +1,5 @@
 import { expect } from "bun:test";
-import {
-	type ApiPlanV1,
-	ApiPlanV1Schema,
-} from "@autumn/shared";
+import { type ApiPlanV1, ApiPlanV1Schema } from "@autumn/shared";
 
 type ApiPlanItem = ApiPlanV1["items"][number];
 type PlanItemExpectation = { feature_id: string } & Partial<ApiPlanItem>;

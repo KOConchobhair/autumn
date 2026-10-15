@@ -81,10 +81,9 @@ export const expectSubscriptionCorrect = async ({
 			`Subscription ${productId} should have status "scheduled" but got "${sub.status}"`,
 		).toBe("scheduled");
 	} else if (state === "past_due") {
-		expect(
-			sub.past_due,
-			`Subscription ${productId} should be past_due`,
-		).toBe(true);
+		expect(sub.past_due, `Subscription ${productId} should be past_due`).toBe(
+			true,
+		);
 	}
 };
 

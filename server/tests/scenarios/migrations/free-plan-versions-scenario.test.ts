@@ -37,7 +37,10 @@ test(`${chalk.yellowBright("migration-setup: free plan multi-version (no billing
 	await autumnV1.products.update(free.id, {
 		items: [items.monthlyMessages({ includedUsage: 200 })],
 	});
-	await autumnV1.billing.attach({ customer_id: "migfree-v2", product_id: free.id });
+	await autumnV1.billing.attach({
+		customer_id: "migfree-v2",
+		product_id: free.id,
+	});
 
 	await autumnV1.products.update(free.id, {
 		items: [
@@ -45,7 +48,10 @@ test(`${chalk.yellowBright("migration-setup: free plan multi-version (no billing
 			items.monthlyCredits({ includedUsage: 50 }),
 		],
 	});
-	await autumnV1.billing.attach({ customer_id: "migfree-v3", product_id: free.id });
+	await autumnV1.billing.attach({
+		customer_id: "migfree-v3",
+		product_id: free.id,
+	});
 
 	await autumnV1.products.update(free.id, {
 		items: [

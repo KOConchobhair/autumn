@@ -2,8 +2,8 @@ import {
 	AllowanceType,
 	CusProductStatus,
 	EntInterval,
-	type Feature,
 	entitlements,
+	type Feature,
 	products,
 } from "@autumn/shared";
 import { TestFeature } from "@tests/setup/v2Features.js";

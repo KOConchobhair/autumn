@@ -1,7 +1,7 @@
 import { expect } from "bun:test";
 import {
-	addInterval,
 	type AttachPreviewResponse,
+	addInterval,
 	BillingInterval,
 	type BillingPreviewResponse,
 	formatMsToDate,
@@ -189,7 +189,9 @@ export const expectAnnualMonthlyPreviewCorrect = ({
 		preview.total,
 	);
 
-	const annualLine = preview.line_items.find((item) => item.feature_id === null);
+	const annualLine = preview.line_items.find(
+		(item) => item.feature_id === null,
+	);
 	const prepaidLine = preview.line_items.find(
 		(item) => item.feature_id === TestFeature.Messages,
 	);

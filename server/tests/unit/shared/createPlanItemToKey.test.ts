@@ -48,12 +48,24 @@ describe("createPlanItemToKey", () => {
 
 	describe("feature_id (strict)", () => {
 		test("equal ids are same, different ids differ", () => {
-			expectSame(item({ feature_id: "messages" }), item({ feature_id: "messages" }), true);
-			expectSame(item({ feature_id: "messages" }), item({ feature_id: "seats" }), false);
+			expectSame(
+				item({ feature_id: "messages" }),
+				item({ feature_id: "messages" }),
+				true,
+			);
+			expectSame(
+				item({ feature_id: "messages" }),
+				item({ feature_id: "seats" }),
+				false,
+			);
 		});
 
 		test("comparison is case-sensitive", () => {
-			expectSame(item({ feature_id: "messages" }), item({ feature_id: "Messages" }), false);
+			expectSame(
+				item({ feature_id: "messages" }),
+				item({ feature_id: "Messages" }),
+				false,
+			);
 		});
 	});
 
@@ -72,7 +84,11 @@ describe("createPlanItemToKey", () => {
 		});
 
 		test("empty string, null, and undefined are all same", () => {
-			expectSame(item({ entity_feature_id: "" }), item({ entity_feature_id: null }), true);
+			expectSame(
+				item({ entity_feature_id: "" }),
+				item({ entity_feature_id: null }),
+				true,
+			);
 			expectSame(
 				item({ entity_feature_id: "" }),
 				item({ entity_feature_id: undefined }),
@@ -87,8 +103,16 @@ describe("createPlanItemToKey", () => {
 		});
 
 		test("collapsed empty vs a real id differ", () => {
-			expectSame(item({ entity_feature_id: "" }), item({ entity_feature_id: "org" }), false);
-			expectSame(item({ entity_feature_id: null }), item({ entity_feature_id: "org" }), false);
+			expectSame(
+				item({ entity_feature_id: "" }),
+				item({ entity_feature_id: "org" }),
+				false,
+			);
+			expectSame(
+				item({ entity_feature_id: null }),
+				item({ entity_feature_id: "org" }),
+				false,
+			);
 		});
 	});
 
@@ -128,10 +152,18 @@ describe("createPlanItemToKey", () => {
 	describe("unlimited (unset means false)", () => {
 		test("true vs false differ; unset / null equal false", () => {
 			expectSame(item({ unlimited: true }), item({ unlimited: false }), false);
-			expectSame(item({ unlimited: undefined }), item({ unlimited: false }), true);
+			expectSame(
+				item({ unlimited: undefined }),
+				item({ unlimited: false }),
+				true,
+			);
 			expectSame(item({ unlimited: null }), item({ unlimited: false }), true);
 			expectSame(item(), item({ unlimited: false }), true);
-			expectSame(item({ unlimited: undefined }), item({ unlimited: true }), false);
+			expectSame(
+				item({ unlimited: undefined }),
+				item({ unlimited: true }),
+				false,
+			);
 		});
 	});
 
@@ -150,7 +182,11 @@ describe("createPlanItemToKey", () => {
 		});
 
 		test("missing reset vs reset with an interval differ", () => {
-			expectSame(item(), item({ reset: { interval: ResetInterval.Month } }), false);
+			expectSame(
+				item(),
+				item({ reset: { interval: ResetInterval.Month } }),
+				false,
+			);
 		});
 	});
 
@@ -162,7 +198,9 @@ describe("createPlanItemToKey", () => {
 				true,
 			);
 			expectSame(
-				item({ reset: { interval: ResetInterval.Month, interval_count: null } }),
+				item({
+					reset: { interval: ResetInterval.Month, interval_count: null },
+				}),
 				item({ reset: { interval: ResetInterval.Month, interval_count: 1 } }),
 				true,
 			);
@@ -244,42 +282,94 @@ describe("createPlanItemToKey", () => {
 
 	describe("price.interval_count (unset means 1)", () => {
 		test("unset / null equal 1; 1 vs 2 differ", () => {
-			expectSame(priced({ interval_count: undefined }), priced({ interval_count: 1 }), true);
-			expectSame(priced({ interval_count: null }), priced({ interval_count: 1 }), true);
+			expectSame(
+				priced({ interval_count: undefined }),
+				priced({ interval_count: 1 }),
+				true,
+			);
+			expectSame(
+				priced({ interval_count: null }),
+				priced({ interval_count: 1 }),
+				true,
+			);
 			expectSame(priced(), priced({ interval_count: 1 }), true);
-			expectSame(priced({ interval_count: 1 }), priced({ interval_count: 2 }), false);
-			expectSame(priced({ interval_count: undefined }), priced({ interval_count: 2 }), false);
+			expectSame(
+				priced({ interval_count: 1 }),
+				priced({ interval_count: 2 }),
+				false,
+			);
+			expectSame(
+				priced({ interval_count: undefined }),
+				priced({ interval_count: 2 }),
+				false,
+			);
 		});
 
 		test("0 is preserved (not collapsed to 1)", () => {
-			expectSame(priced({ interval_count: 0 }), priced({ interval_count: 1 }), false);
+			expectSame(
+				priced({ interval_count: 0 }),
+				priced({ interval_count: 1 }),
+				false,
+			);
 		});
 	});
 
 	describe("price.billing_units (unset means 1)", () => {
 		test("unset / null equal 1; 1 vs 100 differ", () => {
-			expectSame(priced({ billing_units: undefined }), priced({ billing_units: 1 }), true);
-			expectSame(priced({ billing_units: null }), priced({ billing_units: 1 }), true);
+			expectSame(
+				priced({ billing_units: undefined }),
+				priced({ billing_units: 1 }),
+				true,
+			);
+			expectSame(
+				priced({ billing_units: null }),
+				priced({ billing_units: 1 }),
+				true,
+			);
 			expectSame(priced(), priced({ billing_units: 1 }), true);
-			expectSame(priced({ billing_units: 1 }), priced({ billing_units: 100 }), false);
+			expectSame(
+				priced({ billing_units: 1 }),
+				priced({ billing_units: 100 }),
+				false,
+			);
 		});
 
 		test("0 is preserved (not collapsed to 1)", () => {
-			expectSame(priced({ billing_units: 0 }), priced({ billing_units: 1 }), false);
+			expectSame(
+				priced({ billing_units: 0 }),
+				priced({ billing_units: 1 }),
+				false,
+			);
 		});
 	});
 
 	describe("price.max_purchase (unset / null collapse; 0 is preserved)", () => {
 		test("unset, null, and undefined are same", () => {
 			expectSame(priced(), priced({ max_purchase: null }), true);
-			expectSame(priced({ max_purchase: undefined }), priced({ max_purchase: null }), true);
+			expectSame(
+				priced({ max_purchase: undefined }),
+				priced({ max_purchase: null }),
+				true,
+			);
 		});
 
 		test("a limit vs unset differ; 0 is not nullish", () => {
 			expectSame(priced({ max_purchase: 10 }), priced(), false);
-			expectSame(priced({ max_purchase: 10 }), priced({ max_purchase: 20 }), false);
-			expectSame(priced({ max_purchase: 0 }), priced({ max_purchase: 0 }), true);
-			expectSame(priced({ max_purchase: 0 }), priced({ max_purchase: null }), false);
+			expectSame(
+				priced({ max_purchase: 10 }),
+				priced({ max_purchase: 20 }),
+				false,
+			);
+			expectSame(
+				priced({ max_purchase: 0 }),
+				priced({ max_purchase: 0 }),
+				true,
+			);
+			expectSame(
+				priced({ max_purchase: 0 }),
+				priced({ max_purchase: null }),
+				false,
+			);
 			expectSame(priced({ max_purchase: 0 }), priced(), false);
 		});
 	});
@@ -287,7 +377,11 @@ describe("createPlanItemToKey", () => {
 	describe("price.additional_currencies", () => {
 		test("omitted, null, and empty are same", () => {
 			expectSame(priced(), priced({ additional_currencies: [] }), true);
-			expectSame(priced({ additional_currencies: null }), priced({ additional_currencies: [] }), true);
+			expectSame(
+				priced({ additional_currencies: null }),
+				priced({ additional_currencies: [] }),
+				true,
+			);
 		});
 
 		test("present vs absent differ; amounts differ", () => {
@@ -351,7 +445,10 @@ describe("createPlanItemToKey", () => {
 		});
 
 		test("to / amount / flat_amount differences", () => {
-			const base = priced({ amount: undefined, tiers: [{ to: 100, amount: 1 }] });
+			const base = priced({
+				amount: undefined,
+				tiers: [{ to: 100, amount: 1 }],
+			});
 			expectSame(
 				base,
 				priced({ amount: undefined, tiers: [{ to: 100, amount: 1 }] }),
@@ -369,7 +466,10 @@ describe("createPlanItemToKey", () => {
 			);
 			expectSame(
 				base,
-				priced({ amount: undefined, tiers: [{ to: 100, amount: 1, flat_amount: 5 }] }),
+				priced({
+					amount: undefined,
+					tiers: [{ to: 100, amount: 1, flat_amount: 5 }],
+				}),
 				false,
 			);
 		});
@@ -454,7 +554,11 @@ describe("createPlanItemToKey", () => {
 				priced({ tier_behavior: TierBehavior.VolumeBased }),
 				true,
 			);
-			expectSame(priced(), priced({ tier_behavior: TierBehavior.VolumeBased }), true);
+			expectSame(
+				priced(),
+				priced({ tier_behavior: TierBehavior.VolumeBased }),
+				true,
+			);
 		});
 
 		test("with tiers, unset equals graduated; graduated vs volume differ", () => {
@@ -507,7 +611,11 @@ describe("createPlanItemToKey", () => {
 		});
 
 		test("on_increase / on_decrease differences", () => {
-			expectSame(item({ proration: prorate }), item({ proration: { ...prorate } }), true);
+			expectSame(
+				item({ proration: prorate }),
+				item({ proration: { ...prorate } }),
+				true,
+			);
 			expectSame(
 				item({ proration: prorate }),
 				item({
@@ -545,7 +653,9 @@ describe("createPlanItemToKey", () => {
 			expectSame(
 				item({ rollover: month }),
 				item({
-					rollover: { expiry_duration_type: RolloverExpiryDurationType.Forever },
+					rollover: {
+						expiry_duration_type: RolloverExpiryDurationType.Forever,
+					},
 				}),
 				false,
 			);
@@ -608,7 +718,9 @@ describe("createPlanItemToKey", () => {
 
 	describe("feature_override", () => {
 		const override = (creditCost: number) => ({
-			credit_schema: [{ metered_feature_id: "images", credit_cost: creditCost }],
+			credit_schema: [
+				{ metered_feature_id: "images", credit_cost: creditCost },
+			],
 		});
 
 		test("both absent are same; one-sided differs", () => {

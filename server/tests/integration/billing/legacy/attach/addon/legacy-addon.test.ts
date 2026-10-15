@@ -40,51 +40,54 @@ import chalk from "chalk";
 // - Messages balance = 100 (Pro) + 200 (add-on) = 300
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-addon 1: attach pro then free add-on with messages")}`, async () => {
-	const customerId = "legacy-addon-1";
+test.concurrent(
+	`${chalk.yellowBright("legacy-addon 1: attach pro then free add-on with messages")}`,
+	async () => {
+		const customerId = "legacy-addon-1";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
 
-	const addOnMessagesItem = items.monthlyMessages({ includedUsage: 200 });
-	const addOn = products.base({
-		id: "addon",
-		items: [addOnMessagesItem],
-		isAddOn: true,
-	});
+		const addOnMessagesItem = items.monthlyMessages({ includedUsage: 200 });
+		const addOn = products.base({
+			id: "addon",
+			items: [addOnMessagesItem],
+			isAddOn: true,
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [pro, addOn] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.attach({ productId: addOn.id }),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [pro, addOn] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.attach({ productId: addOn.id }),
+			],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer,
-		active: [pro.id, addOn.id],
-	});
+		await expectCustomerProducts({
+			customer,
+			active: [pro.id, addOn.id],
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 20,
-	});
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 20,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: 300,
-		usage: 0,
-	});
-});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: 300,
+			usage: 0,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Attach pro then free add-on twice
@@ -100,64 +103,68 @@ test.concurrent(`${chalk.yellowBright("legacy-addon 1: attach pro then free add-
 // - Credits feature balance remains 100 after second attach
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-addon 2: attach pro then free add-on twice")}`, async () => {
-	const customerId = "legacy-addon-2";
+test.concurrent(
+	`${chalk.yellowBright("legacy-addon 2: attach pro then free add-on twice")}`,
+	async () => {
+		const customerId = "legacy-addon-2";
 
-	const pro = products.pro({ id: "pro", items: [] });
+		const pro = products.pro({ id: "pro", items: [] });
 
-	const creditsItem = items.monthlyCredits();
-	const addOn = products.base({
-		id: "addon",
-		items: [creditsItem],
-		isAddOn: true,
-	});
+		const creditsItem = items.monthlyCredits();
+		const addOn = products.base({
+			id: "addon",
+			items: [creditsItem],
+			isAddOn: true,
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [pro, addOn] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.attach({ productId: addOn.id }),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [pro, addOn] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.attach({ productId: addOn.id }),
+			],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer,
-		active: [pro.id, addOn.id],
-	});
+		await expectCustomerProducts({
+			customer,
+			active: [pro.id, addOn.id],
+		});
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Credits,
-		balance: 100,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Credits,
+			balance: 100,
+			usage: 0,
+		});
 
-	// Attach the same free add-on a second time
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: addOn.id,
-	});
+		// Attach the same free add-on a second time
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: addOn.id,
+		});
 
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer: customerAfter,
-		active: [pro.id, addOn.id],
-	});
+		await expectCustomerProducts({
+			customer: customerAfter,
+			active: [pro.id, addOn.id],
+		});
 
-	expectCustomerFeatureCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Credits,
-		balance: 200,
-		usage: 0,
-	});
-});
+		expectCustomerFeatureCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Credits,
+			balance: 200,
+			usage: 0,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: Attach pro then monthly prepaid add-on with quantity
@@ -175,73 +182,76 @@ test.concurrent(`${chalk.yellowBright("legacy-addon 2: attach pro then free add-
 // - /check returns correct combined balance (using V0 entitled endpoint)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-addon 3: attach pro then monthly prepaid add-on with quantity")}`, async () => {
-	const customerId = "legacy-addon-3";
-	const monthlyQuantity = 500;
+test.concurrent(
+	`${chalk.yellowBright("legacy-addon 3: attach pro then monthly prepaid add-on with quantity")}`,
+	async () => {
+		const customerId = "legacy-addon-3";
+		const monthlyQuantity = 500;
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 10 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 10 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
 
-	const prepaidMessagesItem = items.prepaidMessages({
-		price: 9,
-		billingUnits: 250,
-		includedUsage: 0,
-	});
-	const addOn = products.base({
-		id: "monthly-add-on",
-		items: [prepaidMessagesItem],
-		isAddOn: true,
-	});
+		const prepaidMessagesItem = items.prepaidMessages({
+			price: 9,
+			billingUnits: 250,
+			includedUsage: 0,
+		});
+		const addOn = products.base({
+			id: "monthly-add-on",
+			items: [prepaidMessagesItem],
+			isAddOn: true,
+		});
 
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [pro, addOn] }),
-		],
-		actions: [s.attach({ productId: pro.id })],
-	});
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [pro, addOn] }),
+			],
+			actions: [s.attach({ productId: pro.id })],
+		});
 
-	// Attach the prepaid add-on with quantity options (using AutumnCli like original)
-	await AutumnCli.attach({
-		customerId,
-		productId: addOn.id,
-		forceCheckout: false,
-		options: [
-			{
-				feature_id: TestFeature.Messages,
-				quantity: monthlyQuantity,
-			},
-		],
-	});
+		// Attach the prepaid add-on with quantity options (using AutumnCli like original)
+		await AutumnCli.attach({
+			customerId,
+			productId: addOn.id,
+			forceCheckout: false,
+			options: [
+				{
+					feature_id: TestFeature.Messages,
+					quantity: monthlyQuantity,
+				},
+			],
+		});
 
-	// Use AutumnCli.getCustomer for V1 response format (entitlements, add_ons)
-	const cusRes = (await AutumnCli.getCustomer(customerId)) as ApiCustomerV1;
+		// Use AutumnCli.getCustomer for V1 response format (entitlements, add_ons)
+		const cusRes = (await AutumnCli.getCustomer(customerId)) as ApiCustomerV1;
 
-	// Pro gives 10 Messages, add-on gives 500
-	const expectedBalance = 10 + monthlyQuantity;
+		// Pro gives 10 Messages, add-on gives 500
+		const expectedBalance = 10 + monthlyQuantity;
 
-	const monthlyMessagesBalance = cusRes.entitlements.find(
-		(e) => e.feature_id === TestFeature.Messages && e.interval === "month",
-	);
-	expect(monthlyMessagesBalance?.balance).toBe(expectedBalance);
+		const monthlyMessagesBalance = cusRes.entitlements.find(
+			(e) => e.feature_id === TestFeature.Messages && e.interval === "month",
+		);
+		expect(monthlyMessagesBalance?.balance).toBe(expectedBalance);
 
-	expect(cusRes.add_ons).toHaveLength(1);
-	const monthlyAddOnFound = cusRes.add_ons.find((a) => a.id === addOn.id);
-	expect(monthlyAddOnFound).toBeDefined();
+		expect(cusRes.add_ons).toHaveLength(1);
+		const monthlyAddOnFound = cusRes.add_ons.find((a) => a.id === addOn.id);
+		expect(monthlyAddOnFound).toBeDefined();
 
-	expect(cusRes.invoices.length).toBe(2);
+		expect(cusRes.invoices.length).toBe(2);
 
-	// Verify /entitled returns correct balance (V0 endpoint with balances array)
-	const entitledRes = (await AutumnCli.entitled(
-		customerId,
-		TestFeature.Messages,
-	)) as {
-		allowed: boolean;
-		balances: { feature_id: string; balance: number }[];
-	};
-	const messagesBalance = entitledRes.balances.find(
-		(b) => b.feature_id === TestFeature.Messages,
-	);
-	expect(messagesBalance?.balance).toBe(expectedBalance);
-});
+		// Verify /entitled returns correct balance (V0 endpoint with balances array)
+		const entitledRes = (await AutumnCli.entitled(
+			customerId,
+			TestFeature.Messages,
+		)) as {
+			allowed: boolean;
+			balances: { feature_id: string; balance: number }[];
+		};
+		const messagesBalance = entitledRes.balances.find(
+			(b) => b.feature_id === TestFeature.Messages,
+		);
+		expect(messagesBalance?.balance).toBe(expectedBalance);
+	},
+);

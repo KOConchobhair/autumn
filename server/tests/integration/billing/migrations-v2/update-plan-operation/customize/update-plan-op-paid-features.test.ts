@@ -31,8 +31,8 @@ import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
 import { CusService } from "@/internal/customers/CusService";
 import { getRelatedCusPrice } from "@/internal/customers/cusProducts/cusEnts/cusEntUtils";
-import { PriceService } from "@/internal/products/prices/PriceService";
 import { ProductService } from "@/internal/products/ProductService";
+import { PriceService } from "@/internal/products/prices/PriceService";
 import { runUpdatePlanMigration } from "../../utils/runUpdatePlanMigration";
 
 const removeAllocatedBillingBehavior = ({

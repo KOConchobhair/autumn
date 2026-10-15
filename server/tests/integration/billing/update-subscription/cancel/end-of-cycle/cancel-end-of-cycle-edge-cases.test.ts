@@ -42,140 +42,144 @@ import { isStripeSubscriptionCanceling } from "@/external/stripe/subscriptions/u
  *   - Both products are removed
  *   - No Stripe subscriptions remain
  */
-test.concurrent(`${chalk.yellowBright("cancel EOC edge: cancel both pro and addon (separate subs) - correct subs canceled")}`, async () => {
-	const customerId = "cancel-eoc-both-separate-subs";
+test.concurrent(
+	`${chalk.yellowBright("cancel EOC edge: cancel both pro and addon (separate subs) - correct subs canceled")}`,
+	async () => {
+		const customerId = "cancel-eoc-both-separate-subs";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
 
-	const pro = products.pro({
-		id: "pro",
-		items: [messagesItem],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [messagesItem],
+		});
 
-	const addon = products.recurringAddOn({
-		id: "addon",
-		items: [items.monthlyMessages({ includedUsage: 300 })],
-	});
+		const addon = products.recurringAddOn({
+			id: "addon",
+			items: [items.monthlyMessages({ includedUsage: 300 })],
+		});
 
-	const { autumnV1, ctx, testClockId } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, addon] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.attach({ productId: addon.id, newBillingSubscription: true }),
-		],
-	});
+		const { autumnV1, ctx, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, addon] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.attach({ productId: addon.id, newBillingSubscription: true }),
+			],
+		});
 
-	// Get both subscription IDs
-	const proSubId = await getSubscriptionId({
-		ctx,
-		customerId,
-		productId: pro.id,
-	});
+		// Get both subscription IDs
+		const proSubId = await getSubscriptionId({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
 
-	const addonSubId = await getSubscriptionId({
-		ctx,
-		customerId,
-		productId: addon.id,
-	});
+		const addonSubId = await getSubscriptionId({
+			ctx,
+			customerId,
+			productId: addon.id,
+		});
 
-	// Verify they are different subscriptions
-	expect(proSubId).not.toBe(addonSubId);
+		// Verify they are different subscriptions
+		expect(proSubId).not.toBe(addonSubId);
 
-	// Verify both subscriptions are active initially
-	const proSubBefore = await ctx.stripeCli.subscriptions.retrieve(proSubId);
-	const addonSubBefore = await ctx.stripeCli.subscriptions.retrieve(addonSubId);
+		// Verify both subscriptions are active initially
+		const proSubBefore = await ctx.stripeCli.subscriptions.retrieve(proSubId);
+		const addonSubBefore =
+			await ctx.stripeCli.subscriptions.retrieve(addonSubId);
 
-	expect(isStripeSubscriptionCanceling(proSubBefore)).toBe(false);
-	expect(isStripeSubscriptionCanceling(addonSubBefore)).toBe(false);
+		expect(isStripeSubscriptionCanceling(proSubBefore)).toBe(false);
+		expect(isStripeSubscriptionCanceling(addonSubBefore)).toBe(false);
 
-	// Cancel pro at end of cycle
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: pro.id,
-		cancel_action: "cancel_end_of_cycle",
-	});
+		// Cancel pro at end of cycle
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: pro.id,
+			cancel_action: "cancel_end_of_cycle",
+		});
 
-	// Verify only Pro subscription is canceling, Add-on is NOT
-	const proSubAfterProCancel =
-		await ctx.stripeCli.subscriptions.retrieve(proSubId);
-	const addonSubAfterProCancel =
-		await ctx.stripeCli.subscriptions.retrieve(addonSubId);
+		// Verify only Pro subscription is canceling, Add-on is NOT
+		const proSubAfterProCancel =
+			await ctx.stripeCli.subscriptions.retrieve(proSubId);
+		const addonSubAfterProCancel =
+			await ctx.stripeCli.subscriptions.retrieve(addonSubId);
 
-	expect(isStripeSubscriptionCanceling(proSubAfterProCancel)).toBe(true);
-	expect(isStripeSubscriptionCanceling(addonSubAfterProCancel)).toBe(false);
+		expect(isStripeSubscriptionCanceling(proSubAfterProCancel)).toBe(true);
+		expect(isStripeSubscriptionCanceling(addonSubAfterProCancel)).toBe(false);
 
-	// Verify customer product states after pro cancel
-	const customerAfterProCancel =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify customer product states after pro cancel
+		const customerAfterProCancel =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductCanceling({
-		customer: customerAfterProCancel,
-		productId: pro.id,
-	});
-	await expectProductActive({
-		customer: customerAfterProCancel,
-		productId: addon.id,
-	});
+		await expectProductCanceling({
+			customer: customerAfterProCancel,
+			productId: pro.id,
+		});
+		await expectProductActive({
+			customer: customerAfterProCancel,
+			productId: addon.id,
+		});
 
-	// Now cancel add-on at end of cycle
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: addon.id,
-		cancel_action: "cancel_end_of_cycle",
-	});
+		// Now cancel add-on at end of cycle
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: addon.id,
+			cancel_action: "cancel_end_of_cycle",
+		});
 
-	// Verify BOTH subscriptions are now canceling
-	const proSubAfterBothCancel =
-		await ctx.stripeCli.subscriptions.retrieve(proSubId);
-	const addonSubAfterBothCancel =
-		await ctx.stripeCli.subscriptions.retrieve(addonSubId);
+		// Verify BOTH subscriptions are now canceling
+		const proSubAfterBothCancel =
+			await ctx.stripeCli.subscriptions.retrieve(proSubId);
+		const addonSubAfterBothCancel =
+			await ctx.stripeCli.subscriptions.retrieve(addonSubId);
 
-	expect(isStripeSubscriptionCanceling(proSubAfterBothCancel)).toBe(true);
-	expect(isStripeSubscriptionCanceling(addonSubAfterBothCancel)).toBe(true);
+		expect(isStripeSubscriptionCanceling(proSubAfterBothCancel)).toBe(true);
+		expect(isStripeSubscriptionCanceling(addonSubAfterBothCancel)).toBe(true);
 
-	// Verify customer product states after both cancels
-	const customerAfterBothCancel =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify customer product states after both cancels
+		const customerAfterBothCancel =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer: customerAfterBothCancel,
-		canceling: [pro.id, addon.id],
-	});
+		await expectCustomerProducts({
+			customer: customerAfterBothCancel,
+			canceling: [pro.id, addon.id],
+		});
 
-	// Advance to next billing cycle
-	await advanceToNextInvoice({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-	});
+		// Advance to next billing cycle
+		await advanceToNextInvoice({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+		});
 
-	// Verify state after cycle - both products should be removed
-	const customerAfterAdvance =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify state after cycle - both products should be removed
+		const customerAfterAdvance =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductNotPresent({
-		customer: customerAfterAdvance,
-		productId: pro.id,
-	});
-	await expectProductNotPresent({
-		customer: customerAfterAdvance,
-		productId: addon.id,
-	});
+		await expectProductNotPresent({
+			customer: customerAfterAdvance,
+			productId: pro.id,
+		});
+		await expectProductNotPresent({
+			customer: customerAfterAdvance,
+			productId: addon.id,
+		});
 
-	// No products should remain
-	expect(customerAfterAdvance.products.length).toBe(0);
+		// No products should remain
+		expect(customerAfterAdvance.products.length).toBe(0);
 
-	// Verify no Stripe subscriptions exist
-	await expectNoStripeSubscription({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		// Verify no Stripe subscriptions exist
+		await expectNoStripeSubscription({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Entity cancel EOC -> uncancel -> cancel EOC again
@@ -193,114 +197,123 @@ test.concurrent(`${chalk.yellowBright("cancel EOC edge: cancel both pro and addo
  * - After uncancel: entity 1 is active again, entity 2 is active
  * - After second cancel: entity 1 is canceling again, entity 2 is still active
  */
-test.concurrent(`${chalk.yellowBright("cancel EOC edge: entity cancel -> uncancel -> cancel again")}`, async () => {
-	const customerId = "cancel-eoc-uncancel-cancel-again";
+test.concurrent(
+	`${chalk.yellowBright("cancel EOC edge: entity cancel -> uncancel -> cancel again")}`,
+	async () => {
+		const customerId = "cancel-eoc-uncancel-cancel-again";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
 
-	const pro = products.pro({
-		id: "pro",
-		items: [messagesItem],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [messagesItem],
+		});
 
-	const { autumnV1, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-			s.entities({ count: 2, featureId: "users" }),
-		],
-		actions: [
-			s.attach({ productId: pro.id, entityIndex: 0 }),
-			s.attach({ productId: pro.id, entityIndex: 1 }),
-		],
-	});
+		const { autumnV1, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+				s.entities({ count: 2, featureId: "users" }),
+			],
+			actions: [
+				s.attach({ productId: pro.id, entityIndex: 0 }),
+				s.attach({ productId: pro.id, entityIndex: 1 }),
+			],
+		});
 
-	const entity1Id = entities[0].id;
-	const entity2Id = entities[1].id;
+		const entity1Id = entities[0].id;
+		const entity2Id = entities[1].id;
 
-	// Verify both entities have pro active
-	const entity1Initial = await autumnV1.entities.get(customerId, entity1Id);
-	const entity2Initial = await autumnV1.entities.get(customerId, entity2Id);
+		// Verify both entities have pro active
+		const entity1Initial = await autumnV1.entities.get(customerId, entity1Id);
+		const entity2Initial = await autumnV1.entities.get(customerId, entity2Id);
 
-	await expectProductActive({ customer: entity1Initial, productId: pro.id });
-	await expectProductActive({ customer: entity2Initial, productId: pro.id });
+		await expectProductActive({ customer: entity1Initial, productId: pro.id });
+		await expectProductActive({ customer: entity2Initial, productId: pro.id });
 
-	// Step 1: Cancel entity 1 at end of cycle
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		entity_id: entity1Id,
-		product_id: pro.id,
-		cancel_action: "cancel_end_of_cycle",
-	});
+		// Step 1: Cancel entity 1 at end of cycle
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			entity_id: entity1Id,
+			product_id: pro.id,
+			cancel_action: "cancel_end_of_cycle",
+		});
 
-	// Verify entity 1 is canceling, entity 2 is still active
-	const entity1AfterCancel = await autumnV1.entities.get(customerId, entity1Id);
-	const entity2AfterCancel = await autumnV1.entities.get(customerId, entity2Id);
+		// Verify entity 1 is canceling, entity 2 is still active
+		const entity1AfterCancel = await autumnV1.entities.get(
+			customerId,
+			entity1Id,
+		);
+		const entity2AfterCancel = await autumnV1.entities.get(
+			customerId,
+			entity2Id,
+		);
 
-	await expectProductCanceling({
-		customer: entity1AfterCancel,
-		productId: pro.id,
-	});
-	await expectProductActive({
-		customer: entity2AfterCancel,
-		productId: pro.id,
-	});
+		await expectProductCanceling({
+			customer: entity1AfterCancel,
+			productId: pro.id,
+		});
+		await expectProductActive({
+			customer: entity2AfterCancel,
+			productId: pro.id,
+		});
 
-	// Step 2: Uncancel entity 1
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		entity_id: entity1Id,
-		product_id: pro.id,
-		cancel_action: "uncancel",
-	});
+		// Step 2: Uncancel entity 1
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			entity_id: entity1Id,
+			product_id: pro.id,
+			cancel_action: "uncancel",
+		});
 
-	// Verify entity 1 is active again, entity 2 is still active
-	const entity1AfterUncancel = await autumnV1.entities.get(
-		customerId,
-		entity1Id,
-	);
-	const entity2AfterUncancel = await autumnV1.entities.get(
-		customerId,
-		entity2Id,
-	);
+		// Verify entity 1 is active again, entity 2 is still active
+		const entity1AfterUncancel = await autumnV1.entities.get(
+			customerId,
+			entity1Id,
+		);
+		const entity2AfterUncancel = await autumnV1.entities.get(
+			customerId,
+			entity2Id,
+		);
 
-	await expectProductActive({
-		customer: entity1AfterUncancel,
-		productId: pro.id,
-	});
-	await expectProductActive({
-		customer: entity2AfterUncancel,
-		productId: pro.id,
-	});
+		await expectProductActive({
+			customer: entity1AfterUncancel,
+			productId: pro.id,
+		});
+		await expectProductActive({
+			customer: entity2AfterUncancel,
+			productId: pro.id,
+		});
 
-	// Step 3: Cancel entity 1 at end of cycle AGAIN
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		entity_id: entity1Id,
-		product_id: pro.id,
-		cancel_action: "cancel_end_of_cycle",
-	});
+		// Step 3: Cancel entity 1 at end of cycle AGAIN
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			entity_id: entity1Id,
+			product_id: pro.id,
+			cancel_action: "cancel_end_of_cycle",
+		});
 
-	// Verify entity 1 is canceling again, entity 2 is still active
-	const entity1AfterSecondCancel = await autumnV1.entities.get(
-		customerId,
-		entity1Id,
-	);
-	const entity2AfterSecondCancel = await autumnV1.entities.get(
-		customerId,
-		entity2Id,
-	);
+		// Verify entity 1 is canceling again, entity 2 is still active
+		const entity1AfterSecondCancel = await autumnV1.entities.get(
+			customerId,
+			entity1Id,
+		);
+		const entity2AfterSecondCancel = await autumnV1.entities.get(
+			customerId,
+			entity2Id,
+		);
 
-	await expectProductCanceling({
-		customer: entity1AfterSecondCancel,
-		productId: pro.id,
-	});
-	await expectProductActive({
-		customer: entity2AfterSecondCancel,
-		productId: pro.id,
-	});
-});
+		await expectProductCanceling({
+			customer: entity1AfterSecondCancel,
+			productId: pro.id,
+		});
+		await expectProductActive({
+			customer: entity2AfterSecondCancel,
+			productId: pro.id,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: Cancel pro EOC with empty group - free default NOT scheduled
@@ -319,89 +332,92 @@ test.concurrent(`${chalk.yellowBright("cancel EOC edge: entity cancel -> uncance
  *   - Pro is removed
  *   - Free is NOT present (wasn't scheduled because groups don't match)
  */
-test.concurrent(`${chalk.yellowBright("cancel EOC edge: pro with empty group - free default NOT scheduled")}`, async () => {
-	const customerId = "cancel-eoc-empty-group-no-default";
+test.concurrent(
+	`${chalk.yellowBright("cancel EOC edge: pro with empty group - free default NOT scheduled")}`,
+	async () => {
+		const customerId = "cancel-eoc-empty-group-no-default";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
 
-	// Free is the default product - will get prefixed group from initScenario
-	const free = products.base({
-		id: "free",
-		items: [messagesItem],
-		isDefault: true,
-	});
+		// Free is the default product - will get prefixed group from initScenario
+		const free = products.base({
+			id: "free",
+			items: [messagesItem],
+			isDefault: true,
+		});
 
-	// Pro with explicit empty group - should NOT match free's prefixed group
-	const pro = products.pro({
-		id: "pro",
-		items: [messagesItem],
-	});
-	// Explicitly set empty group (will be preserved due to our fix)
-	pro.group = "";
+		// Pro with explicit empty group - should NOT match free's prefixed group
+		const pro = products.pro({
+			id: "pro",
+			items: [messagesItem],
+		});
+		// Explicitly set empty group (will be preserved due to our fix)
+		pro.group = "";
 
-	const { autumnV1, ctx, testClockId } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, pro] }),
-		],
-		actions: [s.attach({ productId: pro.id })],
-	});
+		const { autumnV1, ctx, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, pro] }),
+			],
+			actions: [s.attach({ productId: pro.id })],
+		});
 
-	// Verify pro is active
-	const customerAfterAttach =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({
-		customer: customerAfterAttach,
-		productId: pro.id,
-	});
+		// Verify pro is active
+		const customerAfterAttach =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({
+			customer: customerAfterAttach,
+			productId: pro.id,
+		});
 
-	// Cancel pro at end of cycle
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: pro.id,
-		cancel_action: "cancel_end_of_cycle",
-	});
+		// Cancel pro at end of cycle
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: pro.id,
+			cancel_action: "cancel_end_of_cycle",
+		});
 
-	// Verify pro is canceling and free is NOT scheduled (groups don't match)
-	const customerAfterCancel =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify pro is canceling and free is NOT scheduled (groups don't match)
+		const customerAfterCancel =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer: customerAfterCancel,
-		canceling: [pro.id],
-		notPresent: [free.id], // Free should NOT be scheduled because groups don't match
-	});
+		await expectCustomerProducts({
+			customer: customerAfterCancel,
+			canceling: [pro.id],
+			notPresent: [free.id], // Free should NOT be scheduled because groups don't match
+		});
 
-	// Advance to next billing cycle
-	await advanceToNextInvoice({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-	});
+		// Advance to next billing cycle
+		await advanceToNextInvoice({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+		});
 
-	// After advancing, pro should be gone and free should NOT be present
-	const customerAfterAdvance =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// After advancing, pro should be gone and free should NOT be present
+		const customerAfterAdvance =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductNotPresent({
-		customer: customerAfterAdvance,
-		productId: pro.id,
-	});
+		await expectProductNotPresent({
+			customer: customerAfterAdvance,
+			productId: pro.id,
+		});
 
-	// Free should also not be present (wasn't scheduled)
-	await expectProductNotPresent({
-		customer: customerAfterAdvance,
-		productId: free.id,
-	});
+		// Free should also not be present (wasn't scheduled)
+		await expectProductNotPresent({
+			customer: customerAfterAdvance,
+			productId: free.id,
+		});
 
-	// No products should remain
-	expect(customerAfterAdvance.products.length).toBe(0);
+		// No products should remain
+		expect(customerAfterAdvance.products.length).toBe(0);
 
-	// Verify no Stripe subscription exists
-	await expectNoStripeSubscription({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		// Verify no Stripe subscription exists
+		await expectNoStripeSubscription({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);

@@ -8,10 +8,11 @@
  * invoice or plan transition side effect.
  */
 
-import {
-	type ApiCustomerV3,
-	type AttachPreviewResponse,
-	type CreateScheduleParamsV0Input,
+import { expect, test } from "bun:test";
+import type {
+	ApiCustomerV3,
+	AttachPreviewResponse,
+	CreateScheduleParamsV0Input,
 } from "@autumn/shared";
 import { createPercentCoupon } from "@tests/integration/billing/utils/discounts/discountTestUtils";
 import { expectCustomerInvoiceCorrect } from "@tests/integration/billing/utils/expectCustomerInvoiceCorrect";
@@ -22,7 +23,6 @@ import {
 import { items } from "@tests/utils/fixtures/items";
 import { products } from "@tests/utils/fixtures/products";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
-import { expect, test } from "bun:test";
 import chalk from "chalk";
 
 const previewCreateSchedule = async ({

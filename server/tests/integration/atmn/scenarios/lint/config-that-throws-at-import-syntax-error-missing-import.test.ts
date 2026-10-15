@@ -6,9 +6,9 @@
 
 import { expect, test } from "bun:test";
 import { join } from "node:path";
+import { uniqueTestId } from "@tests/integration/catalog-v2/utils/uniqueTestId.js";
 import { initAtmnScenario } from "@tests/utils/atmnUtils/initAtmnScenario.js";
 import { s } from "@tests/utils/testInitUtils/initScenario.js";
-import { uniqueTestId } from "@tests/integration/catalog-v2/utils/uniqueTestId.js";
 
 const CLI_PACKAGE_DIR = join(
 	import.meta.dir,

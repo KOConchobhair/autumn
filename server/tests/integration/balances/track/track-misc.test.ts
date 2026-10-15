@@ -10,11 +10,11 @@ import {
 	sumValues,
 	type TrackResponseV2,
 } from "@autumn/shared";
-import { getCustomerEvents } from "@tests/integration/balances/utils/events/getCustomerEvents.js";
 import {
 	EVENTS_ARRIVAL_TIMEOUT_MS,
 	expectCustomerEventsCorrect,
 } from "@tests/integration/balances/utils/events/expectCustomerEventsCorrect.js";
+import { getCustomerEvents } from "@tests/integration/balances/utils/events/getCustomerEvents.js";
 import { TestFeature } from "@tests/setup/v2Features.js";
 import { expectAutumnError } from "@tests/utils/expectUtils/expectErrUtils.js";
 import { items } from "@tests/utils/fixtures/items.js";
@@ -28,398 +28,441 @@ import { Decimal } from "decimal.js";
 // TRACK-MISC1: Auto-create customer and entity via track
 // ═══════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("track-misc1: track auto-creates customer and entity")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const freeProd = products.base({
-		id: "free",
-		items: [messagesItem],
-	});
+test.concurrent(
+	`${chalk.yellowBright("track-misc1: track auto-creates customer and entity")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const freeProd = products.base({
+			id: "free",
+			items: [messagesItem],
+		});
 
-	const customerId = "track-misc1";
+		const customerId = "track-misc1";
 
-	const { autumnV1 } = await initScenario({
-		setup: [
-			s.deleteCustomer({ customerId: "track-misc1" }),
-			s.products({ list: [freeProd], prefix: customerId }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			setup: [
+				s.deleteCustomer({ customerId: "track-misc1" }),
+				s.products({ list: [freeProd], prefix: customerId }),
+			],
+			actions: [],
+		});
 
-	const entityId = `${customerId}-entity-1`;
+		const entityId = `${customerId}-entity-1`;
 
-	await autumnV1.track({
-		customer_id: customerId,
-		customer_data: {
+		await autumnV1.track({
+			customer_id: customerId,
+			customer_data: {
+				name: "Test Customer",
+				email: "test@test.com",
+			},
+			feature_id: TestFeature.Messages,
+			entity_id: entityId,
+			entity_data: {
+				name: "Test Entity",
+				feature_id: TestFeature.Users,
+			},
+			value: 5,
+		});
+
+		// Verify customer was created with provided data
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expect(customer).toMatchObject({
+			id: customerId,
 			name: "Test Customer",
 			email: "test@test.com",
-		},
-		feature_id: TestFeature.Messages,
-		entity_id: entityId,
-		entity_data: {
+		});
+
+		// Verify entity was created with provided data
+		const entity = await autumnV1.entities.get<ApiEntityV0>(
+			customerId,
+			entityId,
+		);
+		expect(entity).toMatchObject({
+			id: entityId,
 			name: "Test Entity",
-			feature_id: TestFeature.Users,
-		},
-		value: 5,
-	});
+		});
 
-	// Verify customer was created with provided data
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expect(customer).toMatchObject({
-		id: customerId,
-		name: "Test Customer",
-		email: "test@test.com",
-	});
-
-	// Verify entity was created with provided data
-	const entity = await autumnV1.entities.get<ApiEntityV0>(customerId, entityId);
-	expect(entity).toMatchObject({
-		id: entityId,
-		name: "Test Entity",
-	});
-
-	// Verify customer.entities includes the created entity
-	const customerWithEntities = await autumnV1.customers.get<ApiCustomerV3>(
-		customerId,
-		{ expand: [CustomerExpand.Entities] },
-	);
-	expect(customerWithEntities.entities).toBeDefined();
-	expect(customerWithEntities.entities).toHaveLength(1);
-	expect(customerWithEntities.entities?.[0].id).toBe(entityId);
-	expect(customerWithEntities.entities?.[0].name).toBe("Test Entity");
-});
+		// Verify customer.entities includes the created entity
+		const customerWithEntities = await autumnV1.customers.get<ApiCustomerV3>(
+			customerId,
+			{ expand: [CustomerExpand.Entities] },
+		);
+		expect(customerWithEntities.entities).toBeDefined();
+		expect(customerWithEntities.entities).toHaveLength(1);
+		expect(customerWithEntities.entities?.[0].id).toBe(entityId);
+		expect(customerWithEntities.entities?.[0].name).toBe("Test Entity");
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // TRACK-MISC2: Track event stores properties
 // ═══════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("track-misc2: track event stores custom properties")}`, async () => {
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "track-misc2",
-		setup: [s.customer({ testClock: false })],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("track-misc2: track event stores custom properties")}`,
+	async () => {
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "track-misc2",
+			setup: [s.customer({ testClock: false })],
+			actions: [],
+		});
 
-	await autumnV1.track({
-		customer_id: customerId,
-		customer_data: {
-			name: "track-misc2",
-			email: "track-misc2@test.com",
-		},
-		feature_id: TestFeature.Messages,
-		value: 5,
-		properties: {
-			hello: "world",
-			foo: "bar",
-		},
-	});
+		await autumnV1.track({
+			customer_id: customerId,
+			customer_data: {
+				name: "track-misc2",
+				email: "track-misc2@test.com",
+			},
+			feature_id: TestFeature.Messages,
+			value: 5,
+			properties: {
+				hello: "world",
+				foo: "bar",
+			},
+		});
 
-	await expectCustomerEventsCorrect({
-		customerId,
-		events: [{ value: 5, properties: { hello: "world", foo: "bar" } }],
-	});
-});
+		await expectCustomerEventsCorrect({
+			customerId,
+			events: [{ value: 5, properties: { hello: "world", foo: "bar" } }],
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // TRACK-MISC3: Track creates events when balance is empty
 // ═══════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("track-misc3: track creates events when customer has no balance")}`, async () => {
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "track-misc3",
-		setup: [s.customer({ testClock: false })],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("track-misc3: track creates events when customer has no balance")}`,
+	async () => {
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "track-misc3",
+			setup: [s.customer({ testClock: false })],
+			actions: [],
+		});
 
-	const trackCount = Math.floor(Math.random() * 10) + 1;
-	let totalValue = 0;
+		const trackCount = Math.floor(Math.random() * 10) + 1;
+		let totalValue = 0;
 
-	await Promise.all(
-		Array.from({ length: trackCount }, () => {
-			const trackValue = Math.random() * 10;
-			totalValue += trackValue;
-			return autumnV1.track({
-				customer_id: customerId,
-				feature_id: TestFeature.Messages,
-				value: trackValue,
-			});
-		}),
-	);
+		await Promise.all(
+			Array.from({ length: trackCount }, () => {
+				const trackValue = Math.random() * 10;
+				totalValue += trackValue;
+				return autumnV1.track({
+					customer_id: customerId,
+					feature_id: TestFeature.Messages,
+					value: trackValue,
+				});
+			}),
+		);
 
-	await pollUntilAsserted({
-		fetch: () => getCustomerEvents({ customerId }),
-		assert: (events) => {
-			expect(events).toHaveLength(trackCount);
-			expect(
-				sumValues(events.map((event) => event.value ?? 0)).toFixed(10),
-			).toBe(totalValue.toFixed(10));
-		},
-		timeoutMs: EVENTS_ARRIVAL_TIMEOUT_MS,
-	});
-});
+		await pollUntilAsserted({
+			fetch: () => getCustomerEvents({ customerId }),
+			assert: (events) => {
+				expect(events).toHaveLength(trackCount);
+				expect(
+					sumValues(events.map((event) => event.value ?? 0)).toFixed(10),
+				).toBe(totalValue.toFixed(10));
+			},
+			timeoutMs: EVENTS_ARRIVAL_TIMEOUT_MS,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // TRACK-MISC4: Track v1.2 response format
 // ═══════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("track-misc4: track returns correct v1.2 response format")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const freeProd = products.base({
-		id: "free",
-		items: [messagesItem],
-	});
+test.concurrent(
+	`${chalk.yellowBright("track-misc4: track returns correct v1.2 response format")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const freeProd = products.base({
+			id: "free",
+			items: [messagesItem],
+		});
 
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "track-misc4",
-		setup: [s.customer({ testClock: false }), s.products({ list: [freeProd] })],
-		actions: [s.attach({ productId: freeProd.id })],
-	});
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "track-misc4",
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [freeProd] }),
+			],
+			actions: [s.attach({ productId: freeProd.id })],
+		});
 
-	const trackRes: TrackResponseV2 = await autumnV1.track({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		value: 20,
-	});
+		const trackRes: TrackResponseV2 = await autumnV1.track({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			value: 20,
+		});
 
-	expect(trackRes).toMatchObject({
-		id: "placeholder",
-		code: "event_received",
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-	});
-});
+		expect(trackRes).toMatchObject({
+			id: "placeholder",
+			code: "event_received",
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // TRACK-MISC5: V1.2 properties.value maps to value field
 // ═══════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("track-misc5: V1.2 properties.value maps to value field")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const freeProd = products.base({
-		id: "free",
-		items: [messagesItem],
-	});
+test.concurrent(
+	`${chalk.yellowBright("track-misc5: V1.2 properties.value maps to value field")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const freeProd = products.base({
+			id: "free",
+			items: [messagesItem],
+		});
 
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "track-misc5",
-		setup: [s.customer({ testClock: false }), s.products({ list: [freeProd] })],
-		actions: [s.attach({ productId: freeProd.id })],
-	});
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "track-misc5",
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [freeProd] }),
+			],
+			actions: [s.attach({ productId: freeProd.id })],
+		});
 
-	// Track using V1.2 legacy format with properties.value
-	await autumnV1.track({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		properties: {
-			value: 42.1532,
-		},
-	});
+		// Track using V1.2 legacy format with properties.value
+		await autumnV1.track({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			properties: {
+				value: 42.1532,
+			},
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId, {
-		with_autumn_id: true,
-	});
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId, {
+			with_autumn_id: true,
+		});
 
-	// Verify balance was deducted correctly
-	expect(customer.features[TestFeature.Messages].balance).toBe(
-		new Decimal(100).sub(42.1532).toNumber(),
-	);
-	expect(customer.features[TestFeature.Messages].usage).toBe(42.1532);
+		// Verify balance was deducted correctly
+		expect(customer.features[TestFeature.Messages].balance).toBe(
+			new Decimal(100).sub(42.1532).toNumber(),
+		);
+		expect(customer.features[TestFeature.Messages].usage).toBe(42.1532);
 
-	await expectCustomerEventsCorrect({
-		customerId,
-		events: [{ value: 42.1532 }],
-	});
-});
+		await expectCustomerEventsCorrect({
+			customerId,
+			events: [{ value: 42.1532 }],
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // TRACK-MISC7: Track defaults to value: 1 when no value provided
 // ═══════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("track-misc7: track defaults to value 1 when no value provided")}`, async () => {
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "track-misc7",
-		setup: [s.customer({ testClock: false })],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("track-misc7: track defaults to value 1 when no value provided")}`,
+	async () => {
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "track-misc7",
+			setup: [s.customer({ testClock: false })],
+			actions: [],
+		});
 
-	// Track without providing any value
-	await autumnV1.track({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-	});
+		// Track without providing any value
+		await autumnV1.track({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+		});
 
-	await expectCustomerEventsCorrect({ customerId, events: [{ value: 1 }] });
-});
+		await expectCustomerEventsCorrect({ customerId, events: [{ value: 1 }] });
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // TRACK-MISC8: V1.2 properties.value is removed from properties after extraction
 // ═══════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("track-misc8: V1.2 properties.value is removed from stored properties")}`, async () => {
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "track-misc8",
-		setup: [s.customer({ testClock: false })],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("track-misc8: V1.2 properties.value is removed from stored properties")}`,
+	async () => {
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "track-misc8",
+			setup: [s.customer({ testClock: false })],
+			actions: [],
+		});
 
-	// Track using V1.2 legacy format with properties.value and other properties
-	await autumnV1.track({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		properties: {
-			value: 25,
-			hello: "world",
-			foo: "bar",
-		},
-	});
+		// Track using V1.2 legacy format with properties.value and other properties
+		await autumnV1.track({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			properties: {
+				value: 25,
+				hello: "world",
+				foo: "bar",
+			},
+		});
 
-	// `value` is lifted out of the stored properties; the rest stay.
-	await expectCustomerEventsCorrect({
-		customerId,
-		events: [{ value: 25, properties: { hello: "world", foo: "bar" } }],
-	});
-});
+		// `value` is lifted out of the stored properties; the rest stay.
+		await expectCustomerEventsCorrect({
+			customerId,
+			events: [{ value: 25, properties: { hello: "world", foo: "bar" } }],
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // TRACK-MISC9: Idempotency key prevents duplicate tracks
 // ═══════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("track-misc9: idempotency key prevents duplicate tracks")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const freeProd = products.base({
-		id: "free",
-		items: [messagesItem],
-	});
+test.concurrent(
+	`${chalk.yellowBright("track-misc9: idempotency key prevents duplicate tracks")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const freeProd = products.base({
+			id: "free",
+			items: [messagesItem],
+		});
 
-	const testRunId = Date.now().toString(36);
-	const idempotencyKey1 = `test-idempotency-key-1-${testRunId}`;
-	const idempotencyKey2 = `test-idempotency-key-2-${testRunId}`;
+		const testRunId = Date.now().toString(36);
+		const idempotencyKey1 = `test-idempotency-key-1-${testRunId}`;
+		const idempotencyKey2 = `test-idempotency-key-2-${testRunId}`;
 
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "track-misc9",
-		setup: [s.customer({ testClock: false }), s.products({ list: [freeProd] })],
-		actions: [s.attach({ productId: freeProd.id })],
-	});
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "track-misc9",
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [freeProd] }),
+			],
+			actions: [s.attach({ productId: freeProd.id })],
+		});
 
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expect(customerBefore.features[TestFeature.Messages].balance).toEqual(100);
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expect(customerBefore.features[TestFeature.Messages].balance).toEqual(100);
 
-	const deductValue1 = 25.5;
-	const expectedBalance1 = new Decimal(100).sub(deductValue1).toNumber();
+		const deductValue1 = 25.5;
+		const expectedBalance1 = new Decimal(100).sub(deductValue1).toNumber();
 
-	await autumnV1.track({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		value: deductValue1,
-		idempotency_key: idempotencyKey1,
-	});
+		await autumnV1.track({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			value: deductValue1,
+			idempotency_key: idempotencyKey1,
+		});
 
-	const customerAfterFirst =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expect(customerAfterFirst.features[TestFeature.Messages]).toMatchObject({
-		balance: expectedBalance1,
-		usage: deductValue1,
-	});
+		const customerAfterFirst =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expect(customerAfterFirst.features[TestFeature.Messages]).toMatchObject({
+			balance: expectedBalance1,
+			usage: deductValue1,
+		});
 
-	await expectCustomerEventsCorrect({
-		customerId,
-		events: [{ value: deductValue1, idempotencyKey: idempotencyKey1 }],
-	});
+		await expectCustomerEventsCorrect({
+			customerId,
+			events: [{ value: deductValue1, idempotencyKey: idempotencyKey1 }],
+		});
 
-	await expectAutumnError({
-		errCode: ErrCode.DuplicateIdempotencyKey,
-		func: async () => {
-			await autumnV1.track({
-				customer_id: customerId,
-				feature_id: TestFeature.Messages,
-				value: 30.75,
-				idempotency_key: idempotencyKey1,
-			});
-		},
-	});
+		await expectAutumnError({
+			errCode: ErrCode.DuplicateIdempotencyKey,
+			func: async () => {
+				await autumnV1.track({
+					customer_id: customerId,
+					feature_id: TestFeature.Messages,
+					value: 30.75,
+					idempotency_key: idempotencyKey1,
+				});
+			},
+		});
 
-	const customerAfterDupe =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expect(customerAfterDupe.features[TestFeature.Messages].balance).toEqual(
-		expectedBalance1,
-	);
+		const customerAfterDupe =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expect(customerAfterDupe.features[TestFeature.Messages].balance).toEqual(
+			expectedBalance1,
+		);
 
-	await timeout(2000);
-	const customerNonCached = await autumnV1.customers.get<ApiCustomerV3>(
-		customerId,
-		{ skip_cache: "true" },
-	);
-	expect(customerNonCached.features[TestFeature.Messages].balance).toEqual(
-		expectedBalance1,
-	);
+		await timeout(2000);
+		const customerNonCached = await autumnV1.customers.get<ApiCustomerV3>(
+			customerId,
+			{ skip_cache: "true" },
+		);
+		expect(customerNonCached.features[TestFeature.Messages].balance).toEqual(
+			expectedBalance1,
+		);
 
-	await expectCustomerEventsCorrect({
-		customerId,
-		events: [{ value: deductValue1, idempotencyKey: idempotencyKey1 }],
-	});
+		await expectCustomerEventsCorrect({
+			customerId,
+			events: [{ value: deductValue1, idempotencyKey: idempotencyKey1 }],
+		});
 
-	const deductValue2 = 15.25;
-	const expectedBalance2 = new Decimal(expectedBalance1)
-		.sub(deductValue2)
-		.toNumber();
+		const deductValue2 = 15.25;
+		const expectedBalance2 = new Decimal(expectedBalance1)
+			.sub(deductValue2)
+			.toNumber();
 
-	await autumnV1.track({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		value: deductValue2,
-		idempotency_key: idempotencyKey2,
-	});
+		await autumnV1.track({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			value: deductValue2,
+			idempotency_key: idempotencyKey2,
+		});
 
-	const customerAfterSecond =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expect(customerAfterSecond.features[TestFeature.Messages].balance).toEqual(
-		expectedBalance2,
-	);
-});
+		const customerAfterSecond =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expect(customerAfterSecond.features[TestFeature.Messages].balance).toEqual(
+			expectedBalance2,
+		);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // TRACK-MISC6: V2.1 does not auto-create customer via track
 // ═══════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("track-misc6: v2.1 does not auto-create customer via track")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const freeProd = products.base({
-		id: "free",
-		items: [messagesItem],
-	});
+test.concurrent(
+	`${chalk.yellowBright("track-misc6: v2.1 does not auto-create customer via track")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const freeProd = products.base({
+			id: "free",
+			items: [messagesItem],
+		});
 
-	const customerId = "track-misc6";
-	const entityId = `${customerId}-entity-1`;
+		const customerId = "track-misc6";
+		const entityId = `${customerId}-entity-1`;
 
-	const { autumnV2_1 } = await initScenario({
-		setup: [s.deleteCustomer({ customerId }), s.products({ list: [freeProd] })],
-		actions: [],
-	});
+		const { autumnV2_1 } = await initScenario({
+			setup: [
+				s.deleteCustomer({ customerId }),
+				s.products({ list: [freeProd] }),
+			],
+			actions: [],
+		});
 
-	await expectAutumnError({
-		// errCode: ErrCode.CustomerNotFound,
-		func: async () =>
-			await autumnV2_1.track({
-				customer_id: customerId,
-				customer_data: {
-					name: "Test Customer",
-					email: "test@test.com",
-				},
-				feature_id: TestFeature.Messages,
-				entity_id: entityId,
-				entity_data: {
-					name: "Test Entity",
-					feature_id: TestFeature.Users,
-				},
-				value: 5,
-			}),
-	});
+		await expectAutumnError({
+			// errCode: ErrCode.CustomerNotFound,
+			func: async () =>
+				await autumnV2_1.track({
+					customer_id: customerId,
+					customer_data: {
+						name: "Test Customer",
+						email: "test@test.com",
+					},
+					feature_id: TestFeature.Messages,
+					entity_id: entityId,
+					entity_data: {
+						name: "Test Entity",
+						feature_id: TestFeature.Users,
+					},
+					value: 5,
+				}),
+		});
 
-	await expectAutumnError({
-		errCode: ErrCode.CustomerNotFound,
-		func: async () => await autumnV2_1.customers.get<ApiCustomerV5>(customerId),
-	});
-});
+		await expectAutumnError({
+			errCode: ErrCode.CustomerNotFound,
+			func: async () =>
+				await autumnV2_1.customers.get<ApiCustomerV5>(customerId),
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // TRACK-MISC10: Distributed lock prevents concurrent paid-allocated races

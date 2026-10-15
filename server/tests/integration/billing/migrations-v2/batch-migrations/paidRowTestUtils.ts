@@ -1,18 +1,18 @@
 import { expect } from "bun:test";
 import {
-	BillWhen,
 	BillingInterval,
 	BillingType,
-	type EntInterval,
+	BillWhen,
 	customerEntitlements,
 	customerPrices,
 	customerProducts,
 	customers as customersTable,
+	type EntInterval,
 	entitlements,
 	Infinite,
+	PriceType,
 	prices,
 	products as productsTable,
-	PriceType,
 } from "@autumn/shared";
 import { and, eq, isNull } from "drizzle-orm";
 import { generateId } from "@/utils/genUtils.js";

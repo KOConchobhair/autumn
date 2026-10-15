@@ -31,94 +31,106 @@ const expectNoRateLimitErrors = async ({
 	expect(results).toHaveLength(HOT_PATH_REQUEST_COUNT);
 };
 
-test.concurrent(`${chalk.yellowBright("rate-limit-hot-paths: track")}`, async () => {
-	const customerId = "rate-limit-hot-track";
-	const messagesItem = items.monthlyMessages({ includedUsage: 1000 });
-	const baseProduct = products.base({ id: "base", items: [messagesItem] });
+test.concurrent(
+	`${chalk.yellowBright("rate-limit-hot-paths: track")}`,
+	async () => {
+		const customerId = "rate-limit-hot-track";
+		const messagesItem = items.monthlyMessages({ includedUsage: 1000 });
+		const baseProduct = products.base({ id: "base", items: [messagesItem] });
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false }),
-			s.products({ list: [baseProduct] }),
-		],
-		actions: [s.attach({ productId: baseProduct.id })],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [baseProduct] }),
+			],
+			actions: [s.attach({ productId: baseProduct.id })],
+		});
 
-	await expectNoRateLimitErrors({
-		requests: Array.from({ length: HOT_PATH_REQUEST_COUNT }, () =>
-			autumnV1.track({
-				customer_id: customerId,
-				feature_id: TestFeature.Messages,
-				value: 1,
-			}),
-		),
-	});
-});
+		await expectNoRateLimitErrors({
+			requests: Array.from({ length: HOT_PATH_REQUEST_COUNT }, () =>
+				autumnV1.track({
+					customer_id: customerId,
+					feature_id: TestFeature.Messages,
+					value: 1,
+				}),
+			),
+		});
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("rate-limit-hot-paths: check")}`, async () => {
-	const customerId = "rate-limit-hot-check";
-	const messagesItem = items.monthlyMessages({ includedUsage: 1000 });
-	const baseProduct = products.base({ id: "base", items: [messagesItem] });
+test.concurrent(
+	`${chalk.yellowBright("rate-limit-hot-paths: check")}`,
+	async () => {
+		const customerId = "rate-limit-hot-check";
+		const messagesItem = items.monthlyMessages({ includedUsage: 1000 });
+		const baseProduct = products.base({ id: "base", items: [messagesItem] });
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false }),
-			s.products({ list: [baseProduct] }),
-		],
-		actions: [s.attach({ productId: baseProduct.id })],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [baseProduct] }),
+			],
+			actions: [s.attach({ productId: baseProduct.id })],
+		});
 
-	await expectNoRateLimitErrors({
-		requests: Array.from({ length: HOT_PATH_REQUEST_COUNT }, () =>
-			autumnV1.check({
-				customer_id: customerId,
-				feature_id: TestFeature.Messages,
-			}),
-		),
-	});
-});
+		await expectNoRateLimitErrors({
+			requests: Array.from({ length: HOT_PATH_REQUEST_COUNT }, () =>
+				autumnV1.check({
+					customer_id: customerId,
+					feature_id: TestFeature.Messages,
+				}),
+			),
+		});
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("rate-limit-hot-paths: customer-get")}`, async () => {
-	const customerId = "rate-limit-hot-customer-get";
-	const messagesItem = items.monthlyMessages({ includedUsage: 1000 });
-	const baseProduct = products.base({ id: "base", items: [messagesItem] });
+test.concurrent(
+	`${chalk.yellowBright("rate-limit-hot-paths: customer-get")}`,
+	async () => {
+		const customerId = "rate-limit-hot-customer-get";
+		const messagesItem = items.monthlyMessages({ includedUsage: 1000 });
+		const baseProduct = products.base({ id: "base", items: [messagesItem] });
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false }),
-			s.products({ list: [baseProduct] }),
-		],
-		actions: [s.attach({ productId: baseProduct.id })],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [baseProduct] }),
+			],
+			actions: [s.attach({ productId: baseProduct.id })],
+		});
 
-	await expectNoRateLimitErrors({
-		requests: Array.from({ length: HOT_PATH_REQUEST_COUNT }, () =>
-			autumnV1.customers.get(customerId),
-		),
-	});
-});
+		await expectNoRateLimitErrors({
+			requests: Array.from({ length: HOT_PATH_REQUEST_COUNT }, () =>
+				autumnV1.customers.get(customerId),
+			),
+		});
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("rate-limit-hot-paths: entity-get")}`, async () => {
-	const customerId = "rate-limit-hot-entity-get";
-	const entityId = "entity-hot-path";
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: false })],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("rate-limit-hot-paths: entity-get")}`,
+	async () => {
+		const customerId = "rate-limit-hot-entity-get";
+		const entityId = "entity-hot-path";
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [s.customer({ testClock: false })],
+			actions: [],
+		});
 
-	await autumnV1.entities.create(customerId, {
-		id: entityId,
-		name: "Hot Path Entity",
-		feature_id: TestFeature.Users,
-	});
+		await autumnV1.entities.create(customerId, {
+			id: entityId,
+			name: "Hot Path Entity",
+			feature_id: TestFeature.Users,
+		});
 
-	await expectNoRateLimitErrors({
-		requests: Array.from({ length: HOT_PATH_REQUEST_COUNT }, () =>
-			autumnV1.entities.get(customerId, entityId),
-		),
-	});
-});
+		await expectNoRateLimitErrors({
+			requests: Array.from({ length: HOT_PATH_REQUEST_COUNT }, () =>
+				autumnV1.entities.get(customerId, entityId),
+			),
+		});
+	},
+);

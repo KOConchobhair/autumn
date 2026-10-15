@@ -52,9 +52,9 @@ test.concurrent(
 						customerId: customId,
 						productId: freePlan.id,
 						items: [
-						items.dashboard(),
-						items.freeAllocatedWorkflows({ includedUsage: 25 }),
-					],
+							items.dashboard(),
+							items.freeAllocatedWorkflows({ includedUsage: 25 }),
+						],
 					}),
 				),
 			],

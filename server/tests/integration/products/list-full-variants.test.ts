@@ -7,11 +7,11 @@
  */
 
 import { expect, test } from "bun:test";
-import { initScenario } from "@tests/utils/testInitUtils/initScenario.js";
-import chalk from "chalk";
 import { messagesItem } from "@tests/integration/catalog-v2/plans/licenses/utils/seedLicensePlans.js";
 import { deleteDbPlans } from "@tests/integration/catalog-v2/plans/utils/expectCatalogPlans.js";
 import { uniqueTestId } from "@tests/integration/catalog-v2/utils/uniqueTestId.js";
+import { initScenario } from "@tests/utils/testInitUtils/initScenario.js";
+import chalk from "chalk";
 import { ProductService } from "@/internal/products/ProductService.js";
 
 test.concurrent(
@@ -37,7 +37,8 @@ test.concurrent(
 					{
 						plan_id: variantId,
 						name: "Pro v2",
-						versioning: "new_version", active: true,
+						versioning: "new_version",
+						active: true,
 					},
 				],
 			});
@@ -58,8 +59,7 @@ test.concurrent(
 			expect(variantVersions).toEqual([1, 2]);
 			expect(
 				(baseV1?.variants ?? []).every(
-					(product) =>
-						product.base_internal_product_id === baseV1?.internal_id,
+					(product) => product.base_internal_product_id === baseV1?.internal_id,
 				),
 			).toBe(true);
 		} finally {

@@ -44,12 +44,12 @@ describe("applyInvoiceCredits", () => {
 	});
 
 	test("credit equal to the total leaves nothing due", () => {
-		expect(applyInvoiceCredits({ total: 265.36, credits: usd(265.36) })).toEqual(
-			{
-				credits: { balance: 265.36, currency: "usd", applied: 265.36 },
-				amountDue: 0,
-			},
-		);
+		expect(
+			applyInvoiceCredits({ total: 265.36, credits: usd(265.36) }),
+		).toEqual({
+			credits: { balance: 265.36, currency: "usd", applied: 265.36 },
+			amountDue: 0,
+		});
 	});
 
 	test("a zero total consumes no credit", () => {

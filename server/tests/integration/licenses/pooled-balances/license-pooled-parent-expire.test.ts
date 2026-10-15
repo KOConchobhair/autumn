@@ -21,10 +21,10 @@ import { TestFeature } from "@tests/setup/v2Features.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
 import {
-	LICENSE_POOLED_GRANT,
 	expectLicensePooledBalanceExpired,
 	expectLicensePooledEntitlementHydrated,
 	expectLicensePooledEntitlementNotHydrated,
+	LICENSE_POOLED_GRANT,
 	parentPlan,
 	pooledMonthlyMessages,
 	pooledSeatPlan,
@@ -91,10 +91,9 @@ test.concurrent(
 			planId: parent.id,
 		});
 
-		const customer = await autumnV2_3.customers.get<ApiCustomerV5>(
-			customerId,
-			{ skip_cache: "true" },
-		);
+		const customer = await autumnV2_3.customers.get<ApiCustomerV5>(customerId, {
+			skip_cache: "true",
+		});
 		await expectCustomerProducts({
 			customer,
 			notPresent: [parent.id],

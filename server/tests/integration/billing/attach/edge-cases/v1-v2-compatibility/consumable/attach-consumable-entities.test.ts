@@ -37,61 +37,66 @@ import chalk from "chalk";
  * - Total second invoice: $20 + $15.05 = $35.05
  * - Balance should be reset to 100 (included usage)
  */
-test.concurrent(`${chalk.yellowBright("attach v2 consumable entity: track decimal overage → advance cycle")}`, async () => {
-	const customerId = "attach-v2-cons-ent-decimal";
+test.concurrent(
+	`${chalk.yellowBright("attach v2 consumable entity: track decimal overage → advance cycle")}`,
+	async () => {
+		const customerId = "attach-v2-cons-ent-decimal";
 
-	// Create consumable messages with 100 included
-	const consumableItem = items.consumableMessages({ includedUsage: 100 });
+		// Create consumable messages with 100 included
+		const consumableItem = items.consumableMessages({ includedUsage: 100 });
 
-	const pro = products.pro({
-		id: "pro",
-		items: [consumableItem],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [consumableItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [
-			s.billing.attach({ productId: pro.id }),
-			s.track({ featureId: TestFeature.Messages, value: 250.5 }),
-			s.advanceToNextInvoice({ withPause: true }),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [
+				s.billing.attach({ productId: pro.id }),
+				s.track({ featureId: TestFeature.Messages, value: 250.5 }),
+				s.advanceToNextInvoice({ withPause: true }),
+			],
+		});
 
-	// Calculate expected overage: 150.5 units * $0.10 = $15.05
-	const expectedOverage = calculateExpectedInvoiceAmount({
-		items: pro.items,
-		usage: [{ featureId: TestFeature.Messages, value: 250.5 }],
-		options: { includeFixed: false, onlyArrear: true },
-	});
+		// Calculate expected overage: 150.5 units * $0.10 = $15.05
+		const expectedOverage = calculateExpectedInvoiceAmount({
+			items: pro.items,
+			usage: [{ featureId: TestFeature.Messages, value: 250.5 }],
+			options: { includeFixed: false, onlyArrear: true },
+		});
 
-	// Verify overage calculation: (251 - 100) * $0.10 = $15.1
-	expect(expectedOverage).toBe(15.1);
+		// Verify overage calculation: (251 - 100) * $0.10 = $15.1
+		expect(expectedOverage).toBe(15.1);
 
-	// Verify final state
-	const customerAfterAdvance =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify final state
+		const customerAfterAdvance =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Product should still be active
-	await expectProductActive({
-		customer: customerAfterAdvance,
-		productId: pro.id,
-	});
+		// Product should still be active
+		await expectProductActive({
+			customer: customerAfterAdvance,
+			productId: pro.id,
+		});
 
-	// Should have 2 invoices: initial ($20) + renewal ($20 base + $15.05 overage = $35.05)
-	expectCustomerInvoiceCorrect({
-		customer: customerAfterAdvance,
-		count: 2,
-		latestTotal: 20 + expectedOverage, // $20 base + $15.05 overage
-		latestInvoiceProductId: pro.id,
-	});
+		// Should have 2 invoices: initial ($20) + renewal ($20 base + $15.05 overage = $35.05)
+		expectCustomerInvoiceCorrect({
+			customer: customerAfterAdvance,
+			count: 2,
+			latestTotal: 20 + expectedOverage, // $20 base + $15.05 overage
+			latestInvoiceProductId: pro.id,
+		});
 
-	// Balance should be reset to 100 (included usage) after cycle
-	expect(customerAfterAdvance.features[TestFeature.Messages].balance).toBe(100);
-});
+		// Balance should be reset to 100 (included usage) after cycle
+		expect(customerAfterAdvance.features[TestFeature.Messages].balance).toBe(
+			100,
+		);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: No overage - track within included usage → advance cycle
@@ -108,44 +113,49 @@ test.concurrent(`${chalk.yellowBright("attach v2 consumable entity: track decima
  * - After cycle: invoice should only include base price ($20), no overage
  * - Balance should be reset to 100 (included usage)
  */
-test.concurrent(`${chalk.yellowBright("attach v2 consumable entity: no overage - track within included → advance cycle")}`, async () => {
-	const customerId = "attach-v2-cons-ent-no-ovg";
+test.concurrent(
+	`${chalk.yellowBright("attach v2 consumable entity: no overage - track within included → advance cycle")}`,
+	async () => {
+		const customerId = "attach-v2-cons-ent-no-ovg";
 
-	const consumableItem = items.consumableMessages({ includedUsage: 100 });
+		const consumableItem = items.consumableMessages({ includedUsage: 100 });
 
-	const pro = products.pro({
-		id: "pro",
-		items: [consumableItem],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [consumableItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.track({ featureId: TestFeature.Messages, value: 50 }),
-			s.advanceToNextInvoice({ withPause: true }),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.track({ featureId: TestFeature.Messages, value: 50 }),
+				s.advanceToNextInvoice({ withPause: true }),
+			],
+		});
 
-	// Verify final state
-	const customerAfterAdvance =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify final state
+		const customerAfterAdvance =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Should have 2 invoices: initial ($20) + renewal ($20 base only, no overage)
-	expectCustomerInvoiceCorrect({
-		customer: customerAfterAdvance,
-		count: 2,
-		latestTotal: 20, // Only base price, no overage
-		latestInvoiceProductId: pro.id,
-	});
+		// Should have 2 invoices: initial ($20) + renewal ($20 base only, no overage)
+		expectCustomerInvoiceCorrect({
+			customer: customerAfterAdvance,
+			count: 2,
+			latestTotal: 20, // Only base price, no overage
+			latestInvoiceProductId: pro.id,
+		});
 
-	// Balance should be reset to 100 after cycle
-	expect(customerAfterAdvance.features[TestFeature.Messages].balance).toBe(100);
-});
+		// Balance should be reset to 100 after cycle
+		expect(customerAfterAdvance.features[TestFeature.Messages].balance).toBe(
+			100,
+		);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: Large overage with exact calculation
@@ -161,52 +171,57 @@ test.concurrent(`${chalk.yellowBright("attach v2 consumable entity: no overage -
  * - Initial invoice: $20 (pro base price)
  * - After cycle: $20 base + $90 overage (900 * $0.10) = $110
  */
-test.concurrent(`${chalk.yellowBright("attach v2 consumable entity: large overage → advance cycle")}`, async () => {
-	const customerId = "attach-v2-cons-ent-large";
+test.concurrent(
+	`${chalk.yellowBright("attach v2 consumable entity: large overage → advance cycle")}`,
+	async () => {
+		const customerId = "attach-v2-cons-ent-large";
 
-	const consumableItem = items.consumableMessages({ includedUsage: 100 });
+		const consumableItem = items.consumableMessages({ includedUsage: 100 });
 
-	const pro = products.pro({
-		id: "pro",
-		items: [consumableItem],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [consumableItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.track({ featureId: TestFeature.Messages, value: 1000 }),
-			s.advanceToNextInvoice({ withPause: true }),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.track({ featureId: TestFeature.Messages, value: 1000 }),
+				s.advanceToNextInvoice({ withPause: true }),
+			],
+		});
 
-	// Calculate expected: 900 * $0.10 = $90
-	const expectedOverage = calculateExpectedInvoiceAmount({
-		items: pro.items,
-		usage: [{ featureId: TestFeature.Messages, value: 1000 }],
-		options: { includeFixed: false, onlyArrear: true },
-	});
-	expect(expectedOverage).toBe(90);
+		// Calculate expected: 900 * $0.10 = $90
+		const expectedOverage = calculateExpectedInvoiceAmount({
+			items: pro.items,
+			usage: [{ featureId: TestFeature.Messages, value: 1000 }],
+			options: { includeFixed: false, onlyArrear: true },
+		});
+		expect(expectedOverage).toBe(90);
 
-	// Verify final state
-	const customerAfterAdvance =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify final state
+		const customerAfterAdvance =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Should have 2 invoices: initial ($20) + renewal ($20 + $90 = $110)
-	expectCustomerInvoiceCorrect({
-		customer: customerAfterAdvance,
-		count: 2,
-		latestTotal: 20 + expectedOverage, // $110
-		latestInvoiceProductId: pro.id,
-	});
+		// Should have 2 invoices: initial ($20) + renewal ($20 + $90 = $110)
+		expectCustomerInvoiceCorrect({
+			customer: customerAfterAdvance,
+			count: 2,
+			latestTotal: 20 + expectedOverage, // $110
+			latestInvoiceProductId: pro.id,
+		});
 
-	// Balance should be reset to 100
-	expect(customerAfterAdvance.features[TestFeature.Messages].balance).toBe(100);
-});
+		// Balance should be reset to 100
+		expect(customerAfterAdvance.features[TestFeature.Messages].balance).toBe(
+			100,
+		);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 4: Multiple entities with consumable - each entity charged correctly
@@ -227,74 +242,85 @@ test.concurrent(`${chalk.yellowBright("attach v2 consumable entity: large overag
  *   - Entity 2 invoice: $20 base + $25 overage = $45
  * - Each entity's balance should reset to 100
  */
-test.concurrent(`${chalk.yellowBright("attach v2 consumable entity: multiple entities → each charged correctly")}`, async () => {
-	const customerId = "attach-v2-cons-ent-multi";
+test.concurrent(
+	`${chalk.yellowBright("attach v2 consumable entity: multiple entities → each charged correctly")}`,
+	async () => {
+		const customerId = "attach-v2-cons-ent-multi";
 
-	const consumableItem = items.consumableMessages({ includedUsage: 100 });
+		const consumableItem = items.consumableMessages({ includedUsage: 100 });
 
-	const pro = products.pro({
-		id: "pro",
-		items: [consumableItem],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [consumableItem],
+		});
 
-	const { autumnV1, entities, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			// Attach pro to each entity
-			s.attach({ productId: pro.id, entityIndex: 0 }),
-			s.attach({ productId: pro.id, entityIndex: 1, timeout: 4000 }),
-			// Track different amounts on each entity
-			s.track({ featureId: TestFeature.Messages, value: 200, entityIndex: 0 }), // 100 overage
-			s.track({ featureId: TestFeature.Messages, value: 350, entityIndex: 1 }), // 250 overage
-			s.advanceToNextInvoice({ withPause: true }),
-		],
-	});
+		const { autumnV1, entities, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				// Attach pro to each entity
+				s.attach({ productId: pro.id, entityIndex: 0 }),
+				s.attach({ productId: pro.id, entityIndex: 1, timeout: 4000 }),
+				// Track different amounts on each entity
+				s.track({
+					featureId: TestFeature.Messages,
+					value: 200,
+					entityIndex: 0,
+				}), // 100 overage
+				s.track({
+					featureId: TestFeature.Messages,
+					value: 350,
+					entityIndex: 1,
+				}), // 250 overage
+				s.advanceToNextInvoice({ withPause: true }),
+			],
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
 
-	// Calculate expected overages
-	// Entity 1: (200 - 100) * $0.10 = $10
-	const entity1Overage = calculateExpectedInvoiceAmount({
-		items: pro.items,
-		usage: [{ featureId: TestFeature.Messages, value: 200 }],
-		options: { includeFixed: false, onlyArrear: true },
-	});
-	expect(entity1Overage).toBe(10);
+		// Calculate expected overages
+		// Entity 1: (200 - 100) * $0.10 = $10
+		const entity1Overage = calculateExpectedInvoiceAmount({
+			items: pro.items,
+			usage: [{ featureId: TestFeature.Messages, value: 200 }],
+			options: { includeFixed: false, onlyArrear: true },
+		});
+		expect(entity1Overage).toBe(10);
 
-	// Entity 2: (350 - 100) * $0.10 = $25
-	const entity2Overage = calculateExpectedInvoiceAmount({
-		items: pro.items,
-		usage: [{ featureId: TestFeature.Messages, value: 350 }],
-		options: { includeFixed: false, onlyArrear: true },
-	});
-	expect(entity2Overage).toBe(25);
+		// Entity 2: (350 - 100) * $0.10 = $25
+		const entity2Overage = calculateExpectedInvoiceAmount({
+			items: pro.items,
+			usage: [{ featureId: TestFeature.Messages, value: 350 }],
+			options: { includeFixed: false, onlyArrear: true },
+		});
+		expect(entity2Overage).toBe(25);
 
-	// Verify final state
-	const customerAfterAdvance =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify final state
+		const customerAfterAdvance =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Should have 4 invoices total:
-	// - 2 initial invoices ($20 each)
-	// - 1 renewal invoices ($20 + overage each)
-	expectCustomerInvoiceCorrect({
-		customer: customerAfterAdvance,
-		count: 3,
-	});
+		// Should have 4 invoices total:
+		// - 2 initial invoices ($20 each)
+		// - 1 renewal invoices ($20 + overage each)
+		expectCustomerInvoiceCorrect({
+			customer: customerAfterAdvance,
+			count: 3,
+		});
 
-	// Verify entity balances reset to 100
-	const entity1 = await autumnV1.entities.get(customerId, entities[0].id);
-	expect(entity1.features[TestFeature.Messages].balance).toBe(100);
+		// Verify entity balances reset to 100
+		const entity1 = await autumnV1.entities.get(customerId, entities[0].id);
+		expect(entity1.features[TestFeature.Messages].balance).toBe(100);
 
-	const entity2 = await autumnV1.entities.get(customerId, entities[1].id);
-	expect(entity2.features[TestFeature.Messages].balance).toBe(100);
-});
+		const entity2 = await autumnV1.entities.get(customerId, entities[1].id);
+		expect(entity2.features[TestFeature.Messages].balance).toBe(100);
+	},
+);

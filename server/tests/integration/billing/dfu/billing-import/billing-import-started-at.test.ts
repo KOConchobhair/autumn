@@ -5,11 +5,11 @@
 
 import { expect, test } from "bun:test";
 import {
-	type FlashClient,
-	THIRTY_DAYS_MS,
 	callFlash,
 	createRealStripeCustomer,
+	type FlashClient,
 	getFlashedCustomerProduct,
+	THIRTY_DAYS_MS,
 } from "@tests/integration/billing/dfu/billing-import/utils/flashTestUtils.js";
 import { TestFeature } from "@tests/setup/v2Features.js";
 import { items } from "@tests/utils/fixtures/items.js";

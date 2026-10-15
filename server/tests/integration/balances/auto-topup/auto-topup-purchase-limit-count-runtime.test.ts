@@ -100,7 +100,8 @@ test.concurrent(
 		});
 		await timeout(AUTO_TOPUP_WAIT_MS);
 
-		const afterFirst = await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
+		const afterFirst =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
 		const expectedAfterFirst = new Decimal(300).sub(260).add(100).toNumber();
 		expectBalanceCorrect({
 			customer: afterFirst,
@@ -156,9 +157,8 @@ test.concurrent(
 		});
 		await timeout(AUTO_TOPUP_WAIT_MS);
 
-		const afterSecond = await autumnV2_1.customers.get<ApiCustomerV5>(
-			customerId,
-		);
+		const afterSecond =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
 		const expectedAfterSecond = new Decimal(140).sub(100).add(100).toNumber();
 		expectBalanceCorrect({
 			customer: afterSecond,
@@ -191,9 +191,8 @@ test.concurrent(
 		});
 		await timeout(AUTO_TOPUP_WAIT_MS);
 
-		const afterBlocked = await autumnV2_1.customers.get<ApiCustomerV5>(
-			customerId,
-		);
+		const afterBlocked =
+			await autumnV2_1.customers.get<ApiCustomerV5>(customerId);
 		expectBalanceCorrect({
 			customer: afterBlocked,
 			featureId: TestFeature.Messages,

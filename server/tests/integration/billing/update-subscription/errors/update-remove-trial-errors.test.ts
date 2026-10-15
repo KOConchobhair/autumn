@@ -20,148 +20,157 @@ import chalk from "chalk";
  * - Payment failed (payment_failed)
  */
 
-test.concurrent(`${chalk.yellowBright("remove-trial-error: no payment method")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const proTrial = products.proWithTrial({
-		items: [messagesItem],
-		id: "pro-trial",
-		trialDays: 14,
-	});
+test.concurrent(
+	`${chalk.yellowBright("remove-trial-error: no payment method")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const proTrial = products.proWithTrial({
+			items: [messagesItem],
+			id: "pro-trial",
+			trialDays: 14,
+		});
 
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "remove-trial-no-pm",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [proTrial] }),
-		],
-		actions: [
-			s.attach({ productId: proTrial.id }),
-			s.removePaymentMethod(), // Remove payment method
-		],
-	});
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "remove-trial-no-pm",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [proTrial] }),
+			],
+			actions: [
+				s.attach({ productId: proTrial.id }),
+				s.removePaymentMethod(), // Remove payment method
+			],
+		});
 
-	// Remove trial - should fail with payment_method_required error
-	const updateParams = {
-		customer_id: customerId,
-		product_id: proTrial.id,
-		free_trial: null,
-	};
+		// Remove trial - should fail with payment_method_required error
+		const updateParams = {
+			customer_id: customerId,
+			product_id: proTrial.id,
+			free_trial: null,
+		};
 
-	await expectAutumnError({
-		func: async () => {
-			await autumnV1.subscriptions.update(updateParams);
-		},
-	});
+		await expectAutumnError({
+			func: async () => {
+				await autumnV1.subscriptions.update(updateParams);
+			},
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Product should still be trialing (update deferred)
-	const product = customer.products?.find((p) => p.id === proTrial.id);
-	expect(product?.status).toBe("trialing");
+		// Product should still be trialing (update deferred)
+		const product = customer.products?.find((p) => p.id === proTrial.id);
+		expect(product?.status).toBe("trialing");
 
-	// Features should not have changed
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: 100,
-	});
-});
+		// Features should not have changed
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: 100,
+		});
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("remove-trial-error: 3ds authentication required")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const proTrial = products.proWithTrial({
-		items: [messagesItem],
-		id: "pro-trial",
-		trialDays: 14,
-	});
+test.concurrent(
+	`${chalk.yellowBright("remove-trial-error: 3ds authentication required")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const proTrial = products.proWithTrial({
+			items: [messagesItem],
+			id: "pro-trial",
+			trialDays: 14,
+		});
 
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "remove-trial-3ds",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [proTrial] }),
-		],
-		actions: [
-			s.attach({ productId: proTrial.id }),
-			s.removePaymentMethod(),
-			s.attachPaymentMethod({ type: "authenticate" }), // Switch to 3DS-required card
-		],
-	});
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "remove-trial-3ds",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [proTrial] }),
+			],
+			actions: [
+				s.attach({ productId: proTrial.id }),
+				s.removePaymentMethod(),
+				s.attachPaymentMethod({ type: "authenticate" }), // Switch to 3DS-required card
+			],
+		});
 
-	// Remove trial - should fail with 3ds_required error
-	const updateParams = {
-		customer_id: customerId,
-		product_id: proTrial.id,
-		free_trial: null,
-	};
+		// Remove trial - should fail with 3ds_required error
+		const updateParams = {
+			customer_id: customerId,
+			product_id: proTrial.id,
+			free_trial: null,
+		};
 
-	await expectAutumnError({
-		func: async () => {
-			await autumnV1.subscriptions.update(updateParams);
-		},
-	});
+		await expectAutumnError({
+			func: async () => {
+				await autumnV1.subscriptions.update(updateParams);
+			},
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Product should still be trialing (update deferred)
-	const product = customer.products?.find((p) => p.id === proTrial.id);
-	expect(product?.status).toBe("trialing");
+		// Product should still be trialing (update deferred)
+		const product = customer.products?.find((p) => p.id === proTrial.id);
+		expect(product?.status).toBe("trialing");
 
-	// Features should not have changed
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: 100,
-	});
-});
+		// Features should not have changed
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: 100,
+		});
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("remove-trial-error: payment failed")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const priceItem = items.monthlyPrice({ price: 20 });
-	const proTrial = products.base({
-		items: [messagesItem, priceItem],
-		id: "pro-trial",
-		trialDays: 14,
-	});
+test.concurrent(
+	`${chalk.yellowBright("remove-trial-error: payment failed")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const priceItem = items.monthlyPrice({ price: 20 });
+		const proTrial = products.base({
+			items: [messagesItem, priceItem],
+			id: "pro-trial",
+			trialDays: 14,
+		});
 
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "remove-trial-fail",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [proTrial] }),
-		],
-		actions: [
-			s.attach({ productId: proTrial.id }),
-			s.removePaymentMethod(),
-			s.attachPaymentMethod({ type: "fail" }), // Switch to failing card
-		],
-	});
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "remove-trial-fail",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [proTrial] }),
+			],
+			actions: [
+				s.attach({ productId: proTrial.id }),
+				s.removePaymentMethod(),
+				s.attachPaymentMethod({ type: "fail" }), // Switch to failing card
+			],
+		});
 
-	// Update messages - should fail with payment_failed error
-	const newMessagesItem = items.monthlyMessages({ includedUsage: 200 });
-	const updateParams = {
-		customer_id: customerId,
-		product_id: proTrial.id,
-		items: [newMessagesItem, priceItem],
-		free_trial: null,
-	};
+		// Update messages - should fail with payment_failed error
+		const newMessagesItem = items.monthlyMessages({ includedUsage: 200 });
+		const updateParams = {
+			customer_id: customerId,
+			product_id: proTrial.id,
+			items: [newMessagesItem, priceItem],
+			free_trial: null,
+		};
 
-	await expectAutumnError({
-		func: async () => {
-			await autumnV1.subscriptions.update(updateParams);
-		},
-	});
+		await expectAutumnError({
+			func: async () => {
+				await autumnV1.subscriptions.update(updateParams);
+			},
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Product should still be active (update deferred)
-	const product = customer.products?.find((p) => p.id === proTrial.id);
-	expect(product?.status).toBe("trialing");
+		// Product should still be active (update deferred)
+		const product = customer.products?.find((p) => p.id === proTrial.id);
+		expect(product?.status).toBe("trialing");
 
-	// Features should not have changed - still original values
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: 100,
-	});
-});
+		// Features should not have changed - still original values
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: 100,
+		});
+	},
+);

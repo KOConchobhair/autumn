@@ -143,9 +143,9 @@ describe(chalk.yellowBright("getCusEntsNeedingReset"), () => {
 
 		expect(result).toHaveLength(1);
 		expect(result[0].customer_product?.status).toBe(CusProductStatus.PastDue);
-		expect(
-			result[0].customer_product?.product?.config?.ignore_past_due,
-		).toBe(true);
+		expect(result[0].customer_product?.product?.config?.ignore_past_due).toBe(
+			true,
+		);
 	});
 
 	test("skips cusEnt when product is Expired even with ignore_past_due true", () => {
@@ -211,9 +211,9 @@ describe(chalk.yellowBright("getCusEntsNeedingReset"), () => {
 		const allThree = customers.create({
 			customerProducts: [stale("cp_1"), stale("cp_2"), stale("cp_3")],
 		});
-		expect(getCusEntsNeedingReset({ fullCus: allThree, now: NOW })).toHaveLength(
-			3,
-		);
+		expect(
+			getCusEntsNeedingReset({ fullCus: allThree, now: NOW }),
+		).toHaveLength(3);
 
 		// Truncating the embedded array (as the list preview cap does) bounds the
 		// reset candidates to the loaded products — the omitted one is deferred.

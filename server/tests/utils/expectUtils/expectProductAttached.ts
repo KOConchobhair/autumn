@@ -14,7 +14,10 @@ import {
 } from "@autumn/shared";
 import { AutumnInt } from "@/external/autumn/autumnCli.js";
 
-type CustomerLike = ApiCustomerV3 | ApiEntityV0 | { products?: any[]; invoices?: any[]; id?: string };
+type CustomerLike =
+	| ApiCustomerV3
+	| ApiEntityV0
+	| { products?: any[]; invoices?: any[]; id?: string };
 
 export const expectProductAttached = ({
 	customer,
@@ -103,11 +106,14 @@ export const expectProductGroupCount = ({
 	group: string;
 	count: number;
 }) => {
-	const productCount = (customer.products ?? []).reduce((acc: number, product: any) => {
-		if (product.group === group) {
-			return acc + 1;
-		} else return acc;
-	}, 0);
+	const productCount = (customer.products ?? []).reduce(
+		(acc: number, product: any) => {
+			if (product.group === group) {
+				return acc + 1;
+			} else return acc;
+		},
+		0,
+	);
 
 	expect(
 		productCount,
@@ -214,7 +220,9 @@ export const expectInvoicesCorrect = ({
 	first,
 	// second,
 }: {
-	customer: CustomerLike & { invoices: { total: number; product_ids: string[] }[] };
+	customer: CustomerLike & {
+		invoices: { total: number; product_ids: string[] }[];
+	};
 	first: {
 		productId: string;
 		total: number;

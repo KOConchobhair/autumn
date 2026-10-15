@@ -6,8 +6,8 @@ import { expect, test } from "bun:test";
 import {
 	AllowanceType,
 	AppEnv,
-	BillWhen,
 	BillingInterval,
+	BillWhen,
 	EntInterval,
 	FeatureUsageType,
 	type FullProduct,

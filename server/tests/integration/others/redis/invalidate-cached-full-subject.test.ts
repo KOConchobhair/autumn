@@ -7,13 +7,13 @@ import {
 	test,
 } from "bun:test";
 import type { TestContext } from "@tests/utils/testInitUtils/createTestContext.js";
+import { normalizedToCachedFullSubject } from "@/internal/customers/cache/fullSubject/fullSubjectCacheModel.js";
 import {
 	buildFullSubjectKey,
 	buildFullSubjectViewEpochKey,
 	getCachedFullSubject,
 	invalidateCachedFullSubject,
 } from "@/internal/customers/cache/fullSubject/index.js";
-import { normalizedToCachedFullSubject } from "@/internal/customers/cache/fullSubject/fullSubjectCacheModel.js";
 import { getFullSubjectNormalized } from "@/internal/customers/repos/getFullSubject/index.js";
 import { cleanupFullSubjectScenario } from "../../db/full-subject/utils/cleanupFullSubjectScenario.js";
 import { buildEntitySubjectScenario } from "../../db/full-subject/utils/fullSubjectScenarioBuilders.js";
@@ -26,7 +26,9 @@ describeDb("invalidateCachedFullSubject", () => {
 	let scenario: ReturnType<typeof buildEntitySubjectScenario>;
 
 	const cleanupScenarioState = async () => {
-		const customerKeys = await ctx.redisV2.keys(`{${scenario.ids.customerId}}:*`);
+		const customerKeys = await ctx.redisV2.keys(
+			`{${scenario.ids.customerId}}:*`,
+		);
 		if (customerKeys.length > 0) await ctx.redisV2.unlink(...customerKeys);
 
 		await cleanupFullSubjectScenario({ ctx, scenario });
@@ -44,7 +46,11 @@ describeDb("invalidateCachedFullSubject", () => {
 		return epoch ? Number.parseInt(epoch, 10) : 0;
 	};
 
-	const seedCachedFullSubject = async ({ entityId }: { entityId?: string } = {}) => {
+	const seedCachedFullSubject = async ({
+		entityId,
+	}: {
+		entityId?: string;
+	} = {}) => {
 		const result = await getFullSubjectNormalized({
 			ctx,
 			customerId: scenario.ids.customerId,

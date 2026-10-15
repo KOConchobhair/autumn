@@ -37,74 +37,81 @@ import { addMonths } from "date-fns";
  * - Premium product is trialing (trial_ends_at = now + 14 days)
  * - Feature next_reset_at = trial_end + 30 days (billing cycle starts AFTER trial)
  */
-test.concurrent(`${chalk.yellowBright("v1 upgrade: pro → premium trial (reset_at = trial_end + 30 days)")}`, async () => {
-	const customerId = "v1-upgrade-trial-reset-at";
-	const trialDays = 14;
+test.concurrent(
+	`${chalk.yellowBright("v1 upgrade: pro → premium trial (reset_at = trial_end + 30 days)")}`,
+	async () => {
+		const customerId = "v1-upgrade-trial-reset-at";
+		const trialDays = 14;
 
-	// Pro: paid product, $20/mo, 500 messages
-	const proMessagesItem = items.monthlyMessages({ includedUsage: 500 });
-	const proPriceItem = items.monthlyPrice({ price: 20 });
-	const pro = products.base({
-		id: "pro",
-		items: [proMessagesItem, proPriceItem],
-	});
+		// Pro: paid product, $20/mo, 500 messages
+		const proMessagesItem = items.monthlyMessages({ includedUsage: 500 });
+		const proPriceItem = items.monthlyPrice({ price: 20 });
+		const pro = products.base({
+			id: "pro",
+			items: [proMessagesItem, proPriceItem],
+		});
 
-	// Premium with trial: $50/mo, 1000 messages, 14-day trial
-	const premiumMessagesItem = items.monthlyMessages({ includedUsage: 1000 });
-	const premiumPriceItem = items.monthlyPrice({ price: 50 });
-	const premium = products.base({
-		id: "premium",
-		items: [premiumMessagesItem, premiumPriceItem],
-		trialDays: trialDays,
-	});
+		// Premium with trial: $50/mo, 1000 messages, 14-day trial
+		const premiumMessagesItem = items.monthlyMessages({ includedUsage: 1000 });
+		const premiumPriceItem = items.monthlyPrice({ price: 50 });
+		const premium = products.base({
+			id: "premium",
+			items: [premiumMessagesItem, premiumPriceItem],
+			trialDays: trialDays,
+		});
 
-	const { autumnV1, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [
-			// Start with Pro (non-trial)
-			s.attach({ productId: pro.id }),
-		],
-	});
+		const { autumnV1, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [
+				// Start with Pro (non-trial)
+				s.attach({ productId: pro.id }),
+			],
+		});
 
-	// Verify initial state on Pro (no trial)
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({ customer: customerBefore, productId: pro.id });
-	expectCustomerFeatureCorrect({
-		customer: customerBefore,
-		featureId: TestFeature.Messages,
-		includedUsage: 500,
-		balance: 500,
-		usage: 0,
-	});
+		// Verify initial state on Pro (no trial)
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({ customer: customerBefore, productId: pro.id });
+		expectCustomerFeatureCorrect({
+			customer: customerBefore,
+			featureId: TestFeature.Messages,
+			includedUsage: 500,
+			balance: 500,
+			usage: 0,
+		});
 
-	// Upgrade to Premium with trial using V1 attach
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-	});
+		// Upgrade to Premium with trial using V1 attach
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+		});
 
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Verify upgraded to Premium and trialing
-	await expectProductActive({ customer: customerAfter, productId: premium.id });
-	await expectProductTrialing({
-		customer: customerAfter,
-		productId: premium.id,
-		trialEndsAt: advancedTo + ms.days(trialDays),
-	});
+		// Verify upgraded to Premium and trialing
+		await expectProductActive({
+			customer: customerAfter,
+			productId: premium.id,
+		});
+		await expectProductTrialing({
+			customer: customerAfter,
+			productId: premium.id,
+			trialEndsAt: advancedTo + ms.days(trialDays),
+		});
 
-	// KEY ASSERTION: next_reset_at = trial_end + 30 days
-	expectCustomerFeatureCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Messages,
-		includedUsage: 1000,
-		balance: 1000,
-		usage: 0,
-		resetsAt: addMonths(advancedTo + ms.days(trialDays), 1).getTime(),
-	});
-});
+		// KEY ASSERTION: next_reset_at = trial_end + 30 days
+		expectCustomerFeatureCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Messages,
+			includedUsage: 1000,
+			balance: 1000,
+			usage: 0,
+			resetsAt: addMonths(advancedTo + ms.days(trialDays), 1).getTime(),
+		});
+	},
+);

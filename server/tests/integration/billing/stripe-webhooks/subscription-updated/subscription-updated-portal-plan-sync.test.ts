@@ -4,8 +4,8 @@ import {
 	getAllStripePriceIds,
 	getFirstStripePriceId,
 } from "@tests/integration/billing/sync/utils/syncTestUtils";
-import { getSubscriptionId } from "@tests/integration/billing/utils/stripe/getSubscriptionId";
 import { expectCustomerProducts } from "@tests/integration/billing/utils/expectCustomerProductCorrect";
+import { getSubscriptionId } from "@tests/integration/billing/utils/stripe/getSubscriptionId";
 import { items } from "@tests/utils/fixtures/items";
 import { products } from "@tests/utils/fixtures/products";
 import { timeout } from "@tests/utils/genUtils";
@@ -48,7 +48,8 @@ const setupPortalPlanSync = async ({
 		customerId,
 		productId: ultra.id,
 	});
-	const subscription = await ctx.stripeCli.subscriptions.retrieve(subscriptionId);
+	const subscription =
+		await ctx.stripeCli.subscriptions.retrieve(subscriptionId);
 	const subscriptionItemId = subscription.items.data[0]?.id;
 	if (!subscriptionItemId) {
 		throw new Error(`Subscription ${subscriptionId} has no item to update`);

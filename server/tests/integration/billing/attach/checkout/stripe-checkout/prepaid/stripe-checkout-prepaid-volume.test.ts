@@ -6,40 +6,43 @@ import { products } from "@tests/utils/fixtures/products";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
 
-test.concurrent(`${chalk.yellowBright("stripe-checkout: prepaid volume: flat_amount only")}`, async () => {
-	const customerId = "stripe-cko-prepaid-volume-flat";
-	const quantity = 50;
+test.concurrent(
+	`${chalk.yellowBright("stripe-checkout: prepaid volume: flat_amount only")}`,
+	async () => {
+		const customerId = "stripe-cko-prepaid-volume-flat";
+		const quantity = 50;
 
-	// Tier 1: 0-100 → $0/unit, $20 flat. Tier 2: 101+ → $0/unit, $50 flat.
-	// 50 units → falls in tier 1 → 50 × $0 + $20 = $20
-	const expectedTotal = 20;
+		// Tier 1: 0-100 → $0/unit, $20 flat. Tier 2: 101+ → $0/unit, $50 flat.
+		// 50 units → falls in tier 1 → 50 × $0 + $20 = $20
+		const expectedTotal = 20;
 
-	const volumeItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: 1,
-		tiers: [
-			{ to: 100, amount: 0, flat_amount: 20 },
-			{ to: "inf", amount: 0, flat_amount: 50 },
-		],
-	});
+		const volumeItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: 1,
+			tiers: [
+				{ to: 100, amount: 0, flat_amount: 20 },
+				{ to: "inf", amount: 0, flat_amount: 50 },
+			],
+		});
 
-	const product = products.base({
-		id: "vol-flat-only",
-		items: [volumeItem],
-	});
+		const product = products.base({
+			id: "vol-flat-only",
+			items: [volumeItem],
+		});
 
-	const { autumnV2 } = await initScenario({
-		customerId,
-		setup: [s.customer({}), s.products({ list: [product] })],
-		actions: [],
-	});
+		const { autumnV2 } = await initScenario({
+			customerId,
+			setup: [s.customer({}), s.products({ list: [product] })],
+			actions: [],
+		});
 
-	const result = await autumnV2.billing.attach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: product.id,
-		redirect_mode: "if_required",
-		feature_quantities: [{ feature_id: TestFeature.Messages, quantity }],
-	});
+		const result = await autumnV2.billing.attach<AttachParamsV1Input>({
+			customer_id: customerId,
+			plan_id: product.id,
+			redirect_mode: "if_required",
+			feature_quantities: [{ feature_id: TestFeature.Messages, quantity }],
+		});
 
-	console.log(result);
-});
+		console.log(result);
+	},
+);

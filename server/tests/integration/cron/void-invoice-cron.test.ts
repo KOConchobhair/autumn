@@ -30,72 +30,77 @@ import { MetadataService } from "@/internal/metadata/MetadataService";
  * - Call handleVoidInvoiceCron → invoice voided
  * - Verify customer reflects voided invoice
  */
-test.concurrent(`${chalk.yellowBright("void-invoice-cron 1: void open invoice from failed upgrade")}`, async () => {
-	const customerId = "void-invoice-cron-upgrade";
+test.concurrent(
+	`${chalk.yellowBright("void-invoice-cron 1: void open invoice from failed upgrade")}`,
+	async () => {
+		const customerId = "void-invoice-cron-upgrade";
 
-	const proMessagesItem = items.monthlyMessages({ includedUsage: 200 });
-	const pro = products.pro({
-		id: "pro",
-		items: [proMessagesItem],
-	});
+		const proMessagesItem = items.monthlyMessages({ includedUsage: 200 });
+		const pro = products.pro({
+			id: "pro",
+			items: [proMessagesItem],
+		});
 
-	const premiumMessagesItem = items.monthlyMessages({
-		includedUsage: 100,
-	});
-	const premium = products.premium({
-		id: "premium",
-		items: [premiumMessagesItem],
-	});
+		const premiumMessagesItem = items.monthlyMessages({
+			includedUsage: 100,
+		});
+		const premium = products.premium({
+			id: "premium",
+			items: [premiumMessagesItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.attachPaymentMethod({ type: "authenticate" }),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.attachPaymentMethod({ type: "authenticate" }),
+			],
+		});
 
-	// Upgrade to premium — should fail with checkout_url
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-	});
+		// Upgrade to premium — should fail with checkout_url
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+		});
 
-	// Verify open invoice on customer
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expect(customer.invoices?.[0].status).toBe("open");
+		// Verify open invoice on customer
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expect(customer.invoices?.[0].status).toBe("open");
 
-	// Get the Stripe invoice and its autumn metadata
-	const stripeInvoices = await ctx.stripeCli.invoices.list({
-		customer: customer.stripe_id!,
-	});
-	const latestInvoice = stripeInvoices.data[0];
+		// Get the Stripe invoice and its autumn metadata
+		const stripeInvoices = await ctx.stripeCli.invoices.list({
+			customer: customer.stripe_id!,
+		});
+		const latestInvoice = stripeInvoices.data[0];
 
-	expect(latestInvoice.metadata?.autumn_metadata_id).toBeDefined();
+		expect(latestInvoice.metadata?.autumn_metadata_id).toBeDefined();
 
-	const metadata = await MetadataService.get({
-		db: ctx.db,
-		id: latestInvoice.metadata?.autumn_metadata_id ?? "",
-	});
+		const metadata = await MetadataService.get({
+			db: ctx.db,
+			id: latestInvoice.metadata?.autumn_metadata_id ?? "",
+		});
 
-	expect(metadata).toBeDefined();
+		expect(metadata).toBeDefined();
 
-	// Run the void invoice cron handler
-	await handleVoidInvoiceCron({
-		metadata: metadata!,
-		ctx,
-	});
+		// Run the void invoice cron handler
+		await handleVoidInvoiceCron({
+			metadata: metadata!,
+			ctx,
+		});
 
-	// Verify the Stripe invoice is now voided
-	const voidedInvoice = await ctx.stripeCli.invoices.retrieve(latestInvoice.id);
-	expect(voidedInvoice.status).toBe("void");
+		// Verify the Stripe invoice is now voided
+		const voidedInvoice = await ctx.stripeCli.invoices.retrieve(
+			latestInvoice.id,
+		);
+		expect(voidedInvoice.status).toBe("void");
 
-	// // Wait for cache to update, then verify customer reflects voided status
-	// await timeout(3000);
-	// const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	// expect(customerAfter.invoices?.[0].status).toBe("void");
-});
+		// // Wait for cache to update, then verify customer reflects voided status
+		// await timeout(3000);
+		// const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// expect(customerAfter.invoices?.[0].status).toBe("void");
+	},
+);

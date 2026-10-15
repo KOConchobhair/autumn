@@ -34,120 +34,135 @@ test.concurrent(`${chalk.yellowBright("create: basic with ID")}`, async () => {
 	expect(data.autumn_id).toBeUndefined();
 });
 
-test.concurrent(`${chalk.yellowBright("create: idempotent with same ID")}`, async () => {
-	const customerId = "create-idempotent";
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: false })],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("create: idempotent with same ID")}`,
+	async () => {
+		const customerId = "create-idempotent";
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [s.customer({ testClock: false })],
+			actions: [],
+		});
 
-	// Delete first
-	try {
-		await autumnV1.customers.delete(customerId);
-	} catch {}
+		// Delete first
+		try {
+			await autumnV1.customers.delete(customerId);
+		} catch {}
 
-	// First create
-	const data1 = await autumnV1.customers.create({
-		id: customerId,
-		name: "Test Customer",
-		email: `${customerId}@example.com`,
-		withAutumnId: true,
-	});
+		// First create
+		const data1 = await autumnV1.customers.create({
+			id: customerId,
+			name: "Test Customer",
+			email: `${customerId}@example.com`,
+			withAutumnId: true,
+		});
 
-	// Second create - should return existing
-	const data2 = await autumnV1.customers.create({
-		id: customerId,
-		name: "Test Customer",
-		email: `${customerId}@example.com`,
-		withAutumnId: true,
-	});
+		// Second create - should return existing
+		const data2 = await autumnV1.customers.create({
+			id: customerId,
+			name: "Test Customer",
+			email: `${customerId}@example.com`,
+			withAutumnId: true,
+		});
 
-	expect(data1.id).toBe(data2.id);
-	expect(data1.autumn_id).toBe(data2.autumn_id);
-});
+		expect(data1.id).toBe(data2.id);
+		expect(data1.autumn_id).toBe(data2.autumn_id);
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("create: with expand params")}`, async () => {
-	const customerId = "create-expand";
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [s.deleteCustomer({ customerId })],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("create: with expand params")}`,
+	async () => {
+		const customerId = "create-expand";
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [s.deleteCustomer({ customerId })],
+			actions: [],
+		});
 
-	const data = await autumnV1.customers.create({
-		id: customerId,
-		name: customerId,
-		email: `${customerId}@example.com`,
-		withAutumnId: false,
-		expand: [
-			CustomerExpand.Invoices,
-			CustomerExpand.TrialsUsed,
-			CustomerExpand.Entities,
-		],
-	});
+		const data = await autumnV1.customers.create({
+			id: customerId,
+			name: customerId,
+			email: `${customerId}@example.com`,
+			withAutumnId: false,
+			expand: [
+				CustomerExpand.Invoices,
+				CustomerExpand.TrialsUsed,
+				CustomerExpand.Entities,
+			],
+		});
 
-	expect(data.invoices).toEqual([]);
-	expect(data.trials_used).toEqual([]);
-	expect(data.entities).toEqual([]);
-});
+		expect(data.invoices).toEqual([]);
+		expect(data.trials_used).toEqual([]);
+		expect(data.entities).toEqual([]);
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("create: null ID no email (error)")}`, async () => {
-	const customerId = "create-null-id-no-email";
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: false })],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("create: null ID no email (error)")}`,
+	async () => {
+		const customerId = "create-null-id-no-email";
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [s.customer({ testClock: false })],
+			actions: [],
+		});
 
-	await expectAutumnError({
-		func: async () => {
-			await autumnV1.customers.create({
-				id: null,
-				name: "Null ID Customer",
-				withAutumnId: false,
-			});
-		},
-	});
-});
+		await expectAutumnError({
+			func: async () => {
+				await autumnV1.customers.create({
+					id: null,
+					name: "Null ID Customer",
+					withAutumnId: false,
+				});
+			},
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SEND EMAIL RECEIPTS TESTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("create: with send_email_receipts true")}`, async () => {
-	const customerId = "create-send-email-receipts-true";
-	const { autumnV1 } = await initScenario({
-		// customerId,
-		setup: [s.deleteCustomer({ customerId })],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("create: with send_email_receipts true")}`,
+	async () => {
+		const customerId = "create-send-email-receipts-true";
+		const { autumnV1 } = await initScenario({
+			// customerId,
+			setup: [s.deleteCustomer({ customerId })],
+			actions: [],
+		});
 
-	const data = await autumnV1.customers.create({
-		id: customerId,
-		name: "Email Receipts Customer",
-		email: `${customerId}@example.com`,
-		send_email_receipts: true,
-	});
+		const data = await autumnV1.customers.create({
+			id: customerId,
+			name: "Email Receipts Customer",
+			email: `${customerId}@example.com`,
+			send_email_receipts: true,
+		});
 
-	expect(data.id).toBe(customerId);
-	expect(data.send_email_receipts).toBe(true);
-});
+		expect(data.id).toBe(customerId);
+		expect(data.send_email_receipts).toBe(true);
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("create: send_email_receipts defaults to false")}`, async () => {
-	const customerId = "create-send-email-receipts-default";
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [s.deleteCustomer({ customerId })],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("create: send_email_receipts defaults to false")}`,
+	async () => {
+		const customerId = "create-send-email-receipts-default";
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [s.deleteCustomer({ customerId })],
+			actions: [],
+		});
 
-	const data = await autumnV1.customers.create({
-		id: customerId,
-		name: "No Email Receipts Customer",
-		email: `${customerId}@example.com`,
-	});
+		const data = await autumnV1.customers.create({
+			id: customerId,
+			name: "No Email Receipts Customer",
+			email: `${customerId}@example.com`,
+		});
 
-	expect(data.id).toBe(customerId);
-	expect(data.send_email_receipts).toBe(false);
-});
+		expect(data.id).toBe(customerId);
+		expect(data.send_email_receipts).toBe(false);
+	},
+);

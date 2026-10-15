@@ -57,10 +57,7 @@ test.concurrent(
 		const customerId = "batch-replace-inplace-10to30";
 		const plan = products.base({
 			id: "batch-replace-inplace-plan",
-			items: [
-				items.dashboard(),
-				items.monthlyMessages({ includedUsage: 30 }),
-			],
+			items: [items.dashboard(), items.monthlyMessages({ includedUsage: 30 })],
 		});
 
 		const { ctx, autumnV2_3 } = await initScenario({
@@ -116,10 +113,7 @@ test.concurrent(
 		const customerId = "batch-replace-already-at-30";
 		const plan = products.base({
 			id: "batch-replace-already-30-plan",
-			items: [
-				items.dashboard(),
-				items.monthlyMessages({ includedUsage: 30 }),
-			],
+			items: [items.dashboard(), items.monthlyMessages({ includedUsage: 30 })],
 		});
 
 		const { ctx, autumnV2_3 } = await initScenario({
@@ -168,10 +162,7 @@ test.concurrent(
 		const customerId = "batch-replace-already-200";
 		const plan = products.base({
 			id: "batch-replace-already-200-plan",
-			items: [
-				items.dashboard(),
-				items.monthlyMessages({ includedUsage: 100 }),
-			],
+			items: [items.dashboard(), items.monthlyMessages({ includedUsage: 100 })],
 		});
 
 		const { ctx, autumnV2_3 } = await initScenario({

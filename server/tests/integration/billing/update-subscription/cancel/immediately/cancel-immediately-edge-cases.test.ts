@@ -17,8 +17,8 @@ import { items } from "@tests/utils/fixtures/items";
 import { products } from "@tests/utils/fixtures/products";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
-import { CusProductService } from "@/internal/customers/cusProducts/CusProductService";
 import { CusService } from "@/internal/customers/CusService";
+import { CusProductService } from "@/internal/customers/cusProducts/CusProductService";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 1: Cancel pro immediately after entity cancel/uncancel/cancel cycle
@@ -36,85 +36,88 @@ import { CusService } from "@/internal/customers/CusService";
  * This tests the edge case where a subscription schedule exists from the entity
  * cancel operations, and then we try to cancel a different product immediately.
  */
-test.concurrent(`${chalk.yellowBright("cancel immediately edge: cancel pro after entity cancel/uncancel/cancel cycle")}`, async () => {
-	const customerId = "cancel-imm-edge-entity-cycle";
+test.concurrent(
+	`${chalk.yellowBright("cancel immediately edge: cancel pro after entity cancel/uncancel/cancel cycle")}`,
+	async () => {
+		const customerId = "cancel-imm-edge-entity-cycle";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
 
-	const pro = products.pro({
-		id: "pro",
-		items: [messagesItem],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [messagesItem],
+		});
 
-	const addon = products.recurringAddOn({
-		id: "addon",
-		items: [items.monthlyMessages({ includedUsage: 300 })],
-	});
+		const addon = products.recurringAddOn({
+			id: "addon",
+			items: [items.monthlyMessages({ includedUsage: 300 })],
+		});
 
-	const premiumPriceItem = items.monthlyPrice({ price: 50 });
-	const premium = products.base({
-		id: "premium",
-		items: [messagesItem, premiumPriceItem],
-	});
+		const premiumPriceItem = items.monthlyPrice({ price: 50 });
+		const premium = products.base({
+			id: "premium",
+			items: [messagesItem, premiumPriceItem],
+		});
 
-	const { autumnV1, entities, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: false }),
-			s.products({ list: [pro, addon, premium] }),
-			s.entities({ count: 1, featureId: "users" }),
-		],
-		actions: [
-			// A. Attach pro and recurring add-on to customer
-			s.attach({ productId: pro.id }),
-			s.attach({ productId: addon.id }),
-			// B. Attach premium to entity
-			s.attach({ productId: premium.id, entityIndex: 0, timeout: 3000 }),
-			s.updateSubscription({
-				productId: premium.id,
-				entityIndex: 0,
-				cancelAction: "cancel_end_of_cycle",
-			}),
-		],
-	});
+		const { autumnV1, entities, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: false }),
+				s.products({ list: [pro, addon, premium] }),
+				s.entities({ count: 1, featureId: "users" }),
+			],
+			actions: [
+				// A. Attach pro and recurring add-on to customer
+				s.attach({ productId: pro.id }),
+				s.attach({ productId: addon.id }),
+				// B. Attach premium to entity
+				s.attach({ productId: premium.id, entityIndex: 0, timeout: 3000 }),
+				s.updateSubscription({
+					productId: premium.id,
+					entityIndex: 0,
+					cancelAction: "cancel_end_of_cycle",
+				}),
+			],
+		});
 
-	// Step 4: Try to cancel pro on customer immediately with next_cycle_only
-	// This is the edge case - there's a subscription schedule from the entity operations,
-	// and we're trying to cancel a different product immediately
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: pro.id,
-		cancel_action: "cancel_immediately",
-		billing_behavior: "none",
-	});
+		// Step 4: Try to cancel pro on customer immediately with next_cycle_only
+		// This is the edge case - there's a subscription schedule from the entity operations,
+		// and we're trying to cancel a different product immediately
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: pro.id,
+			cancel_action: "cancel_immediately",
+			billing_behavior: "none",
+		});
 
-	// Verify pro is removed, addon still active
-	const customerAfterCancel =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify pro is removed, addon still active
+		const customerAfterCancel =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer: customerAfterCancel,
-		notPresent: [pro.id],
-		active: [addon.id],
-		// Worker customer reads omit entity-owned plans; the entity assert below covers premium.
-		...(isBalanceWorkerRoute() ? {} : { canceling: [premium.id] }),
-	});
+		await expectCustomerProducts({
+			customer: customerAfterCancel,
+			notPresent: [pro.id],
+			active: [addon.id],
+			// Worker customer reads omit entity-owned plans; the entity assert below covers premium.
+			...(isBalanceWorkerRoute() ? {} : { canceling: [premium.id] }),
+		});
 
-	// Entity premium should still be canceling
-	const entityFinal = await autumnV1.entities.get(customerId, entities[0].id);
-	await expectProductCanceling({
-		customer: entityFinal,
-		productId: premium.id,
-	});
+		// Entity premium should still be canceling
+		const entityFinal = await autumnV1.entities.get(customerId, entities[0].id);
+		await expectProductCanceling({
+			customer: entityFinal,
+			productId: premium.id,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		// shouldBeCanceled: true,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			// shouldBeCanceled: true,
+		});
+	},
+);
 
 test(`${chalk.yellowBright("cancel orphaned base: cancel_immediately on a paid recurring orphan does not create a new sub")}`, async () => {
 	const customerId = "cancel-orphaned-base-immediately";
@@ -123,7 +126,11 @@ test(`${chalk.yellowBright("cancel orphaned base: cancel_immediately on a paid r
 	const priceItem = items.monthlyPrice({ price: 20 });
 	const pro = products.base({ id: "pro", items: [messagesItem, priceItem] });
 
-	const { customerId: cid, autumnV1, ctx } = await initScenario({
+	const {
+		customerId: cid,
+		autumnV1,
+		ctx,
+	} = await initScenario({
 		customerId,
 		setup: [
 			s.customer({ paymentMethod: "success" }),
@@ -175,8 +182,7 @@ test(`${chalk.yellowBright("cancel orphaned base: cancel_immediately on a paid r
 		idOrInternalId: cid,
 	});
 	const activePro = fullCustomerAfter.customer_products.find(
-		(cp) =>
-			cp.product_id === pro.id && cp.status === CusProductStatus.Active,
+		(cp) => cp.product_id === pro.id && cp.status === CusProductStatus.Active,
 	);
 	expect(activePro).toBeUndefined();
 });

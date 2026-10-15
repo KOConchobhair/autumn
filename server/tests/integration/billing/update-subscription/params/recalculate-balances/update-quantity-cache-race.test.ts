@@ -38,166 +38,172 @@ import { deleteCachedFullCustomer } from "@/internal/customers/cusUtils/fullCust
  *   - After 200: assert both cached and DB reads show the new balance
  */
 
-test.concurrent(`${chalk.yellowBright("cache-race: concurrent webhook delete + stale re-population during billing.update leaves correct balance after 200")}`, async () => {
-	const customerId = "billing-update-cache-race";
-	const initialQuantity = 250;
-	const updatedQuantity = 1500;
+test.concurrent(
+	`${chalk.yellowBright("cache-race: concurrent webhook delete + stale re-population during billing.update leaves correct balance after 200")}`,
+	async () => {
+		const customerId = "billing-update-cache-race";
+		const initialQuantity = 250;
+		const updatedQuantity = 1500;
 
-	const product = products.base({
-		id: "ai-credits-plan",
-		items: [
-			items.prepaid({
-				featureId: TestFeature.Messages,
-				billingUnits: 1,
-				price: 1,
-				includedUsage: 0,
-			}),
-		],
-	});
+		const product = products.base({
+			id: "ai-credits-plan",
+			items: [
+				items.prepaid({
+					featureId: TestFeature.Messages,
+					billingUnits: 1,
+					price: 1,
+					includedUsage: 0,
+				}),
+			],
+		});
 
-	const { autumnV1, autumnV2_1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialQuantity },
+		const { autumnV1, autumnV2_1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialQuantity },
+					],
+				}),
+			],
+		});
+
+		// Confirm correct initial state in both cache and DB before the race.
+		await expectFeatureCachedAndDb({
+			autumn: autumnV1,
+			customerId,
+			featureId: TestFeature.Messages,
+			balance: initialQuantity,
+			usage: 0,
+		});
+
+		await Promise.all([
+			// Leg 1: the long-running billing.update (~20s in prod).
+			autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
+				customer_id: customerId,
+				plan_id: product.id,
+				feature_quantities: [
+					{ feature_id: TestFeature.Messages, quantity: updatedQuantity },
 				],
+				recalculate_balances: { enabled: true },
 			}),
-		],
-	});
 
-	// Confirm correct initial state in both cache and DB before the race.
-	await expectFeatureCachedAndDb({
-		autumn: autumnV1,
-		customerId,
-		featureId: TestFeature.Messages,
-		balance: initialQuantity,
-		usage: 0,
-	});
+			// Leg 2: concurrent webhook + stale reader, mirroring the Axiom timeline.
+			(async () => {
+				// Wait for billing.update to be in-flight (Stripe processes subscription
+				// update and fires webhooks roughly 2–3s after the call starts).
+				await timeout(3000);
 
-	await Promise.all([
-		// Leg 1: the long-running billing.update (~20s in prod).
-		autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
+				// Simulate customer.subscription.updated webhook deleting the cache.
+				await deleteCachedFullCustomer({
+					customerId,
+					ctx,
+					source: "simulated-stripe-webhook",
+					skipGuard: true,
+				});
+
+				// Simulate concurrent balances.check / entities.get reads that
+				// re-populate the cache with the pre-update stale value while
+				// billing.update is still running (this is what Kyle's dashboard
+				// was doing — polling GET /customers mid-flight).
+				await autumnV1.customers.get<ApiCustomerV3>(customerId);
+				await autumnV1.customers.get<ApiCustomerV3>(customerId);
+			})(),
+		]);
+
+		// THE ASSERTION THAT CATCHES THE BUG:
+		// Both reads must reflect the new balance immediately after billing.update
+		// returns 200 — not the stale pre-update value re-populated by the concurrent
+		// reads during the race window.
+		const customerCached =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerDb = await autumnV1.customers.get<ApiCustomerV3>(customerId, {
+			skip_cache: "true",
+		});
+
+		console.log(
+			`[cache-race] cached balance: ${customerCached.features[TestFeature.Messages]?.balance} | db balance: ${customerDb.features[TestFeature.Messages]?.balance} | expected: ${updatedQuantity}`,
+		);
+
+		await expectFeatureCachedAndDb({
+			autumn: autumnV1,
+			customerId,
+			featureId: TestFeature.Messages,
+			balance: updatedQuantity,
+			usage: 0,
+		});
+	},
+);
+
+/**
+ * Control: same product/quantity update without the concurrent race.
+ * Ensures the fix doesn't break the happy path.
+ */
+test.concurrent(
+	`${chalk.yellowBright("cache-race: billing.update with recalculate_balances reflects new balance in cache (no race)")}`,
+	async () => {
+		const customerId = "billing-update-no-cache-race";
+		const initialQuantity = 250;
+		const updatedQuantity = 1500;
+
+		const product = products.base({
+			id: "ai-credits-plan",
+			items: [
+				items.prepaid({
+					featureId: TestFeature.Messages,
+					billingUnits: 1,
+					price: 1,
+					includedUsage: 0,
+				}),
+			],
+		});
+
+		const { autumnV1, autumnV2_1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialQuantity },
+					],
+				}),
+			],
+		});
+
+		await autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
 			customer_id: customerId,
 			plan_id: product.id,
 			feature_quantities: [
 				{ feature_id: TestFeature.Messages, quantity: updatedQuantity },
 			],
 			recalculate_balances: { enabled: true },
-		}),
+		});
 
-		// Leg 2: concurrent webhook + stale reader, mirroring the Axiom timeline.
-		(async () => {
-			// Wait for billing.update to be in-flight (Stripe processes subscription
-			// update and fires webhooks roughly 2–3s after the call starts).
-			await timeout(3000);
-
-			// Simulate customer.subscription.updated webhook deleting the cache.
-			await deleteCachedFullCustomer({
-				customerId,
-				ctx,
-				source: "simulated-stripe-webhook",
-				skipGuard: true,
-			});
-
-			// Simulate concurrent balances.check / entities.get reads that
-			// re-populate the cache with the pre-update stale value while
-			// billing.update is still running (this is what Kyle's dashboard
-			// was doing — polling GET /customers mid-flight).
+		const customerCached =
 			await autumnV1.customers.get<ApiCustomerV3>(customerId);
-			await autumnV1.customers.get<ApiCustomerV3>(customerId);
-		})(),
-	]);
+		const customerDb = await autumnV1.customers.get<ApiCustomerV3>(customerId, {
+			skip_cache: "true",
+		});
 
-	// THE ASSERTION THAT CATCHES THE BUG:
-	// Both reads must reflect the new balance immediately after billing.update
-	// returns 200 — not the stale pre-update value re-populated by the concurrent
-	// reads during the race window.
-	const customerCached =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	const customerDb = await autumnV1.customers.get<ApiCustomerV3>(customerId, {
-		skip_cache: "true",
-	});
+		console.log(
+			`[no-race] cached balance: ${customerCached.features[TestFeature.Messages]?.balance} | db balance: ${customerDb.features[TestFeature.Messages]?.balance} | expected: ${updatedQuantity}`,
+		);
 
-	console.log(
-		`[cache-race] cached balance: ${customerCached.features[TestFeature.Messages]?.balance} | db balance: ${customerDb.features[TestFeature.Messages]?.balance} | expected: ${updatedQuantity}`,
-	);
-
-	await expectFeatureCachedAndDb({
-		autumn: autumnV1,
-		customerId,
-		featureId: TestFeature.Messages,
-		balance: updatedQuantity,
-		usage: 0,
-	});
-});
-
-/**
- * Control: same product/quantity update without the concurrent race.
- * Ensures the fix doesn't break the happy path.
- */
-test.concurrent(`${chalk.yellowBright("cache-race: billing.update with recalculate_balances reflects new balance in cache (no race)")}`, async () => {
-	const customerId = "billing-update-no-cache-race";
-	const initialQuantity = 250;
-	const updatedQuantity = 1500;
-
-	const product = products.base({
-		id: "ai-credits-plan",
-		items: [
-			items.prepaid({
-				featureId: TestFeature.Messages,
-				billingUnits: 1,
-				price: 1,
-				includedUsage: 0,
-			}),
-		],
-	});
-
-	const { autumnV1, autumnV2_1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialQuantity },
-				],
-			}),
-		],
-	});
-
-	await autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
-		customer_id: customerId,
-		plan_id: product.id,
-		feature_quantities: [
-			{ feature_id: TestFeature.Messages, quantity: updatedQuantity },
-		],
-		recalculate_balances: { enabled: true },
-	});
-
-	const customerCached =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	const customerDb = await autumnV1.customers.get<ApiCustomerV3>(customerId, {
-		skip_cache: "true",
-	});
-
-	console.log(
-		`[no-race] cached balance: ${customerCached.features[TestFeature.Messages]?.balance} | db balance: ${customerDb.features[TestFeature.Messages]?.balance} | expected: ${updatedQuantity}`,
-	);
-
-	await expectFeatureCachedAndDb({
-		autumn: autumnV1,
-		customerId,
-		featureId: TestFeature.Messages,
-		balance: updatedQuantity,
-		usage: 0,
-	});
-});
+		await expectFeatureCachedAndDb({
+			autumn: autumnV1,
+			customerId,
+			featureId: TestFeature.Messages,
+			balance: updatedQuantity,
+			usage: 0,
+		});
+	},
+);

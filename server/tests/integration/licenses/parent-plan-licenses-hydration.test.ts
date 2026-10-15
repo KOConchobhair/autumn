@@ -26,7 +26,10 @@ test.concurrent(
 
 		const { ctx } = await initScenario({
 			customerId: "ppl-hydration",
-			setup: [s.customer({ testClock: false }), s.products({ list: [parent, devSeat] })],
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [parent, devSeat] }),
+			],
 			actions: [
 				s.licenses.link({
 					parentProductId: parent.id,
@@ -46,13 +49,17 @@ test.concurrent(
 		expect(seatFull.parent_plan_licenses).toHaveLength(1);
 		expect(seatFull.parent_plan_licenses?.[0]).toMatchObject({ included: 2 });
 		expect(seatFull.parent_plan_licenses?.[0]?.product.id).toBe(parent.id);
-		expect(seatFull.parent_plan_licenses?.[0]?.product.licenses).toHaveLength(1);
-		expect(seatFull.parent_plan_licenses?.[0]?.product.licenses?.[0]).toMatchObject({
+		expect(seatFull.parent_plan_licenses?.[0]?.product.licenses).toHaveLength(
+			1,
+		);
+		expect(
+			seatFull.parent_plan_licenses?.[0]?.product.licenses?.[0],
+		).toMatchObject({
 			included: 2,
 		});
-		expect(seatFull.parent_plan_licenses?.[0]?.product.licenses?.[0]?.product.id).toBe(
-			devSeat.id,
-		);
+		expect(
+			seatFull.parent_plan_licenses?.[0]?.product.licenses?.[0]?.product.id,
+		).toBe(devSeat.id);
 
 		// parent side unchanged; non-license products carry no parent links
 		const parentFull = await ProductService.getFull({
@@ -73,7 +80,9 @@ test.concurrent(
 		});
 		const seatInList = list.find((product) => product.id === devSeat.id);
 		expect(seatInList?.parent_plan_licenses?.[0]?.product.id).toBe(parent.id);
-		expect(seatInList?.parent_plan_licenses?.[0]?.product.licenses).toHaveLength(1);
+		expect(
+			seatInList?.parent_plan_licenses?.[0]?.product.licenses,
+		).toHaveLength(1);
 		expect(
 			seatInList?.parent_plan_licenses?.[0]?.product.licenses?.[0]?.product.id,
 		).toBe(devSeat.id);

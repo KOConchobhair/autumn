@@ -124,7 +124,12 @@ describe("license transitions lower into operations", () => {
 			productTransitions: {
 				basePrice: undefined,
 				customerProduct: undefined,
-				entitlementPrices: { transitions: [], retained: [], added: [], deleted: [] },
+				entitlementPrices: {
+					transitions: [],
+					retained: [],
+					added: [],
+					deleted: [],
+				},
 				toProduct: fromProduct,
 			},
 			licenseLinks,
@@ -264,7 +269,12 @@ describe("version link diff", () => {
 			productTransitions: {
 				basePrice: undefined,
 				customerProduct: undefined,
-				entitlementPrices: { transitions: [], retained: [], added: [], deleted: [] },
+				entitlementPrices: {
+					transitions: [],
+					retained: [],
+					added: [],
+					deleted: [],
+				},
 				toProduct: fromProduct,
 			},
 			licenseLinks: links,
@@ -332,7 +342,12 @@ describe("version link diff", () => {
 			productTransitions: {
 				basePrice: undefined,
 				customerProduct: undefined,
-				entitlementPrices: { transitions: [], retained: [], added: [], deleted: [] },
+				entitlementPrices: {
+					transitions: [],
+					retained: [],
+					added: [],
+					deleted: [],
+				},
 				toProduct: fromProduct,
 			},
 			licenseLinks: links,

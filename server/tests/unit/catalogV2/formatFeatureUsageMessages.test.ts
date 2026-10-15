@@ -55,8 +55,7 @@ describe("formatFeatureUsageMessages", () => {
 			}),
 		).toEqual([
 			{
-				message:
-					'Plans "Free" and 10,000+ others are using this feature.',
+				message: 'Plans "Free" and 10,000+ others are using this feature.',
 			},
 		]);
 	});

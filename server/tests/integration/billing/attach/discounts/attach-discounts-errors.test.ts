@@ -32,39 +32,42 @@ import { createPercentCoupon } from "../../utils/discounts/discountTestUtils.js"
  * Expected:
  * - ErrCode.InvalidRequest error
  */
-test.concurrent(`${chalk.yellowBright("attach-discount-error 1: invalid coupon ID")}`, async () => {
-	const customerId = "att-disc-err-bad-coupon";
+test.concurrent(
+	`${chalk.yellowBright("attach-discount-error 1: invalid coupon ID")}`,
+	async () => {
+		const customerId = "att-disc-err-bad-coupon";
 
-	const free = products.base({
-		id: "free",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+		const free = products.base({
+			id: "free",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const pro = products.pro({
-		id: "pro",
-		items: [items.monthlyMessages({ includedUsage: 500 })],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [items.monthlyMessages({ includedUsage: 500 })],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, pro] }),
-		],
-		actions: [s.billing.attach({ productId: free.id })],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, pro] }),
+			],
+			actions: [s.billing.attach({ productId: free.id })],
+		});
 
-	await expectAutumnError({
-		errCode: ErrCode.InvalidRequest,
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: pro.id,
-				discounts: [{ reward_id: "fake_coupon_does_not_exist" }],
-			});
-		},
-	});
-});
+		await expectAutumnError({
+			errCode: ErrCode.InvalidRequest,
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: pro.id,
+					discounts: [{ reward_id: "fake_coupon_does_not_exist" }],
+				});
+			},
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Invalid promotion code
@@ -78,39 +81,42 @@ test.concurrent(`${chalk.yellowBright("attach-discount-error 1: invalid coupon I
  * Expected:
  * - ErrCode.InvalidRequest error
  */
-test.concurrent(`${chalk.yellowBright("attach-discount-error 2: invalid promotion code")}`, async () => {
-	const customerId = "att-disc-err-bad-promo";
+test.concurrent(
+	`${chalk.yellowBright("attach-discount-error 2: invalid promotion code")}`,
+	async () => {
+		const customerId = "att-disc-err-bad-promo";
 
-	const free = products.base({
-		id: "free",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+		const free = products.base({
+			id: "free",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const pro = products.pro({
-		id: "pro",
-		items: [items.monthlyMessages({ includedUsage: 500 })],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [items.monthlyMessages({ includedUsage: 500 })],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, pro] }),
-		],
-		actions: [s.billing.attach({ productId: free.id })],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, pro] }),
+			],
+			actions: [s.billing.attach({ productId: free.id })],
+		});
 
-	await expectAutumnError({
-		errCode: ErrCode.InvalidRequest,
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: pro.id,
-				discounts: [{ promotion_code: "NONEXISTENT_CODE_12345" }],
-			});
-		},
-	});
-});
+		await expectAutumnError({
+			errCode: ErrCode.InvalidRequest,
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: pro.id,
+					discounts: [{ promotion_code: "NONEXISTENT_CODE_12345" }],
+				});
+			},
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: Expired coupon
@@ -128,45 +134,48 @@ test.concurrent(`${chalk.yellowBright("attach-discount-error 2: invalid promotio
  * Note: We delete the coupon rather than setting redeem_by in the past,
  * because Stripe doesn't allow creating coupons with redeem_by in the past.
  */
-test.concurrent(`${chalk.yellowBright("attach-discount-error 3: deleted coupon")}`, async () => {
-	const customerId = "att-disc-err-deleted";
+test.concurrent(
+	`${chalk.yellowBright("attach-discount-error 3: deleted coupon")}`,
+	async () => {
+		const customerId = "att-disc-err-deleted";
 
-	const free = products.base({
-		id: "free",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+		const free = products.base({
+			id: "free",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const pro = products.pro({
-		id: "pro",
-		items: [items.monthlyMessages({ includedUsage: 500 })],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [items.monthlyMessages({ includedUsage: 500 })],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, pro] }),
-		],
-		actions: [s.billing.attach({ productId: free.id })],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, pro] }),
+			],
+			actions: [s.billing.attach({ productId: free.id })],
+		});
 
-	const stripeCli = createStripeCli({ org: ctx.org, env: ctx.env });
-	const coupon = await createPercentCoupon({ stripeCli, percentOff: 10 });
+		const stripeCli = createStripeCli({ org: ctx.org, env: ctx.env });
+		const coupon = await createPercentCoupon({ stripeCli, percentOff: 10 });
 
-	// Delete the coupon to make it invalid
-	await stripeCli.coupons.del(coupon.id);
+		// Delete the coupon to make it invalid
+		await stripeCli.coupons.del(coupon.id);
 
-	await expectAutumnError({
-		errCode: ErrCode.InvalidRequest,
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: pro.id,
-				discounts: [{ reward_id: coupon.id }],
-			});
-		},
-	});
-});
+		await expectAutumnError({
+			errCode: ErrCode.InvalidRequest,
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: pro.id,
+					discounts: [{ reward_id: coupon.id }],
+				});
+			},
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 4: Mixed valid and invalid rewards (entire request fails)
@@ -182,45 +191,51 @@ test.concurrent(`${chalk.yellowBright("attach-discount-error 3: deleted coupon")
  * - Entire request fails with ErrCode.InvalidRequest
  * - The valid coupon is not applied
  */
-test.concurrent(`${chalk.yellowBright("attach-discount-error 4: mixed valid and invalid rewards")}`, async () => {
-	const customerId = "att-disc-err-mixed";
+test.concurrent(
+	`${chalk.yellowBright("attach-discount-error 4: mixed valid and invalid rewards")}`,
+	async () => {
+		const customerId = "att-disc-err-mixed";
 
-	const free = products.base({
-		id: "free",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+		const free = products.base({
+			id: "free",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const pro = products.pro({
-		id: "pro",
-		items: [items.monthlyMessages({ includedUsage: 500 })],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [items.monthlyMessages({ includedUsage: 500 })],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, pro] }),
-		],
-		actions: [s.billing.attach({ productId: free.id })],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, pro] }),
+			],
+			actions: [s.billing.attach({ productId: free.id })],
+		});
 
-	const stripeCli = createStripeCli({ org: ctx.org, env: ctx.env });
-	const validCoupon = await createPercentCoupon({ stripeCli, percentOff: 20 });
+		const stripeCli = createStripeCli({ org: ctx.org, env: ctx.env });
+		const validCoupon = await createPercentCoupon({
+			stripeCli,
+			percentOff: 20,
+		});
 
-	await expectAutumnError({
-		errCode: ErrCode.InvalidRequest,
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: pro.id,
-				discounts: [
-					{ reward_id: validCoupon.id },
-					{ reward_id: "fake_coupon_xxx" },
-				],
-			});
-		},
-	});
-});
+		await expectAutumnError({
+			errCode: ErrCode.InvalidRequest,
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: pro.id,
+					discounts: [
+						{ reward_id: validCoupon.id },
+						{ reward_id: "fake_coupon_xxx" },
+					],
+				});
+			},
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 5: Preview with invalid reward also fails
@@ -234,36 +249,39 @@ test.concurrent(`${chalk.yellowBright("attach-discount-error 4: mixed valid and 
  * Expected:
  * - ErrCode.InvalidRequest error (preview validates discounts too)
  */
-test.concurrent(`${chalk.yellowBright("attach-discount-error 5: preview with invalid reward fails")}`, async () => {
-	const customerId = "att-disc-err-preview";
+test.concurrent(
+	`${chalk.yellowBright("attach-discount-error 5: preview with invalid reward fails")}`,
+	async () => {
+		const customerId = "att-disc-err-preview";
 
-	const free = products.base({
-		id: "free",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+		const free = products.base({
+			id: "free",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const pro = products.pro({
-		id: "pro",
-		items: [items.monthlyMessages({ includedUsage: 500 })],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [items.monthlyMessages({ includedUsage: 500 })],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, pro] }),
-		],
-		actions: [s.billing.attach({ productId: free.id })],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, pro] }),
+			],
+			actions: [s.billing.attach({ productId: free.id })],
+		});
 
-	await expectAutumnError({
-		errCode: ErrCode.InvalidRequest,
-		func: async () => {
-			await autumnV1.billing.previewAttach({
-				customer_id: customerId,
-				product_id: pro.id,
-				discounts: [{ reward_id: "nonexistent_coupon_id" }],
-			});
-		},
-	});
-});
+		await expectAutumnError({
+			errCode: ErrCode.InvalidRequest,
+			func: async () => {
+				await autumnV1.billing.previewAttach({
+					customer_id: customerId,
+					product_id: pro.id,
+					discounts: [{ reward_id: "nonexistent_coupon_id" }],
+				});
+			},
+		});
+	},
+);

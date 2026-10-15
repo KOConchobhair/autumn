@@ -171,7 +171,8 @@ test(`${chalk.yellowBright("batch-license-customize: included 100 rewrites catal
 	};
 
 	const catalogConverged = await pollUntil({
-		fetch: () => readAssignmentBalance({ customerProductId: catalogAssignmentId }),
+		fetch: () =>
+			readAssignmentBalance({ customerProductId: catalogAssignmentId }),
 		until: (row) => row?.balance === NEW_SEAT_MESSAGES - CONSUMED,
 		timeoutMs: 15_000,
 		intervalMs: 250,

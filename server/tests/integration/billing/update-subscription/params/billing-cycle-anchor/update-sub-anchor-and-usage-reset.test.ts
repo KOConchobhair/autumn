@@ -102,14 +102,10 @@ test.concurrent(
 		await autumnV2_3.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
 			customer_id: customerId,
 			plan_id: pro.id,
-			feature_quantities: [
-				{ feature_id: TestFeature.Messages, quantity: 300 },
-			],
+			feature_quantities: [{ feature_id: TestFeature.Messages, quantity: 300 }],
 			customize: {
 				remove_items: [{ feature_id: TestFeature.Messages }],
-				add_items: [
-					itemsV2.prepaidMessages({ amount: 10, billingUnits: 100 }),
-				],
+				add_items: [itemsV2.prepaidMessages({ amount: 10, billingUnits: 100 })],
 			},
 			carry_over_usages: { enabled: false },
 		});

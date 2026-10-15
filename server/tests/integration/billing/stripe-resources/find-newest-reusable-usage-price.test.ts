@@ -27,9 +27,9 @@ import {
 import { products } from "@tests/utils/fixtures/products.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
+import { ProductService } from "@/internal/products/ProductService.js";
 import { PriceService } from "@/internal/products/prices/PriceService.js";
 import { priceRepo } from "@/internal/products/prices/repos/priceRepo.js";
-import { ProductService } from "@/internal/products/ProductService.js";
 import { generateId } from "@/utils/genUtils.js";
 import { uniqueSuffix } from "./feature-products/utils/createUnmintedFeaturePlans.js";
 
@@ -142,7 +142,9 @@ test.concurrent(
 					config: {
 						type: PriceType.Usage,
 						bill_when: billWhen,
-						...(billingUnits === undefined ? {} : { billing_units: billingUnits }),
+						...(billingUnits === undefined
+							? {}
+							: { billing_units: billingUnits }),
 						internal_feature_id: internalFeatureId,
 						feature_id: featureId,
 						usage_tiers: usageTiers ?? [{ amount, to: TierInfinite }],

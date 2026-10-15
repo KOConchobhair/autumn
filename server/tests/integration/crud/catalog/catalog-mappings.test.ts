@@ -10,9 +10,9 @@ import {
 	ResetInterval,
 	type UpdatePlanParamsV2Input,
 } from "@autumn/shared";
-import { expectAutumnError } from "@tests/utils/expectUtils/expectErrUtils.js";
 import { BillingMethod } from "@autumn/shared/api/products/components/billingMethod.js";
 import { TestFeature } from "@tests/setup/v2Features.js";
+import { expectAutumnError } from "@tests/utils/expectUtils/expectErrUtils.js";
 import { items } from "@tests/utils/fixtures/items.js";
 import { products } from "@tests/utils/fixtures/products.js";
 import { initScenario } from "@tests/utils/testInitUtils/initScenario.js";
@@ -172,8 +172,7 @@ test.concurrent(
 		expect(usageItemMappings).toHaveLength(2);
 		expect(
 			usageItemMappings.map(
-				(mapping: { filter: { interval?: string } }) =>
-					mapping.filter.interval,
+				(mapping: { filter: { interval?: string } }) => mapping.filter.interval,
 			),
 		).toEqual(expect.arrayContaining(["month", "year"]));
 	},
@@ -317,7 +316,10 @@ test.concurrent(
 		});
 
 		const baseVersions = await getPlanVersions({ ctx, planId });
-		const familyBefore = await getPlanFamilyVersions({ ctx, basePlanId: planId });
+		const familyBefore = await getPlanFamilyVersions({
+			ctx,
+			basePlanId: planId,
+		});
 		expect(baseVersions).toHaveLength(2);
 		expect(familyBefore.length).toBeGreaterThanOrEqual(4);
 
@@ -333,7 +335,10 @@ test.concurrent(
 			],
 		});
 
-		const familyAfter = await getPlanFamilyVersions({ ctx, basePlanId: planId });
+		const familyAfter = await getPlanFamilyVersions({
+			ctx,
+			basePlanId: planId,
+		});
 		expect(familyAfter).toHaveLength(familyBefore.length);
 		expectProductsStripeProcessor({
 			products: familyAfter,

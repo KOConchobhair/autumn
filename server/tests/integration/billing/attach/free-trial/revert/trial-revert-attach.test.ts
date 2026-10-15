@@ -14,8 +14,8 @@ import {
 	ALL_STATUSES,
 	type AttachParamsV1Input,
 	CusProductStatus,
-	FreeTrialDuration,
 	customerProducts,
+	FreeTrialDuration,
 	ms,
 } from "@autumn/shared";
 import { TestFeature } from "@tests/setup/v2Features";
@@ -25,7 +25,6 @@ import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
 import { eq } from "drizzle-orm";
 import { CusService } from "@/internal/customers/CusService";
-
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 1: Pro customer → enterprise revert trial (happy path)
@@ -290,9 +289,7 @@ test.concurrent(
 				s.products({ list: [pro, enterprise] }),
 				s.entities({ count: 2, featureId: TestFeature.Users }),
 			],
-			actions: [
-				s.billing.attach({ productId: pro.id, entityIndex: 0 }),
-			],
+			actions: [s.billing.attach({ productId: pro.id, entityIndex: 0 })],
 		});
 
 		// Attach enterprise with revert trial on entity 2

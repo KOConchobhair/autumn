@@ -2,9 +2,6 @@
  * Adding a second plan group must keep both variants active. */
 
 import { test } from "bun:test";
-import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
-import { TestFeature } from "@tests/setup/v2Features";
-import chalk from "chalk";
 import {
 	addVariantBaseItemToSubscription,
 	createCustomBasePriceForProduct,
@@ -17,6 +14,9 @@ import {
 	trackCustomerUsage,
 	waitForCustomerProducts,
 } from "@tests/integration/billing/stripe-webhooks/utils/sharedStripeProductAutoSyncUtils";
+import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
+import { TestFeature } from "@tests/setup/v2Features";
+import chalk from "chalk";
 
 test(`${chalk.yellowBright("customer.subscription.updated auto-sync: adding another plan group keeps both variants")}`, async () => {
 	const customerId = "sub-updated-shared-two-groups-add";
@@ -31,9 +31,7 @@ test(`${chalk.yellowBright("customer.subscription.updated auto-sync: adding anot
 				baseAmount: 20,
 				featureId: TestFeature.Messages,
 				baseIncluded: 25_000,
-				variants: [
-					{ id: groupAVariantId, amount: 35, included: 150_000 },
-				],
+				variants: [{ id: groupAVariantId, amount: 35, included: 150_000 }],
 			},
 			{
 				baseId: "shared_two_groups_add_b_base",
@@ -41,9 +39,7 @@ test(`${chalk.yellowBright("customer.subscription.updated auto-sync: adding anot
 				baseAmount: 10,
 				featureId: TestFeature.Words,
 				baseIncluded: 1_000,
-				variants: [
-					{ id: groupBVariantId, amount: 15, included: 5_000 },
-				],
+				variants: [{ id: groupBVariantId, amount: 15, included: 5_000 }],
 			},
 		],
 	});
@@ -68,10 +64,7 @@ test(`${chalk.yellowBright("customer.subscription.updated auto-sync: adding anot
 	const createdSubscription = await createExternalStripeSubscription({
 		ctx,
 		customerId,
-		items: [
-			{ price: groupAPrice.id },
-			{ price: wrongGroupAUsagePrice.id },
-		],
+		items: [{ price: groupAPrice.id }, { price: wrongGroupAUsagePrice.id }],
 	});
 	expectStripeSubscriptionCreated({ subscription: createdSubscription });
 
@@ -80,7 +73,10 @@ test(`${chalk.yellowBright("customer.subscription.updated auto-sync: adding anot
 		autumnV1,
 		customerId,
 		active: [groupAVariantId],
-		notPresent: ["shared_two_groups_add_a_base", "shared_two_groups_add_b_base"],
+		notPresent: [
+			"shared_two_groups_add_a_base",
+			"shared_two_groups_add_b_base",
+		],
 	});
 	await trackCustomerUsage({
 		autumnV1,
@@ -101,7 +97,10 @@ test(`${chalk.yellowBright("customer.subscription.updated auto-sync: adding anot
 		autumnV1,
 		customerId,
 		active: [groupAVariantId, groupBVariantId],
-		notPresent: ["shared_two_groups_add_a_base", "shared_two_groups_add_b_base"],
+		notPresent: [
+			"shared_two_groups_add_a_base",
+			"shared_two_groups_add_b_base",
+		],
 	});
 	expectCustomerFeatureCorrect({
 		customer,

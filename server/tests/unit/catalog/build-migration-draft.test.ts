@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import {
+	type ApiPlanV1,
 	buildAllVersionsUpdateMigrationDraft,
 	buildCombinedVariantMigrationDraft,
 	buildMigrationDraft,
-	type ApiPlanV1,
 	type DiffedCustomizePlanV1,
 	ResetInterval,
 } from "@autumn/shared";

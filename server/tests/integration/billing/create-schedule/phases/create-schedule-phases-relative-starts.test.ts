@@ -20,8 +20,8 @@ import {
 	type CreateScheduleParamsV0Input,
 	CusProductStatus,
 	customerProducts,
-	schedulePhases,
 	StartingAfterDuration,
+	schedulePhases,
 } from "@autumn/shared";
 import { items } from "@tests/utils/fixtures/items";
 import { products } from "@tests/utils/fixtures/products";
@@ -58,9 +58,8 @@ test.concurrent(
 
 		if (!testClockId) throw new Error("Expected testClockId from initScenario");
 
-		const testClock = await ctx.stripeCli.testHelpers.testClocks.retrieve(
-			testClockId,
-		);
+		const testClock =
+			await ctx.stripeCli.testHelpers.testClocks.retrieve(testClockId);
 		const expectedPhase1StartsAt = testClock.frozen_time * 1000;
 		const expectedPhase2StartsAt = addDuration({
 			now: expectedPhase1StartsAt,
@@ -121,9 +120,9 @@ test.concurrent(
 			expectedPhase2StartsAt,
 			expectedPhase3StartsAt,
 		]);
-		expect(dbPhases.every((phase) => phase.customer_product_ids.length === 1)).toBe(
-			true,
-		);
+		expect(
+			dbPhases.every((phase) => phase.customer_product_ids.length === 1),
+		).toBe(true);
 
 		const customerProductIds = response.phases.flatMap(
 			(phase) => phase.customer_product_ids,

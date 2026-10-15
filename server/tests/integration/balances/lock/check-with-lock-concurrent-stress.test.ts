@@ -92,7 +92,9 @@ test(
 		});
 
 		// Clean up any stale lock receipts from previous runs
-		await Promise.all(pairs.map(({ lockKey }) => deleteLock({ ctx, lockId: lockKey })));
+		await Promise.all(
+			pairs.map(({ lockKey }) => deleteLock({ ctx, lockId: lockKey })),
+		);
 
 		// ── Fire all (check + finalize) pairs concurrently ──
 		// Each pair is sequential within itself (check must complete before its own

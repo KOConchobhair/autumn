@@ -78,9 +78,7 @@ test.concurrent(
 					stripe_subscription_id: stripeSubscription.id,
 					plan_id: pro.id,
 					expire_previous: true,
-					items: [
-						items.monthlyMessages({ includedUsage: 200 }),
-					],
+					items: [items.monthlyMessages({ includedUsage: 200 })],
 				},
 			],
 		});

@@ -74,509 +74,539 @@ afterAll(async () => {
 // WEBHOOK TESTS - CUSTOMER CREATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("webhook: customer.products.updated on create with default product")}`, async () => {
-	const customerId = "webhook-create-default";
+test.concurrent(
+	`${chalk.yellowBright("webhook: customer.products.updated on create with default product")}`,
+	async () => {
+		const customerId = "webhook-create-default";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const freeDefault = products.base({
-		id: "free-default",
-		items: [messagesItem],
-		isDefault: true,
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const freeDefault = products.base({
+			id: "free-default",
+			items: [messagesItem],
+			isDefault: true,
+		});
 
-	const { autumnV1 } = await initScenario({
-		setup: [
-			s.deleteCustomer({ customerId }),
-			s.products({ list: [freeDefault], prefix: customerId }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			setup: [
+				s.deleteCustomer({ customerId }),
+				s.products({ list: [freeDefault], prefix: customerId }),
+			],
+			actions: [],
+		});
 
-	// Create customer with default product and webhooks enabled
-	await autumnV1.customers.create({
-		id: customerId,
-		name: "Webhook Test Customer",
-		internalOptions: {
-			disable_defaults: false,
-			default_group: customerId,
-		},
-		skipWebhooks: false,
-	});
+		// Create customer with default product and webhooks enabled
+		await autumnV1.customers.create({
+			id: customerId,
+			name: "Webhook Test Customer",
+			internalOptions: {
+				disable_defaults: false,
+				default_group: customerId,
+			},
+			skipWebhooks: false,
+		});
 
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId,
-		timeoutMs: 15000,
-	});
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId,
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
+		const { data } = result!.payload;
 
-	expect(data.scenario).toBe("new");
-	expect(data.customer).toBeDefined();
-	expect(data.customer.id).toBe(customerId);
-	expect(data.customer.name).toBe("Webhook Test Customer");
-	expect(data.updated_product).toBeDefined();
-	expect(data.updated_product.id).toBe(freeDefault.id);
-	expect(data.updated_product.is_default).toBe(true);
-	expect(data.entity).toBeUndefined();
+		expect(data.scenario).toBe("new");
+		expect(data.customer).toBeDefined();
+		expect(data.customer.id).toBe(customerId);
+		expect(data.customer.name).toBe("Webhook Test Customer");
+		expect(data.updated_product).toBeDefined();
+		expect(data.updated_product.id).toBe(freeDefault.id);
+		expect(data.updated_product.is_default).toBe(true);
+		expect(data.entity).toBeUndefined();
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({ customer, productId: freeDefault.id });
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 100,
-		balance: 100,
-		usage: 0,
-	});
-});
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({ customer, productId: freeDefault.id });
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 100,
+			balance: 100,
+			usage: 0,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WEBHOOK TESTS - CANCEL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("webhook: cancel end of cycle (no default product) - scenario: cancel")}`, async () => {
-	const customerId = "webhook-cancel-no-default";
+test.concurrent(
+	`${chalk.yellowBright("webhook: cancel end of cycle (no default product) - scenario: cancel")}`,
+	async () => {
+		const customerId = "webhook-cancel-no-default";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
 
-	// Initialize customer, attach pro, then cancel at end of cycle
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.updateSubscription({
-				productId: pro.id,
-				cancelAction: "cancel_end_of_cycle",
-			}),
-		],
-	});
+		// Initialize customer, attach pro, then cancel at end of cycle
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.updateSubscription({
+					productId: pro.id,
+					cancelAction: "cancel_end_of_cycle",
+				}),
+			],
+		});
 
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "cancel",
-		timeoutMs: 15000,
-	});
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "cancel",
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
+		const { data } = result!.payload;
 
-	expect(data.scenario).toBe("cancel");
-	expect(data.updated_product).toBeDefined();
-	expect(data.updated_product.id).toBe(pro.id);
-	expect(data.customer).toBeDefined();
-	expect(data.customer.id).toBe(customerId);
-	expect(data.entity).toBeUndefined();
-});
+		expect(data.scenario).toBe("cancel");
+		expect(data.updated_product).toBeDefined();
+		expect(data.updated_product.id).toBe(pro.id);
+		expect(data.customer).toBeDefined();
+		expect(data.customer.id).toBe(customerId);
+		expect(data.entity).toBeUndefined();
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("webhook: cancel end of cycle (with free default product) - scenario: cancel")}`, async () => {
-	const customerId = "webhook-cancel-with-default";
+test.concurrent(
+	`${chalk.yellowBright("webhook: cancel end of cycle (with free default product) - scenario: cancel")}`,
+	async () => {
+		const customerId = "webhook-cancel-with-default";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
-	const freeDefault = products.base({
-		id: "free-default",
-		items: [messagesItem],
-		isDefault: true,
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const freeDefault = products.base({
+			id: "free-default",
+			items: [messagesItem],
+			isDefault: true,
+		});
 
-	// Initialize customer, attach pro, then cancel at end of cycle
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro, freeDefault] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.updateSubscription({
-				productId: pro.id,
-				cancelAction: "cancel_end_of_cycle",
-			}),
-		],
-	});
+		// Initialize customer, attach pro, then cancel at end of cycle
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro, freeDefault] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.updateSubscription({
+					productId: pro.id,
+					cancelAction: "cancel_end_of_cycle",
+				}),
+			],
+		});
 
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "cancel",
-		timeoutMs: 15000,
-	});
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "cancel",
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
+		const { data } = result!.payload;
 
-	// Scenario is "cancel" (not "downgrade") since scheduled product is FREE
-	expect(data.scenario).toBe("cancel");
-	expect(data.updated_product).toBeDefined();
-	expect(data.updated_product.id).toBe(pro.id);
-	expect(data.customer).toBeDefined();
-	expect(data.customer.id).toBe(customerId);
-	expect(data.entity).toBeUndefined();
-});
+		// Scenario is "cancel" (not "downgrade") since scheduled product is FREE
+		expect(data.scenario).toBe("cancel");
+		expect(data.updated_product).toBeDefined();
+		expect(data.updated_product.id).toBe(pro.id);
+		expect(data.customer).toBeDefined();
+		expect(data.customer.id).toBe(customerId);
+		expect(data.entity).toBeUndefined();
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WEBHOOK TESTS - STRIPE-INITIATED CANCEL (default scheduled before webhook)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("webhook: Stripe-initiated cancel fires after default product scheduled")}`, async () => {
-	const customerId = "webhook-stripe-cancel-default";
+test.concurrent(
+	`${chalk.yellowBright("webhook: Stripe-initiated cancel fires after default product scheduled")}`,
+	async () => {
+		const customerId = "webhook-stripe-cancel-default";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
-	const freeDefault = products.base({
-		id: "free-default",
-		items: [messagesItem],
-		isDefault: true,
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const freeDefault = products.base({
+			id: "free-default",
+			items: [messagesItem],
+			isDefault: true,
+		});
 
-	const { autumnV1, ctx: testCtx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro, freeDefault] }),
-		],
-		actions: [s.attach({ productId: pro.id })],
-	});
+		const { autumnV1, ctx: testCtx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro, freeDefault] }),
+			],
+			actions: [s.attach({ productId: pro.id })],
+		});
 
-	// Verify pro is active
-	const customerAfterAttach =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({
-		customer: customerAfterAttach,
-		productId: pro.id,
-	});
+		// Verify pro is active
+		const customerAfterAttach =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({
+			customer: customerAfterAttach,
+			productId: pro.id,
+		});
 
-	// Get Stripe subscription ID and cancel externally via Stripe CLI
-	const subscriptionId = await getSubscriptionId({
-		ctx: testCtx,
-		customerId,
-		productId: pro.id,
-	});
+		// Get Stripe subscription ID and cancel externally via Stripe CLI
+		const subscriptionId = await getSubscriptionId({
+			ctx: testCtx,
+			customerId,
+			productId: pro.id,
+		});
 
-	await testCtx.stripeCli.subscriptions.update(subscriptionId, {
-		cancel_at_period_end: true,
-	});
+		await testCtx.stripeCli.subscriptions.update(subscriptionId, {
+			cancel_at_period_end: true,
+		});
 
-	// Wait for webhook triggered by the Stripe-initiated cancellation
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "cancel",
-		timeoutMs: 20000,
-	});
+		// Wait for webhook triggered by the Stripe-initiated cancellation
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "cancel",
+			timeoutMs: 20000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
+		const { data } = result!.payload;
 
-	expect(data.scenario).toBe("cancel");
-	expect(data.updated_product).toBeDefined();
-	expect(data.updated_product.id).toBe(pro.id);
-	expect(data.customer).toBeDefined();
-	expect(data.customer.id).toBe(customerId);
+		expect(data.scenario).toBe("cancel");
+		expect(data.updated_product).toBeDefined();
+		expect(data.updated_product.id).toBe(pro.id);
+		expect(data.customer).toBeDefined();
+		expect(data.customer.id).toBe(customerId);
 
-	// The webhook customer should include the scheduled default product
-	// because webhooks now fire AFTER defaults are scheduled
-	const scheduledProduct = data.customer.products.find(
-		(p) => p.id === freeDefault.id,
-	);
-	expect(scheduledProduct).toBeDefined();
-	expect(scheduledProduct!.status).toBe("scheduled");
+		// The webhook customer should include the scheduled default product
+		// because webhooks now fire AFTER defaults are scheduled
+		const scheduledProduct = data.customer.products.find(
+			(p) => p.id === freeDefault.id,
+		);
+		expect(scheduledProduct).toBeDefined();
+		expect(scheduledProduct!.status).toBe("scheduled");
 
-	// Also verify via API that the state is correct
-	await timeout(2000);
-	const customerAfterCancel =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductCanceling({
-		customer: customerAfterCancel,
-		productId: pro.id,
-	});
-	await expectProductScheduled({
-		customer: customerAfterCancel,
-		productId: freeDefault.id,
-	});
-});
+		// Also verify via API that the state is correct
+		await timeout(2000);
+		const customerAfterCancel =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductCanceling({
+			customer: customerAfterCancel,
+			productId: pro.id,
+		});
+		await expectProductScheduled({
+			customer: customerAfterCancel,
+			productId: freeDefault.id,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WEBHOOK TESTS - UNCANCEL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("webhook: uncancel - scenario: renew")}`, async () => {
-	const customerId = "webhook-uncancel";
+test.concurrent(
+	`${chalk.yellowBright("webhook: uncancel - scenario: renew")}`,
+	async () => {
+		const customerId = "webhook-uncancel";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
 
-	// Initialize customer, attach pro, cancel, then uncancel
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.updateSubscription({
-				productId: pro.id,
-				cancelAction: "cancel_end_of_cycle",
-			}),
-			s.updateSubscription({ productId: pro.id, cancelAction: "uncancel" }),
-		],
-	});
+		// Initialize customer, attach pro, cancel, then uncancel
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.updateSubscription({
+					productId: pro.id,
+					cancelAction: "cancel_end_of_cycle",
+				}),
+				s.updateSubscription({ productId: pro.id, cancelAction: "uncancel" }),
+			],
+		});
 
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "renew",
-		timeoutMs: 15000,
-	});
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "renew",
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
+		const { data } = result!.payload;
 
-	expect(data.scenario).toBe("renew");
-	expect(data.updated_product).toBeDefined();
-	expect(data.updated_product.id).toBe(pro.id);
-	expect(data.customer).toBeDefined();
-	expect(data.customer.id).toBe(customerId);
-	expect(data.entity).toBeUndefined();
+		expect(data.scenario).toBe("renew");
+		expect(data.updated_product).toBeDefined();
+		expect(data.updated_product.id).toBe(pro.id);
+		expect(data.customer).toBeDefined();
+		expect(data.customer.id).toBe(customerId);
+		expect(data.entity).toBeUndefined();
 
-	// Verify product is now active (not canceling)
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({ customer, productId: pro.id });
-});
+		// Verify product is now active (not canceling)
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({ customer, productId: pro.id });
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WEBHOOK TESTS - ENTITY-LEVEL CANCEL/UNCANCEL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("webhook: entity cancel end of cycle - scenario: cancel")}`, async () => {
-	const customerId = "webhook-entity-cancel";
+test.concurrent(
+	`${chalk.yellowBright("webhook: entity cancel end of cycle - scenario: cancel")}`,
+	async () => {
+		const customerId = "webhook-entity-cancel";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
 
-	// Initialize customer, attach pro to entity, then cancel at end of cycle
-	const { autumnV1, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro] }),
-			s.entities({ count: 1, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.attach({ productId: pro.id, entityIndex: 0 }),
-			s.updateSubscription({
-				productId: pro.id,
-				entityIndex: 0,
-				cancelAction: "cancel_end_of_cycle",
-			}),
-		],
-	});
+		// Initialize customer, attach pro to entity, then cancel at end of cycle
+		const { autumnV1, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro] }),
+				s.entities({ count: 1, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.attach({ productId: pro.id, entityIndex: 0 }),
+				s.updateSubscription({
+					productId: pro.id,
+					entityIndex: 0,
+					cancelAction: "cancel_end_of_cycle",
+				}),
+			],
+		});
 
-	const entityId = entities[0].id;
+		const entityId = entities[0].id;
 
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "cancel" &&
-			payload.data?.entity?.id === entityId,
-		timeoutMs: 15000,
-	});
-
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
-
-	const { data } = result!.payload;
-
-	expect(data.scenario).toBe("cancel");
-	expect(data.updated_product).toBeDefined();
-	expect(data.updated_product.id).toBe(pro.id);
-	expect(data.customer).toBeDefined();
-	expect(data.customer.id).toBe(customerId);
-
-	// Verify entity is included in webhook
-	expect(data.entity).toBeDefined();
-	expect(data.entity?.id).toBe(entityId);
-
-	// Verify entity product is canceling
-	const entity = await autumnV1.entities.get<ApiEntityV0>(customerId, entityId);
-	await expectProductCanceling({ customer: entity, productId: pro.id });
-});
-
-test.concurrent(`${chalk.yellowBright("webhook: entity uncancel - scenario: renew")}`, async () => {
-	const customerId = "webhook-entity-uncancel";
-
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
-
-	// Initialize customer, attach pro to entity, cancel, then uncancel
-	const { autumnV1, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro] }),
-			s.entities({ count: 1, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.attach({ productId: pro.id, entityIndex: 0 }),
-			s.updateSubscription({
-				productId: pro.id,
-				entityIndex: 0,
-				cancelAction: "cancel_end_of_cycle",
-			}),
-			s.updateSubscription({
-				productId: pro.id,
-				entityIndex: 0,
-				cancelAction: "uncancel",
-			}),
-		],
-	});
-
-	const entityId = entities[0].id;
-
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "renew" &&
-			payload.data?.entity?.id === entityId,
-		timeoutMs: 15000,
-	});
-
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
-
-	const { data } = result!.payload;
-
-	expect(data.scenario).toBe("renew");
-	expect(data.updated_product).toBeDefined();
-	expect(data.updated_product.id).toBe(pro.id);
-	expect(data.customer).toBeDefined();
-	expect(data.customer.id).toBe(customerId);
-
-	// Verify entity is included in webhook
-	expect(data.entity).toBeDefined();
-	expect(data.entity?.id).toBe(entityId);
-
-	// Verify entity product is now active (not canceling)
-	const entity = await autumnV1.entities.get<ApiEntityV0>(customerId, entityId);
-	await expectProductActive({ customer: entity, productId: pro.id });
-});
-
-test.concurrent(`${chalk.yellowBright("webhook: update prepaid quantity - scenario: update_prepaid_quantity")}`, async () => {
-	const customerId = "webhook-update-prepaid-quantity";
-	const initialQuantity = 100;
-	const updatedQuantity = 200;
-
-	const product = products.base({
-		id: "prepaid-qty",
-		items: [
-			items.monthlyPrice({ price: 20 }),
-			items.volumePrepaidMessages({
-				includedUsage: 0,
-				billingUnits: 100,
-			}),
-		],
-	});
-
-	const { autumnV1, autumnV2_1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [product] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				options: [
-					{ feature_id: TestFeature.Messages, quantity: initialQuantity },
-				],
-			}),
-		],
-	});
-
-	await autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
-		customer_id: customerId,
-		plan_id: product.id,
-		feature_quantities: [
-			{ feature_id: TestFeature.Messages, quantity: updatedQuantity },
-		],
-	});
-
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "update_prepaid_quantity" &&
-			payload.data?.updated_product?.id === product.id,
-		timeoutMs: 15000,
-	});
-
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
-
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("update_prepaid_quantity");
-	expect(data.updated_product.id).toBe(product.id);
-	expect(data.customer.id).toBe(customerId);
-	expect(data.entity).toBeUndefined();
-
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: updatedQuantity,
-	});
-
-	const history = await getPlayHistory({ token: playToken });
-	const customerEvents = history.data
-		.map((event) => parseEventBody<CustomerProductsUpdatedPayload>(event))
-		.filter(
-			(payload) =>
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
 				payload.type === "customer.products.updated" &&
-				payload.data?.customer?.id === customerId,
-		);
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "cancel" &&
+				payload.data?.entity?.id === entityId,
+			timeoutMs: 15000,
+		});
 
-	expect(
-		customerEvents.filter(
-			(payload) => payload.data.scenario === "update_prepaid_quantity",
-		),
-	).toHaveLength(1);
-	expect(
-		customerEvents.some((payload) =>
-			["cancel", "renew"].includes(payload.data.scenario),
-		),
-	).toBe(false);
-});
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
+
+		const { data } = result!.payload;
+
+		expect(data.scenario).toBe("cancel");
+		expect(data.updated_product).toBeDefined();
+		expect(data.updated_product.id).toBe(pro.id);
+		expect(data.customer).toBeDefined();
+		expect(data.customer.id).toBe(customerId);
+
+		// Verify entity is included in webhook
+		expect(data.entity).toBeDefined();
+		expect(data.entity?.id).toBe(entityId);
+
+		// Verify entity product is canceling
+		const entity = await autumnV1.entities.get<ApiEntityV0>(
+			customerId,
+			entityId,
+		);
+		await expectProductCanceling({ customer: entity, productId: pro.id });
+	},
+);
+
+test.concurrent(
+	`${chalk.yellowBright("webhook: entity uncancel - scenario: renew")}`,
+	async () => {
+		const customerId = "webhook-entity-uncancel";
+
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
+
+		// Initialize customer, attach pro to entity, cancel, then uncancel
+		const { autumnV1, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro] }),
+				s.entities({ count: 1, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.attach({ productId: pro.id, entityIndex: 0 }),
+				s.updateSubscription({
+					productId: pro.id,
+					entityIndex: 0,
+					cancelAction: "cancel_end_of_cycle",
+				}),
+				s.updateSubscription({
+					productId: pro.id,
+					entityIndex: 0,
+					cancelAction: "uncancel",
+				}),
+			],
+		});
+
+		const entityId = entities[0].id;
+
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "renew" &&
+				payload.data?.entity?.id === entityId,
+			timeoutMs: 15000,
+		});
+
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
+
+		const { data } = result!.payload;
+
+		expect(data.scenario).toBe("renew");
+		expect(data.updated_product).toBeDefined();
+		expect(data.updated_product.id).toBe(pro.id);
+		expect(data.customer).toBeDefined();
+		expect(data.customer.id).toBe(customerId);
+
+		// Verify entity is included in webhook
+		expect(data.entity).toBeDefined();
+		expect(data.entity?.id).toBe(entityId);
+
+		// Verify entity product is now active (not canceling)
+		const entity = await autumnV1.entities.get<ApiEntityV0>(
+			customerId,
+			entityId,
+		);
+		await expectProductActive({ customer: entity, productId: pro.id });
+	},
+);
+
+test.concurrent(
+	`${chalk.yellowBright("webhook: update prepaid quantity - scenario: update_prepaid_quantity")}`,
+	async () => {
+		const customerId = "webhook-update-prepaid-quantity";
+		const initialQuantity = 100;
+		const updatedQuantity = 200;
+
+		const product = products.base({
+			id: "prepaid-qty",
+			items: [
+				items.monthlyPrice({ price: 20 }),
+				items.volumePrepaidMessages({
+					includedUsage: 0,
+					billingUnits: 100,
+				}),
+			],
+		});
+
+		const { autumnV1, autumnV2_1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [product] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initialQuantity },
+					],
+				}),
+			],
+		});
+
+		await autumnV2_1.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
+			customer_id: customerId,
+			plan_id: product.id,
+			feature_quantities: [
+				{ feature_id: TestFeature.Messages, quantity: updatedQuantity },
+			],
+		});
+
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "update_prepaid_quantity" &&
+				payload.data?.updated_product?.id === product.id,
+			timeoutMs: 15000,
+		});
+
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
+
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("update_prepaid_quantity");
+		expect(data.updated_product.id).toBe(product.id);
+		expect(data.customer.id).toBe(customerId);
+		expect(data.entity).toBeUndefined();
+
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: updatedQuantity,
+		});
+
+		const history = await getPlayHistory({ token: playToken });
+		const customerEvents = history.data
+			.map((event) => parseEventBody<CustomerProductsUpdatedPayload>(event))
+			.filter(
+				(payload) =>
+					payload.type === "customer.products.updated" &&
+					payload.data?.customer?.id === customerId,
+			);
+
+		expect(
+			customerEvents.filter(
+				(payload) => payload.data.scenario === "update_prepaid_quantity",
+			),
+		).toHaveLength(1);
+		expect(
+			customerEvents.some((payload) =>
+				["cancel", "renew"].includes(payload.data.scenario),
+			),
+		).toBe(false);
+	},
+);

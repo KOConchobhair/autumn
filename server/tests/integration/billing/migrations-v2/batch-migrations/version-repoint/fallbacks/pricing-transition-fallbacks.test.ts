@@ -80,55 +80,52 @@ const pricingCases: PricingCase[] = [
 ];
 
 for (const [index, scenario] of pricingCases.entries()) {
-	test.skip(
-		`${chalk.yellowBright(`batch version repoint pricing ${index + 1}: ${scenario.name}`)}`,
-		async () => {
-			const id = uniqueStem(`batch-vr-pricing-${index + 1}`);
-			const customerId = `${id}-customer`;
-			const plan = products.base({
-				id: `${id}-plan`,
-				items: scenario.fromItems,
-			});
-			const { autumnV2_3, ctx } = await initScenario({
-				customerId,
-				setup: [
-					s.customer({ testClock: false, paymentMethod: "success" }),
-					s.products({ list: [plan] }),
-				],
-				actions: [s.billing.attach({ productId: plan.id })],
-			});
+	test.skip(`${chalk.yellowBright(`batch version repoint pricing ${index + 1}: ${scenario.name}`)}`, async () => {
+		const id = uniqueStem(`batch-vr-pricing-${index + 1}`);
+		const customerId = `${id}-customer`;
+		const plan = products.base({
+			id: `${id}-plan`,
+			items: scenario.fromItems,
+		});
+		const { autumnV2_3, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false, paymentMethod: "success" }),
+				s.products({ list: [plan] }),
+			],
+			actions: [s.billing.attach({ productId: plan.id })],
+		});
 
-			await autumnV2_3.post("/plans.update", {
-				plan_id: plan.id,
-				force_version: true,
-				items: scenario.toItems,
-				...(scenario.toPrice !== undefined ? { price: scenario.toPrice } : {}),
-			});
+		await autumnV2_3.post("/plans.update", {
+			plan_id: plan.id,
+			force_version: true,
+			items: scenario.toItems,
+			...(scenario.toPrice !== undefined ? { price: scenario.toPrice } : {}),
+		});
 
-			const { result } = await runVersionRepointMigration({
-				ctx,
-				migrationClient: autumnV2_3,
-				migrationId: `${id}-migration`,
-				filter: {
-					customer: {
-						plan: { plan_id: plan.id, version: 1, custom: false },
+		const { result } = await runVersionRepointMigration({
+			ctx,
+			migrationClient: autumnV2_3,
+			migrationId: `${id}-migration`,
+			filter: {
+				customer: {
+					plan: { plan_id: plan.id, version: 1, custom: false },
+				},
+			},
+			operations: {
+				customer: [
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: plan.id, custom: false },
+						version: 2,
 					},
-				},
-				operations: {
-					customer: [
-						{
-							type: "update_plan",
-							plan_filter: { plan_id: plan.id, custom: false },
-							version: 2,
-						},
-					],
-				},
-			});
+				],
+			},
+		});
 
-			expectPerCustomerLaneWithRejections({
-				result,
-				codes: [scenario.code],
-			});
-		},
-	);
+		expectPerCustomerLaneWithRejections({
+			result,
+			codes: [scenario.code],
+		});
+	});
 }

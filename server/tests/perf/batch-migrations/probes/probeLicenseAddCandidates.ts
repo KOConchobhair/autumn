@@ -69,7 +69,9 @@ const main = async () => {
 		LIMIT 1
 	`);
 	if (!target) {
-		console.error("probe: no monthly license entitlement reachable — seed first");
+		console.error(
+			"probe: no monthly license entitlement reachable — seed first",
+		);
 		process.exit(1);
 	}
 	const resolved: Target = {
@@ -184,18 +186,19 @@ const main = async () => {
 		`probe: customer_entitlements rows sharing internal_feature_id=${resolved.internalFeatureId}: ${featureRows.count}`,
 	);
 
-	await db.transaction(async (tx) => {
-		// The prior run repointed parents to v2, so the operation scope matches
-		// nothing; put them back on v1 to recreate the pre-migration state.
-		const restored = await tx.execute(sql`
+	await db
+		.transaction(async (tx) => {
+			// The prior run repointed parents to v2, so the operation scope matches
+			// nothing; put them back on v1 to recreate the pre-migration state.
+			const restored = await tx.execute(sql`
 			UPDATE customer_products
 			SET internal_product_id = ${catalog.v1InternalProductId}
 			WHERE internal_customer_id LIKE ${prefix}
 				AND internal_entity_id IS NULL
 			RETURNING id
 		`);
-		// Make every seat a candidate, the state the real add op selects against.
-		const cleared = await tx.execute(sql`
+			// Make every seat a candidate, the state the real add op selects against.
+			const cleared = await tx.execute(sql`
 			DELETE FROM customer_entitlements AS existing
 			USING customer_products AS assignment
 			WHERE existing.customer_product_id = assignment.id
@@ -204,25 +207,30 @@ const main = async () => {
 				AND existing.internal_feature_id = ${resolved.internalFeatureId}
 			RETURNING existing.id
 		`);
-		console.log(
-			`probe: restored ${restored.rows.length} parents to v1, cleared ${cleared.rows.length} seat rows (rolled back after)\n`,
-		);
+			console.log(
+				`probe: restored ${restored.rows.length} parents to v1, cleared ${cleared.rows.length} seat rows (rolled back after)\n`,
+			);
 
-		for (const variant of [joinedVariant, literalVariant]) {
-			const plan = await tx.execute(explain(variant));
-			console.log(`── ${variant.label} ──`);
-			for (const row of plan.rows as Record<string, string>[]) {
-				const line = Object.values(row)[0];
-				if (/Execution Time|Planning Time|rows=|Seq Scan|Index|Nested Loop|Sort|Hash|Memoize|Buffers: shared/.test(line))
-					console.log(line);
+			for (const variant of [joinedVariant, literalVariant]) {
+				const plan = await tx.execute(explain(variant));
+				console.log(`── ${variant.label} ──`);
+				for (const row of plan.rows as Record<string, string>[]) {
+					const line = Object.values(row)[0];
+					if (
+						/Execution Time|Planning Time|rows=|Seq Scan|Index|Nested Loop|Sort|Hash|Memoize|Buffers: shared/.test(
+							line,
+						)
+					)
+						console.log(line);
+				}
+				console.log("");
 			}
-			console.log("");
-		}
 
-		tx.rollback();
-	}).catch((error) => {
-		if (!String(error).includes("Rollback")) throw error;
-	});
+			tx.rollback();
+		})
+		.catch((error) => {
+			if (!String(error).includes("Rollback")) throw error;
+		});
 
 	process.exit(0);
 };

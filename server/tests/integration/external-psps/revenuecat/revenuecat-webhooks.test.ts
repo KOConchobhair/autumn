@@ -131,157 +131,24 @@ afterAll(async () => {
 // TEST 1: Initial Purchase → scenario: new
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("rc-webhook: initial purchase → scenario: new")}`, async () => {
-	const customerId = "rc-webhook-initial-purchase";
-	const RC_PRO_MONTHLY_ID = "com.app.rcwh1_pro_monthly";
+test.concurrent(
+	`${chalk.yellowBright("rc-webhook: initial purchase → scenario: new")}`,
+	async () => {
+		const customerId = "rc-webhook-initial-purchase";
+		const RC_PRO_MONTHLY_ID = "com.app.rcwh1_pro_monthly";
 
-	const proMonthly = rcProMonthly();
+		const proMonthly = rcProMonthly();
 
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false, skipWebhooks: true }),
-			s.products({ list: [proMonthly] }),
-		],
-		actions: [],
-	});
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false, skipWebhooks: true }),
+				s.products({ list: [proMonthly] }),
+			],
+			actions: [],
+		});
 
-	await RCMappingService.upsert({
-		db: ctx.db,
-		data: {
-			org_id: ctx.org.id,
-			env: AppEnv.Sandbox,
-			autumn_product_id: proMonthly.id,
-			revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
-		},
-	});
-
-	const rcClient = new RevenueCatWebhookClient({
-		orgId: ctx.org.id,
-		env: ctx.env,
-		webhookSecret: RC_WEBHOOK_SECRET,
-	});
-
-	await rcClient.initialPurchase({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh1_tx_001",
-	});
-
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "new",
-		timeoutMs: 15000,
-	});
-
-	expect(result).not.toBeNull();
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("new");
-	expect(data.updated_product.id).toBe(proMonthly.id);
-	expect(data.customer.id).toBe(customerId);
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TEST 2: Renewal → scenario: renew
-// ═══════════════════════════════════════════════════════════════════════════════
-
-test.concurrent(`${chalk.yellowBright("rc-webhook: renewal → scenario: renew")}`, async () => {
-	const customerId = "rc-webhook-renewal";
-	const RC_PRO_MONTHLY_ID = "com.app.rcwh2_pro_monthly";
-
-	const proMonthly = rcProMonthly();
-
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false, skipWebhooks: true }),
-			s.products({ list: [proMonthly] }),
-		],
-		actions: [],
-	});
-
-	await RCMappingService.upsert({
-		db: ctx.db,
-		data: {
-			org_id: ctx.org.id,
-			env: AppEnv.Sandbox,
-			autumn_product_id: proMonthly.id,
-			revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
-		},
-	});
-
-	const rcClient = new RevenueCatWebhookClient({
-		orgId: ctx.org.id,
-		env: ctx.env,
-		webhookSecret: RC_WEBHOOK_SECRET,
-	});
-
-	// First: initial purchase to create the subscription
-	await rcClient.initialPurchase({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh2_tx_001",
-	});
-
-	// Wait for the initial purchase webhook to arrive before triggering renewal
-	await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "new",
-		timeoutMs: 15000,
-	});
-
-	// Then: renewal
-	await rcClient.renewal({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh2_tx_001",
-	});
-
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "renew",
-		timeoutMs: 15000,
-	});
-
-	expect(result).not.toBeNull();
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("renew");
-	expect(data.updated_product.id).toBe(proMonthly.id);
-	expect(data.customer.id).toBe(customerId);
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TEST 3: Upgrade → scenario: upgrade
-// ═══════════════════════════════════════════════════════════════════════════════
-
-test.concurrent(`${chalk.yellowBright("rc-webhook: upgrade (monthly → yearly) → scenario: upgrade")}`, async () => {
-	const customerId = "rc-webhook-upgrade";
-	const RC_PRO_MONTHLY_ID = "com.app.rcwh3_pro_monthly";
-	const RC_PRO_YEARLY_ID = "com.app.rcwh3_pro_yearly";
-
-	const proMonthly = rcProMonthly();
-	const proYearly = rcProYearly();
-
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false, skipWebhooks: true }),
-			s.products({ list: [proMonthly, proYearly] }),
-		],
-		actions: [],
-	});
-
-	await Promise.all([
-		RCMappingService.upsert({
+		await RCMappingService.upsert({
 			db: ctx.db,
 			data: {
 				org_id: ctx.org.id,
@@ -289,62 +156,204 @@ test.concurrent(`${chalk.yellowBright("rc-webhook: upgrade (monthly → yearly) 
 				autumn_product_id: proMonthly.id,
 				revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
 			},
-		}),
-		RCMappingService.upsert({
+		});
+
+		const rcClient = new RevenueCatWebhookClient({
+			orgId: ctx.org.id,
+			env: ctx.env,
+			webhookSecret: RC_WEBHOOK_SECRET,
+		});
+
+		await rcClient.initialPurchase({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh1_tx_001",
+		});
+
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "new",
+			timeoutMs: 15000,
+		});
+
+		expect(result).not.toBeNull();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("new");
+		expect(data.updated_product.id).toBe(proMonthly.id);
+		expect(data.customer.id).toBe(customerId);
+	},
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TEST 2: Renewal → scenario: renew
+// ═══════════════════════════════════════════════════════════════════════════════
+
+test.concurrent(
+	`${chalk.yellowBright("rc-webhook: renewal → scenario: renew")}`,
+	async () => {
+		const customerId = "rc-webhook-renewal";
+		const RC_PRO_MONTHLY_ID = "com.app.rcwh2_pro_monthly";
+
+		const proMonthly = rcProMonthly();
+
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false, skipWebhooks: true }),
+				s.products({ list: [proMonthly] }),
+			],
+			actions: [],
+		});
+
+		await RCMappingService.upsert({
 			db: ctx.db,
 			data: {
 				org_id: ctx.org.id,
 				env: AppEnv.Sandbox,
-				autumn_product_id: proYearly.id,
-				revenuecat_product_ids: [RC_PRO_YEARLY_ID],
+				autumn_product_id: proMonthly.id,
+				revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
 			},
-		}),
-	]);
+		});
 
-	const rcClient = new RevenueCatWebhookClient({
-		orgId: ctx.org.id,
-		env: ctx.env,
-		webhookSecret: RC_WEBHOOK_SECRET,
-	});
+		const rcClient = new RevenueCatWebhookClient({
+			orgId: ctx.org.id,
+			env: ctx.env,
+			webhookSecret: RC_WEBHOOK_SECRET,
+		});
 
-	// First: initial purchase on monthly
-	await rcClient.initialPurchase({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh3_tx_001",
-	});
+		// First: initial purchase to create the subscription
+		await rcClient.initialPurchase({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh2_tx_001",
+		});
 
-	await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "new",
-		timeoutMs: 15000,
-	});
+		// Wait for the initial purchase webhook to arrive before triggering renewal
+		await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "new",
+			timeoutMs: 15000,
+		});
 
-	// Then: renewal to yearly (upgrade)
-	await rcClient.renewal({
-		productId: RC_PRO_YEARLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh3_tx_001",
-	});
+		// Then: renewal
+		await rcClient.renewal({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh2_tx_001",
+		});
 
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "upgrade",
-		timeoutMs: 15000,
-	});
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "renew",
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("upgrade");
-	expect(data.updated_product.id).toBe(proYearly.id);
-	expect(data.customer.id).toBe(customerId);
-});
+		expect(result).not.toBeNull();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("renew");
+		expect(data.updated_product.id).toBe(proMonthly.id);
+		expect(data.customer.id).toBe(customerId);
+	},
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TEST 3: Upgrade → scenario: upgrade
+// ═══════════════════════════════════════════════════════════════════════════════
+
+test.concurrent(
+	`${chalk.yellowBright("rc-webhook: upgrade (monthly → yearly) → scenario: upgrade")}`,
+	async () => {
+		const customerId = "rc-webhook-upgrade";
+		const RC_PRO_MONTHLY_ID = "com.app.rcwh3_pro_monthly";
+		const RC_PRO_YEARLY_ID = "com.app.rcwh3_pro_yearly";
+
+		const proMonthly = rcProMonthly();
+		const proYearly = rcProYearly();
+
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false, skipWebhooks: true }),
+				s.products({ list: [proMonthly, proYearly] }),
+			],
+			actions: [],
+		});
+
+		await Promise.all([
+			RCMappingService.upsert({
+				db: ctx.db,
+				data: {
+					org_id: ctx.org.id,
+					env: AppEnv.Sandbox,
+					autumn_product_id: proMonthly.id,
+					revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
+				},
+			}),
+			RCMappingService.upsert({
+				db: ctx.db,
+				data: {
+					org_id: ctx.org.id,
+					env: AppEnv.Sandbox,
+					autumn_product_id: proYearly.id,
+					revenuecat_product_ids: [RC_PRO_YEARLY_ID],
+				},
+			}),
+		]);
+
+		const rcClient = new RevenueCatWebhookClient({
+			orgId: ctx.org.id,
+			env: ctx.env,
+			webhookSecret: RC_WEBHOOK_SECRET,
+		});
+
+		// First: initial purchase on monthly
+		await rcClient.initialPurchase({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh3_tx_001",
+		});
+
+		await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "new",
+			timeoutMs: 15000,
+		});
+
+		// Then: renewal to yearly (upgrade)
+		await rcClient.renewal({
+			productId: RC_PRO_YEARLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh3_tx_001",
+		});
+
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "upgrade",
+			timeoutMs: 15000,
+		});
+
+		expect(result).not.toBeNull();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("upgrade");
+		expect(data.updated_product.id).toBe(proYearly.id);
+		expect(data.customer.id).toBe(customerId);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 4: Downgrade (yearly → monthly) applies immediately for RevenueCat.
@@ -354,25 +363,116 @@ test.concurrent(`${chalk.yellowBright("rc-webhook: upgrade (monthly → yearly) 
 // scenario is "new" (not "upgrade"), and updated_product is the new monthly.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("rc-webhook: downgrade (yearly → monthly) applies immediately → scenario: new")}`, async () => {
-	const customerId = "rc-webhook-downgrade";
-	const RC_PRO_MONTHLY_ID = "com.app.rcwh4_pro_monthly";
-	const RC_PRO_YEARLY_ID = "com.app.rcwh4_pro_yearly";
+test.concurrent(
+	`${chalk.yellowBright("rc-webhook: downgrade (yearly → monthly) applies immediately → scenario: new")}`,
+	async () => {
+		const customerId = "rc-webhook-downgrade";
+		const RC_PRO_MONTHLY_ID = "com.app.rcwh4_pro_monthly";
+		const RC_PRO_YEARLY_ID = "com.app.rcwh4_pro_yearly";
 
-	const proMonthly = rcProMonthly();
-	const proYearly = rcProYearly();
+		const proMonthly = rcProMonthly();
+		const proYearly = rcProYearly();
 
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false, skipWebhooks: true }),
-			s.products({ list: [proMonthly, proYearly] }),
-		],
-		actions: [],
-	});
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false, skipWebhooks: true }),
+				s.products({ list: [proMonthly, proYearly] }),
+			],
+			actions: [],
+		});
 
-	await Promise.all([
-		RCMappingService.upsert({
+		await Promise.all([
+			RCMappingService.upsert({
+				db: ctx.db,
+				data: {
+					org_id: ctx.org.id,
+					env: AppEnv.Sandbox,
+					autumn_product_id: proMonthly.id,
+					revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
+				},
+			}),
+			RCMappingService.upsert({
+				db: ctx.db,
+				data: {
+					org_id: ctx.org.id,
+					env: AppEnv.Sandbox,
+					autumn_product_id: proYearly.id,
+					revenuecat_product_ids: [RC_PRO_YEARLY_ID],
+				},
+			}),
+		]);
+
+		const rcClient = new RevenueCatWebhookClient({
+			orgId: ctx.org.id,
+			env: ctx.env,
+			webhookSecret: RC_WEBHOOK_SECRET,
+		});
+
+		// First: initial purchase on yearly ($1000/yr)
+		await rcClient.initialPurchase({
+			productId: RC_PRO_YEARLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh4_tx_001",
+		});
+
+		await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "new",
+			timeoutMs: 15000,
+		});
+
+		// Then: switch to monthly ($10/mo). For RC this applies immediately rather
+		// than scheduling a downgrade, so the inserted monthly product is active.
+		await rcClient.renewal({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh4_tx_001",
+		});
+
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "new" &&
+				payload.data?.updated_product?.id === proMonthly.id,
+			timeoutMs: 15000,
+		});
+
+		expect(result).not.toBeNull();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("new");
+		expect(data.updated_product.id).toBe(proMonthly.id);
+		expect(data.customer.id).toBe(customerId);
+	},
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TEST 5: Cancellation → scenario: cancel
+// ═══════════════════════════════════════════════════════════════════════════════
+
+test.concurrent(
+	`${chalk.yellowBright("rc-webhook: cancellation → scenario: cancel")}`,
+	async () => {
+		const customerId = "rc-webhook-cancel";
+		const RC_PRO_MONTHLY_ID = "com.app.rcwh5_pro_monthly";
+
+		const proMonthly = rcProMonthly();
+
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false, skipWebhooks: true }),
+				s.products({ list: [proMonthly] }),
+			],
+			actions: [],
+		});
+
+		await RCMappingService.upsert({
 			db: ctx.db,
 			data: {
 				org_id: ctx.org.id,
@@ -380,435 +480,362 @@ test.concurrent(`${chalk.yellowBright("rc-webhook: downgrade (yearly → monthly
 				autumn_product_id: proMonthly.id,
 				revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
 			},
-		}),
-		RCMappingService.upsert({
-			db: ctx.db,
-			data: {
-				org_id: ctx.org.id,
-				env: AppEnv.Sandbox,
-				autumn_product_id: proYearly.id,
-				revenuecat_product_ids: [RC_PRO_YEARLY_ID],
-			},
-		}),
-	]);
+		});
 
-	const rcClient = new RevenueCatWebhookClient({
-		orgId: ctx.org.id,
-		env: ctx.env,
-		webhookSecret: RC_WEBHOOK_SECRET,
-	});
+		const rcClient = new RevenueCatWebhookClient({
+			orgId: ctx.org.id,
+			env: ctx.env,
+			webhookSecret: RC_WEBHOOK_SECRET,
+		});
 
-	// First: initial purchase on yearly ($1000/yr)
-	await rcClient.initialPurchase({
-		productId: RC_PRO_YEARLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh4_tx_001",
-	});
+		// First: initial purchase
+		await rcClient.initialPurchase({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh5_tx_001",
+		});
 
-	await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "new",
-		timeoutMs: 15000,
-	});
+		await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "new",
+			timeoutMs: 15000,
+		});
 
-	// Then: switch to monthly ($10/mo). For RC this applies immediately rather
-	// than scheduling a downgrade, so the inserted monthly product is active.
-	await rcClient.renewal({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh4_tx_001",
-	});
+		// Then: cancellation
+		await rcClient.cancellation({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh5_tx_001",
+			expirationAtMs: Date.now() + 1000 * 60 * 60 * 24 * 30,
+		});
 
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "new" &&
-			payload.data?.updated_product?.id === proMonthly.id,
-		timeoutMs: 15000,
-	});
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "cancel",
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("new");
-	expect(data.updated_product.id).toBe(proMonthly.id);
-	expect(data.customer.id).toBe(customerId);
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TEST 5: Cancellation → scenario: cancel
-// ═══════════════════════════════════════════════════════════════════════════════
-
-test.concurrent(`${chalk.yellowBright("rc-webhook: cancellation → scenario: cancel")}`, async () => {
-	const customerId = "rc-webhook-cancel";
-	const RC_PRO_MONTHLY_ID = "com.app.rcwh5_pro_monthly";
-
-	const proMonthly = rcProMonthly();
-
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false, skipWebhooks: true }),
-			s.products({ list: [proMonthly] }),
-		],
-		actions: [],
-	});
-
-	await RCMappingService.upsert({
-		db: ctx.db,
-		data: {
-			org_id: ctx.org.id,
-			env: AppEnv.Sandbox,
-			autumn_product_id: proMonthly.id,
-			revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
-		},
-	});
-
-	const rcClient = new RevenueCatWebhookClient({
-		orgId: ctx.org.id,
-		env: ctx.env,
-		webhookSecret: RC_WEBHOOK_SECRET,
-	});
-
-	// First: initial purchase
-	await rcClient.initialPurchase({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh5_tx_001",
-	});
-
-	await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "new",
-		timeoutMs: 15000,
-	});
-
-	// Then: cancellation
-	await rcClient.cancellation({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh5_tx_001",
-		expirationAtMs: Date.now() + 1000 * 60 * 60 * 24 * 30,
-	});
-
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "cancel",
-		timeoutMs: 15000,
-	});
-
-	expect(result).not.toBeNull();
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("cancel");
-	expect(data.updated_product.id).toBe(proMonthly.id);
-	expect(data.customer.id).toBe(customerId);
-});
+		expect(result).not.toBeNull();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("cancel");
+		expect(data.updated_product.id).toBe(proMonthly.id);
+		expect(data.customer.id).toBe(customerId);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 6: Uncancellation → scenario: renew
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("rc-webhook: uncancellation → scenario: renew")}`, async () => {
-	const customerId = "rc-webhook-uncancel";
-	const RC_PRO_MONTHLY_ID = "com.app.rcwh6_pro_monthly";
+test.concurrent(
+	`${chalk.yellowBright("rc-webhook: uncancellation → scenario: renew")}`,
+	async () => {
+		const customerId = "rc-webhook-uncancel";
+		const RC_PRO_MONTHLY_ID = "com.app.rcwh6_pro_monthly";
 
-	const proMonthly = rcProMonthly();
+		const proMonthly = rcProMonthly();
 
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false, skipWebhooks: true }),
-			s.products({ list: [proMonthly] }),
-		],
-		actions: [],
-	});
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false, skipWebhooks: true }),
+				s.products({ list: [proMonthly] }),
+			],
+			actions: [],
+		});
 
-	await RCMappingService.upsert({
-		db: ctx.db,
-		data: {
-			org_id: ctx.org.id,
-			env: AppEnv.Sandbox,
-			autumn_product_id: proMonthly.id,
-			revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
-		},
-	});
+		await RCMappingService.upsert({
+			db: ctx.db,
+			data: {
+				org_id: ctx.org.id,
+				env: AppEnv.Sandbox,
+				autumn_product_id: proMonthly.id,
+				revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
+			},
+		});
 
-	const rcClient = new RevenueCatWebhookClient({
-		orgId: ctx.org.id,
-		env: ctx.env,
-		webhookSecret: RC_WEBHOOK_SECRET,
-	});
+		const rcClient = new RevenueCatWebhookClient({
+			orgId: ctx.org.id,
+			env: ctx.env,
+			webhookSecret: RC_WEBHOOK_SECRET,
+		});
 
-	// Step 1: initial purchase
-	await rcClient.initialPurchase({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh6_tx_001",
-	});
+		// Step 1: initial purchase
+		await rcClient.initialPurchase({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh6_tx_001",
+		});
 
-	await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "new",
-		timeoutMs: 15000,
-	});
+		await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "new",
+			timeoutMs: 15000,
+		});
 
-	// Step 2: cancellation
-	await rcClient.cancellation({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh6_tx_001",
-		expirationAtMs: Date.now() + 1000 * 60 * 60 * 24 * 30,
-	});
+		// Step 2: cancellation
+		await rcClient.cancellation({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh6_tx_001",
+			expirationAtMs: Date.now() + 1000 * 60 * 60 * 24 * 30,
+		});
 
-	await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "cancel",
-		timeoutMs: 15000,
-	});
+		await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "cancel",
+			timeoutMs: 15000,
+		});
 
-	// Step 3: uncancellation
-	await rcClient.uncancellation({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-	});
+		// Step 3: uncancellation
+		await rcClient.uncancellation({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+		});
 
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "renew",
-		timeoutMs: 15000,
-	});
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "renew",
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("renew");
-	expect(data.updated_product.id).toBe(proMonthly.id);
-	expect(data.customer.id).toBe(customerId);
-});
+		expect(result).not.toBeNull();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("renew");
+		expect(data.updated_product.id).toBe(proMonthly.id);
+		expect(data.customer.id).toBe(customerId);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 7: Billing Issue → scenario: past_due
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("rc-webhook: billing issue → scenario: past_due")}`, async () => {
-	const customerId = "rc-webhook-billing-issue";
-	const RC_PRO_MONTHLY_ID = "com.app.rcwh7_pro_monthly";
+test.concurrent(
+	`${chalk.yellowBright("rc-webhook: billing issue → scenario: past_due")}`,
+	async () => {
+		const customerId = "rc-webhook-billing-issue";
+		const RC_PRO_MONTHLY_ID = "com.app.rcwh7_pro_monthly";
 
-	const proMonthly = rcProMonthly();
+		const proMonthly = rcProMonthly();
 
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false, skipWebhooks: true }),
-			s.products({ list: [proMonthly] }),
-		],
-		actions: [],
-	});
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false, skipWebhooks: true }),
+				s.products({ list: [proMonthly] }),
+			],
+			actions: [],
+		});
 
-	await RCMappingService.upsert({
-		db: ctx.db,
-		data: {
-			org_id: ctx.org.id,
-			env: AppEnv.Sandbox,
-			autumn_product_id: proMonthly.id,
-			revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
-		},
-	});
+		await RCMappingService.upsert({
+			db: ctx.db,
+			data: {
+				org_id: ctx.org.id,
+				env: AppEnv.Sandbox,
+				autumn_product_id: proMonthly.id,
+				revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
+			},
+		});
 
-	const rcClient = new RevenueCatWebhookClient({
-		orgId: ctx.org.id,
-		env: ctx.env,
-		webhookSecret: RC_WEBHOOK_SECRET,
-	});
+		const rcClient = new RevenueCatWebhookClient({
+			orgId: ctx.org.id,
+			env: ctx.env,
+			webhookSecret: RC_WEBHOOK_SECRET,
+		});
 
-	// First: initial purchase
-	await rcClient.initialPurchase({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh7_tx_001",
-	});
+		// First: initial purchase
+		await rcClient.initialPurchase({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh7_tx_001",
+		});
 
-	await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "new",
-		timeoutMs: 15000,
-	});
+		await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "new",
+			timeoutMs: 15000,
+		});
 
-	// Then: billing issue
-	await rcClient.billingIssue({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh7_tx_001",
-	});
+		// Then: billing issue
+		await rcClient.billingIssue({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh7_tx_001",
+		});
 
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "past_due",
-		timeoutMs: 15000,
-	});
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "past_due",
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("past_due");
-	expect(data.updated_product.id).toBe(proMonthly.id);
-	expect(data.customer.id).toBe(customerId);
-});
+		expect(result).not.toBeNull();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("past_due");
+		expect(data.updated_product.id).toBe(proMonthly.id);
+		expect(data.customer.id).toBe(customerId);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 8: Expiration → scenario: expire
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("rc-webhook: expiration → scenario: expired")}`, async () => {
-	const customerId = "rc-webhook-expire";
-	const RC_PRO_MONTHLY_ID = "com.app.rcwh8_pro_monthly";
+test.concurrent(
+	`${chalk.yellowBright("rc-webhook: expiration → scenario: expired")}`,
+	async () => {
+		const customerId = "rc-webhook-expire";
+		const RC_PRO_MONTHLY_ID = "com.app.rcwh8_pro_monthly";
 
-	const proMonthly = rcProMonthly();
+		const proMonthly = rcProMonthly();
 
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false, skipWebhooks: true }),
-			s.products({ list: [proMonthly] }),
-		],
-		actions: [],
-	});
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false, skipWebhooks: true }),
+				s.products({ list: [proMonthly] }),
+			],
+			actions: [],
+		});
 
-	await RCMappingService.upsert({
-		db: ctx.db,
-		data: {
-			org_id: ctx.org.id,
-			env: AppEnv.Sandbox,
-			autumn_product_id: proMonthly.id,
-			revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
-		},
-	});
+		await RCMappingService.upsert({
+			db: ctx.db,
+			data: {
+				org_id: ctx.org.id,
+				env: AppEnv.Sandbox,
+				autumn_product_id: proMonthly.id,
+				revenuecat_product_ids: [RC_PRO_MONTHLY_ID],
+			},
+		});
 
-	const rcClient = new RevenueCatWebhookClient({
-		orgId: ctx.org.id,
-		env: ctx.env,
-		webhookSecret: RC_WEBHOOK_SECRET,
-	});
+		const rcClient = new RevenueCatWebhookClient({
+			orgId: ctx.org.id,
+			env: ctx.env,
+			webhookSecret: RC_WEBHOOK_SECRET,
+		});
 
-	// First: initial purchase
-	await rcClient.initialPurchase({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh8_tx_001",
-	});
+		// First: initial purchase
+		await rcClient.initialPurchase({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh8_tx_001",
+		});
 
-	await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "new",
-		timeoutMs: 15000,
-	});
+		await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "new",
+			timeoutMs: 15000,
+		});
 
-	// Then: expiration
-	await rcClient.expiration({
-		productId: RC_PRO_MONTHLY_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh8_tx_001",
-	});
+		// Then: expiration
+		await rcClient.expiration({
+			productId: RC_PRO_MONTHLY_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh8_tx_001",
+		});
 
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "expired",
-		timeoutMs: 15000,
-	});
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "expired",
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("expired");
-	expect(data.updated_product.id).toBe(proMonthly.id);
-	expect(data.customer.id).toBe(customerId);
-});
+		expect(result).not.toBeNull();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("expired");
+		expect(data.updated_product.id).toBe(proMonthly.id);
+		expect(data.customer.id).toBe(customerId);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 9: Non-Renewing Purchase → scenario: new
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("rc-webhook: non-renewing purchase (add-on) → scenario: new")}`, async () => {
-	const customerId = "rc-webhook-non-renewing";
-	const RC_ADD_ON_ID = "com.app.rcwh9_add_on_pack";
+test.concurrent(
+	`${chalk.yellowBright("rc-webhook: non-renewing purchase (add-on) → scenario: new")}`,
+	async () => {
+		const customerId = "rc-webhook-non-renewing";
+		const RC_ADD_ON_ID = "com.app.rcwh9_add_on_pack";
 
-	const addOnPack = products.base({
-		id: "add-on",
-		items: [items.lifetimeMessages({ includedUsage: 100 })],
-		isAddOn: true,
-	});
+		const addOnPack = products.base({
+			id: "add-on",
+			items: [items.lifetimeMessages({ includedUsage: 100 })],
+			isAddOn: true,
+		});
 
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: false, skipWebhooks: true }),
-			s.products({ list: [addOnPack] }),
-		],
-		actions: [],
-	});
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false, skipWebhooks: true }),
+				s.products({ list: [addOnPack] }),
+			],
+			actions: [],
+		});
 
-	await RCMappingService.upsert({
-		db: ctx.db,
-		data: {
-			org_id: ctx.org.id,
-			env: AppEnv.Sandbox,
-			autumn_product_id: addOnPack.id,
-			revenuecat_product_ids: [RC_ADD_ON_ID],
-		},
-	});
+		await RCMappingService.upsert({
+			db: ctx.db,
+			data: {
+				org_id: ctx.org.id,
+				env: AppEnv.Sandbox,
+				autumn_product_id: addOnPack.id,
+				revenuecat_product_ids: [RC_ADD_ON_ID],
+			},
+		});
 
-	const rcClient = new RevenueCatWebhookClient({
-		orgId: ctx.org.id,
-		env: ctx.env,
-		webhookSecret: RC_WEBHOOK_SECRET,
-	});
+		const rcClient = new RevenueCatWebhookClient({
+			orgId: ctx.org.id,
+			env: ctx.env,
+			webhookSecret: RC_WEBHOOK_SECRET,
+		});
 
-	await rcClient.nonRenewingPurchase({
-		productId: RC_ADD_ON_ID,
-		appUserId: customerId,
-		originalTransactionId: "rcwh9_addon_tx_001",
-	});
+		await rcClient.nonRenewingPurchase({
+			productId: RC_ADD_ON_ID,
+			appUserId: customerId,
+			originalTransactionId: "rcwh9_addon_tx_001",
+		});
 
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "new",
-		timeoutMs: 15000,
-	});
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "new",
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("new");
-	expect(data.updated_product.id).toBe(addOnPack.id);
-	expect(data.customer.id).toBe(customerId);
-});
+		expect(result).not.toBeNull();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("new");
+		expect(data.updated_product.id).toBe(addOnPack.id);
+		expect(data.customer.id).toBe(customerId);
+	},
+);

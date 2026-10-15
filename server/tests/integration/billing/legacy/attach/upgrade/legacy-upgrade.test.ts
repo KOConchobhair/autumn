@@ -101,124 +101,127 @@ const stampZeroFixedStripePrices = async ({
 // - Customer has Premium active with correct features
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-upgrade 1: upgrade with payment method validation")}`, async () => {
-	const customerId = "legacy-upgrade-1";
+test.concurrent(
+	`${chalk.yellowBright("legacy-upgrade 1: upgrade with payment method validation")}`,
+	async () => {
+		const customerId = "legacy-upgrade-1";
 
-	// Pro: $20/month with Dashboard, Messages (10), Admin (unlimited)
-	const proProduct = constructProduct({
-		id: "pro",
-		type: "pro",
-		items: [
-			constructFeatureItem({
-				featureId: TestFeature.Dashboard,
-				isBoolean: true,
-			}),
-			constructFeatureItem({
-				featureId: TestFeature.Messages,
-				includedUsage: 10,
-				interval: ProductItemInterval.Month,
-			}),
-			constructFeatureItem({
-				featureId: TestFeature.Admin,
-				unlimited: true,
-			}),
-		],
-	});
+		// Pro: $20/month with Dashboard, Messages (10), Admin (unlimited)
+		const proProduct = constructProduct({
+			id: "pro",
+			type: "pro",
+			items: [
+				constructFeatureItem({
+					featureId: TestFeature.Dashboard,
+					isBoolean: true,
+				}),
+				constructFeatureItem({
+					featureId: TestFeature.Messages,
+					includedUsage: 10,
+					interval: ProductItemInterval.Month,
+				}),
+				constructFeatureItem({
+					featureId: TestFeature.Admin,
+					unlimited: true,
+				}),
+			],
+		});
 
-	// Premium: $50/month with Messages (100)
-	const premiumProduct = constructProduct({
-		id: "premium",
-		type: "premium",
+		// Premium: $50/month with Messages (100)
+		const premiumProduct = constructProduct({
+			id: "premium",
+			type: "premium",
 
-		items: [
-			constructFeatureItem({
-				featureId: TestFeature.Messages,
-				includedUsage: 100,
-				interval: ProductItemInterval.Month,
-			}),
-		],
-	});
+			items: [
+				constructFeatureItem({
+					featureId: TestFeature.Messages,
+					includedUsage: 100,
+					interval: ProductItemInterval.Month,
+				}),
+			],
+		});
 
-	// Setup without payment method initially
-	const { autumnV1, customer } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }), // No payment method
-			s.products({ list: [proProduct, premiumProduct] }),
-		],
-		actions: [],
-	});
+		// Setup without payment method initially
+		const { autumnV1, customer } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }), // No payment method
+				s.products({ list: [proProduct, premiumProduct] }),
+			],
+			actions: [],
+		});
 
-	// Attach Pro (no payment = free/trial)
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: proProduct.id,
-	});
+		// Attach Pro (no payment = free/trial)
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: proProduct.id,
+		});
 
-	const customerAfterPro =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfterPro =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer: customerAfterPro,
-		active: [proProduct.id],
-	});
+		await expectCustomerProducts({
+			customer: customerAfterPro,
+			active: [proProduct.id],
+		});
 
-	expectCustomerFeatureCorrect({
-		customer: customerAfterPro,
-		featureId: TestFeature.Messages,
-		includedUsage: 10,
-		balance: 10,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer: customerAfterPro,
+			featureId: TestFeature.Messages,
+			includedUsage: 10,
+			balance: 10,
+			usage: 0,
+		});
 
-	// Try force_checkout without payment method - should fail
-	await expectAutumnError({
-		func: async () => {
-			await autumnV1.attach({
-				customer_id: customerId,
-				product_id: premiumProduct.id,
-				force_checkout: true,
-			});
-		},
-	});
+		// Try force_checkout without payment method - should fail
+		await expectAutumnError({
+			func: async () => {
+				await autumnV1.attach({
+					customer_id: customerId,
+					product_id: premiumProduct.id,
+					force_checkout: true,
+				});
+			},
+		});
 
-	// Attach successful payment method
-	await attachPmToCus({
-		db: ctx.db,
-		customer,
-		org: ctx.org,
-		env: ctx.env,
-	});
+		// Attach successful payment method
+		await attachPmToCus({
+			db: ctx.db,
+			customer,
+			org: ctx.org,
+			env: ctx.env,
+		});
 
-	// Now upgrade to Premium should succeed
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: premiumProduct.id,
-	});
+		// Now upgrade to Premium should succeed
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: premiumProduct.id,
+		});
 
-	const customerAfterPremium =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfterPremium =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer: customerAfterPremium,
-		active: [premiumProduct.id],
-	});
+		await expectCustomerProducts({
+			customer: customerAfterPremium,
+			active: [premiumProduct.id],
+		});
 
-	expectCustomerFeatureCorrect({
-		customer: customerAfterPremium,
-		featureId: TestFeature.Messages,
-		includedUsage: 100,
-		balance: 100,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer: customerAfterPremium,
+			featureId: TestFeature.Messages,
+			includedUsage: 100,
+			balance: 100,
+			usage: 0,
+		});
 
-	// Should have invoice for upgrade
-	await expectCustomerInvoiceCorrect({
-		customer: customerAfterPremium,
-		count: 2, // Just the upgrade invoice since Pro was trial/free
-		latestTotal: 30, // Premium $50
-	});
-});
+		// Should have invoice for upgrade
+		await expectCustomerInvoiceCorrect({
+			customer: customerAfterPremium,
+			count: 2, // Just the upgrade invoice since Pro was trial/free
+			latestTotal: 30, // Premium $50
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Upgrade from Pro monthly to Pro Annual mid-cycle
@@ -236,59 +239,62 @@ test.concurrent(`${chalk.yellowBright("legacy-upgrade 1: upgrade with payment me
 // - Stripe subscription period_end matches next_cycle
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-upgrade 2: upgrade monthly to annual mid-cycle")}`, async () => {
-	const customerId = "legacy-upgrade-2";
+test.concurrent(
+	`${chalk.yellowBright("legacy-upgrade 2: upgrade monthly to annual mid-cycle")}`,
+	async () => {
+		const customerId = "legacy-upgrade-2";
 
-	const wordsItem = items.monthlyWords({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [wordsItem] });
-	const proAnnual = products.proAnnual({
-		id: "pro-annual",
-		items: [wordsItem],
-	});
+		const wordsItem = items.monthlyWords({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [wordsItem] });
+		const proAnnual = products.proAnnual({
+			id: "pro-annual",
+			items: [wordsItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [pro, proAnnual] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.advanceTestClock({ weeks: 2 }),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [pro, proAnnual] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.advanceTestClock({ weeks: 2 }),
+			],
+		});
 
-	// Get checkout preview with next_cycle
-	const checkoutRes = await autumnV1.checkout({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-	});
+		// Get checkout preview with next_cycle
+		const checkoutRes = await autumnV1.checkout({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+		});
 
-	expect(checkoutRes.next_cycle).toBeDefined();
-	expect(checkoutRes.next_cycle?.starts_at).toBeCloseTo(
-		addYears(new Date(), 1).getTime(),
-		-Math.log10(toMilliseconds.days(1)),
-	);
+		expect(checkoutRes.next_cycle).toBeDefined();
+		expect(checkoutRes.next_cycle?.starts_at).toBeCloseTo(
+			addYears(new Date(), 1).getTime(),
+			-Math.log10(toMilliseconds.days(1)),
+		);
 
-	// Upgrade to Pro Annual
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-	});
+		// Upgrade to Pro Annual
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+		});
 
-	// Verify Stripe subscription period_end matches checkout preview
-	const sub = await getCusSub({
-		ctx,
-		customerId,
-		productId: proAnnual.id,
-	});
+		// Verify Stripe subscription period_end matches checkout preview
+		const sub = await getCusSub({
+			ctx,
+			customerId,
+			productId: proAnnual.id,
+		});
 
-	const subItem = sub!.items.data[0];
-	expect(subItem.current_period_end * 1000).toBeCloseTo(
-		checkoutRes.next_cycle?.starts_at ?? 0,
-		-Math.log10(toMilliseconds.days(1)),
-	);
-});
+		const subItem = sub!.items.data[0];
+		expect(subItem.current_period_end * 1000).toBeCloseTo(
+			checkoutRes.next_cycle?.starts_at ?? 0,
+			-Math.log10(toMilliseconds.days(1)),
+		);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: Upgrade from Pro monthly to Pro Annual after 1.5 cycles
@@ -306,59 +312,62 @@ test.concurrent(`${chalk.yellowBright("legacy-upgrade 2: upgrade monthly to annu
 // - Stripe subscription period_end matches next_cycle
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-upgrade 3: upgrade monthly to annual after 1.5 cycles")}`, async () => {
-	const customerId = "legacy-upgrade-3";
+test.concurrent(
+	`${chalk.yellowBright("legacy-upgrade 3: upgrade monthly to annual after 1.5 cycles")}`,
+	async () => {
+		const customerId = "legacy-upgrade-3";
 
-	const wordsItem = items.monthlyWords({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [wordsItem] });
-	const proAnnual = products.proAnnual({
-		id: "pro-annual",
-		items: [wordsItem],
-	});
+		const wordsItem = items.monthlyWords({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [wordsItem] });
+		const proAnnual = products.proAnnual({
+			id: "pro-annual",
+			items: [wordsItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [pro, proAnnual] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.advanceTestClock({ months: 1, weeks: 2 }),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [pro, proAnnual] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.advanceTestClock({ months: 1, weeks: 2 }),
+			],
+		});
 
-	// Get checkout preview with next_cycle
-	const checkoutRes = await autumnV1.checkout({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-	});
+		// Get checkout preview with next_cycle
+		const checkoutRes = await autumnV1.checkout({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+		});
 
-	expect(checkoutRes.next_cycle).toBeDefined();
-	expect(checkoutRes.next_cycle?.starts_at).toBeCloseTo(
-		addYears(new Date(), 1).getTime(),
-		-Math.log10(toMilliseconds.days(1)),
-	);
+		expect(checkoutRes.next_cycle).toBeDefined();
+		expect(checkoutRes.next_cycle?.starts_at).toBeCloseTo(
+			addYears(new Date(), 1).getTime(),
+			-Math.log10(toMilliseconds.days(1)),
+		);
 
-	// Upgrade to Pro Annual
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-	});
+		// Upgrade to Pro Annual
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+		});
 
-	// Verify Stripe subscription period_end matches checkout preview
-	const sub = await getCusSub({
-		ctx,
-		customerId,
-		productId: proAnnual.id,
-	});
+		// Verify Stripe subscription period_end matches checkout preview
+		const sub = await getCusSub({
+			ctx,
+			customerId,
+			productId: proAnnual.id,
+		});
 
-	const subItem = sub!.items.data[0];
-	expect(subItem.current_period_end * 1000).toBeCloseTo(
-		checkoutRes.next_cycle?.starts_at ?? 0,
-		-Math.log10(toMilliseconds.days(1)),
-	);
-});
+		const subItem = sub!.items.data[0];
+		expect(subItem.current_period_end * 1000).toBeCloseTo(
+			checkoutRes.next_cycle?.starts_at ?? 0,
+			-Math.log10(toMilliseconds.days(1)),
+		);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 4: Upgrade from free (no prices) to $0/month with usage-based prices
@@ -374,75 +383,79 @@ test.concurrent(`${chalk.yellowBright("legacy-upgrade 3: upgrade monthly to annu
 // - Customer has the new product active with correct features
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-upgrade 4: free (no prices) to $0/month with usage-based prices")}`, async () => {
-	const customerId = "legacy-upgrade-free-to-zero-usage";
+test.concurrent(
+	`${chalk.yellowBright("legacy-upgrade 4: free (no prices) to $0/month with usage-based prices")}`,
+	async () => {
+		const customerId = "legacy-upgrade-free-to-zero-usage";
 
-	const zeroMonthlyPrice = items.monthlyPrice({ price: 0 });
+		const zeroMonthlyPrice = items.monthlyPrice({ price: 0 });
 
-	const free = products.base({
-		id: "free",
-		items: [
-			zeroMonthlyPrice,
-			items.consumableMessages({ includedUsage: 0, price: 0.5 }),
-		],
-	});
+		const free = products.base({
+			id: "free",
+			items: [
+				zeroMonthlyPrice,
+				items.consumableMessages({ includedUsage: 0, price: 0.5 }),
+			],
+		});
 
-	const usagePlan = products.base({
-		id: "usage-plan",
-		items: [
-			zeroMonthlyPrice,
-			items.consumableMessages({ includedUsage: 0, price: 0.1 }),
-		],
-	});
+		const usagePlan = products.base({
+			id: "usage-plan",
+			items: [
+				zeroMonthlyPrice,
+				items.consumableMessages({ includedUsage: 0, price: 0.1 }),
+			],
+		});
 
-	const { autumnV1, ctx: scenarioCtx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, usagePlan] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, ctx: scenarioCtx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, usagePlan] }),
+			],
+			actions: [],
+		});
 
-	await stampZeroFixedStripePrices({ ctx: scenarioCtx, productId: free.id });
-	await stampZeroFixedStripePrices({
-		ctx: scenarioCtx,
-		productId: usagePlan.id,
-	});
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: free.id,
-	});
+		await stampZeroFixedStripePrices({ ctx: scenarioCtx, productId: free.id });
+		await stampZeroFixedStripePrices({
+			ctx: scenarioCtx,
+			productId: usagePlan.id,
+		});
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: free.id,
+		});
 
-	// Verify on free plan
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectCustomerProducts({
-		customer: customerBefore,
-		active: [free.id],
-	});
+		// Verify on free plan
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectCustomerProducts({
+			customer: customerBefore,
+			active: [free.id],
+		});
 
-	// Upgrade to $0/month + usage plan (should be immediate)
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: usagePlan.id,
-	});
+		// Upgrade to $0/month + usage plan (should be immediate)
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: usagePlan.id,
+		});
 
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// New plan should be active immediately, free should be gone
-	await expectCustomerProducts({
-		customer: customerAfter,
-		active: [usagePlan.id],
-		notPresent: [free.id],
-	});
+		// New plan should be active immediately, free should be gone
+		await expectCustomerProducts({
+			customer: customerAfter,
+			active: [usagePlan.id],
+			notPresent: [free.id],
+		});
 
-	// Verify consumable messages feature
-	expectCustomerFeatureCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Messages,
-		includedUsage: 0,
-		balance: 0,
-		usage: 0,
-	});
-});
+		// Verify consumable messages feature
+		expectCustomerFeatureCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Messages,
+			includedUsage: 0,
+			balance: 0,
+			usage: 0,
+		});
+	},
+);

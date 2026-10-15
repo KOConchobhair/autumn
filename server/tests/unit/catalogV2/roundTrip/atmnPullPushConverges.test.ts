@@ -17,10 +17,7 @@ import { inMemoryCatalogClient } from "./inMemoryCatalogClient";
 
 // The package's own import surface; absolute so the scaffolded config resolves
 // it regardless of how deep the workspace sits.
-const ATMN = join(
-	import.meta.dir,
-	"../../../../../packages/atmn/src/index",
-);
+const ATMN = join(import.meta.dir, "../../../../../packages/atmn/src/index");
 const imports = { atmn: ATMN, builders: ATMN };
 
 const workspace = ({ name }: { name: string }): string => {

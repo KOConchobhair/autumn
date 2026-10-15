@@ -26,86 +26,89 @@ import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
 import { runUpdatePlanMigration } from "../../../utils/runUpdatePlanMigration";
 
-test.concurrent(`${chalk.yellowBright("migrations update_plan: metered rollover carries to added item")}`, async () => {
-	const customerId = "migration-update-carry-rollover";
-	const base = products.base({
-		items: [
-			items.monthlyMessagesWithRollover({
-				includedUsage: 400,
-				rolloverConfig: {
-					max: 500,
-					length: 1,
-					duration: RolloverExpiryDurationType.Month,
-				},
-			}),
-		],
-	});
-
-	const { autumnV1, autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [base] }),
-		],
-		actions: [
-			s.billing.attach({ productId: base.id }),
-			s.track({ featureId: TestFeature.Messages, value: 250, timeout: 2000 }),
-			s.resetFeature({ featureId: TestFeature.Messages }),
-		],
-	});
-
-	await runUpdatePlanMigration({
-		ctx,
-		migrationClient: autumnV2_2,
-		migrationId: `${customerId}-mig`,
-		customerId,
-		filter: { customer: { plan: { plan_id: base.id } } },
-		operations: {
-			customer: [
-				{
-					type: "update_plan",
-					plan_filter: { plan_id: base.id },
-					customize: {
-						remove_items: [
-							{
-								feature_id: TestFeature.Messages,
-								interval: BillingInterval.Month,
-							},
-						],
-						add_items: [
-							{
-								feature_id: TestFeature.Messages,
-								included: 500,
-								reset: { interval: ResetInterval.Month },
-								rollover: {
-									max: 500,
-									expiry_duration_type: RolloverExpiryDurationType.Month,
-									expiry_duration_length: 1,
-								},
-							},
-						],
+test.concurrent(
+	`${chalk.yellowBright("migrations update_plan: metered rollover carries to added item")}`,
+	async () => {
+		const customerId = "migration-update-carry-rollover";
+		const base = products.base({
+			items: [
+				items.monthlyMessagesWithRollover({
+					includedUsage: 400,
+					rolloverConfig: {
+						max: 500,
+						length: 1,
+						duration: RolloverExpiryDurationType.Month,
 					},
-				},
+				}),
 			],
-		},
-	});
+		});
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectCustomerProducts({ customer, active: [base.id] });
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 650,
-		usage: 0,
-		rollovers: [{ balance: 150 }],
-	});
-	await expectCustomerInvoiceCorrect({
-		customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
-		count: 0,
-	});
-	await expectNoExpiredCustomerProducts({
-		ctx,
-		customerId,
-		productId: base.id,
-	});
-});
+		const { autumnV1, autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [base] }),
+			],
+			actions: [
+				s.billing.attach({ productId: base.id }),
+				s.track({ featureId: TestFeature.Messages, value: 250, timeout: 2000 }),
+				s.resetFeature({ featureId: TestFeature.Messages }),
+			],
+		});
+
+		await runUpdatePlanMigration({
+			ctx,
+			migrationClient: autumnV2_2,
+			migrationId: `${customerId}-mig`,
+			customerId,
+			filter: { customer: { plan: { plan_id: base.id } } },
+			operations: {
+				customer: [
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: base.id },
+						customize: {
+							remove_items: [
+								{
+									feature_id: TestFeature.Messages,
+									interval: BillingInterval.Month,
+								},
+							],
+							add_items: [
+								{
+									feature_id: TestFeature.Messages,
+									included: 500,
+									reset: { interval: ResetInterval.Month },
+									rollover: {
+										max: 500,
+										expiry_duration_type: RolloverExpiryDurationType.Month,
+										expiry_duration_length: 1,
+									},
+								},
+							],
+						},
+					},
+				],
+			},
+		});
+
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectCustomerProducts({ customer, active: [base.id] });
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 650,
+			usage: 0,
+			rollovers: [{ balance: 150 }],
+		});
+		await expectCustomerInvoiceCorrect({
+			customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
+			count: 0,
+		});
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: base.id,
+		});
+	},
+);

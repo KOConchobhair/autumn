@@ -148,5 +148,7 @@ export const runInvoiceCreateSeed = async () => {
 	console.log(
 		`   discounts: ${percentOff.id} (INV10), ${amountOff.id} (INV25)`,
 	);
-	console.log(`   templates: ${templates.map((t) => t.values.name).join(", ")}\n`);
+	console.log(
+		`   templates: ${templates.map((t) => t.values.name).join(", ")}\n`,
+	);
 };

@@ -1,6 +1,7 @@
+import { describe, expect, test } from "bun:test";
 import {
-	AppEnv,
 	type ApiPlanV1,
+	AppEnv,
 	BillingInterval,
 	BillingMethod,
 	OnDecrease,
@@ -8,7 +9,6 @@ import {
 	ResetInterval,
 	TierBehavior,
 } from "@autumn/shared";
-import { describe, expect, test } from "bun:test";
 import { applyDiff } from "@autumn/shared/utils/planV1Utils/diff/applyDiff.js";
 import { diffPlanV1 } from "@autumn/shared/utils/planV1Utils/diff/diffPlanV1.js";
 import { popflyStart, popflyStartAnnual } from "./diffPlanV1.fixtures.js";

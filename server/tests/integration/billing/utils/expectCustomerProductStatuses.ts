@@ -1,8 +1,8 @@
 import { expect } from "bun:test";
 import {
 	CusProductStatus,
-	type FullCusProduct,
 	type CusProductStatus as CusProductStatusType,
+	type FullCusProduct,
 } from "@autumn/shared";
 import type { AutumnContext } from "@/honoUtils/HonoEnv";
 import { CusService } from "@/internal/customers/CusService";

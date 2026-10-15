@@ -37,9 +37,8 @@ test(`${chalk.yellowBright("edge: refund_last_payment=full on unpaid past_due re
 				productId: pro.id,
 				pollWebhookEffects: true,
 			});
-			const subscriptionBefore = await ctx.stripeCli.subscriptions.retrieve(
-				subscriptionId,
-			);
+			const subscriptionBefore =
+				await ctx.stripeCli.subscriptions.retrieve(subscriptionId);
 			await expectAutumnError({
 				errCode: ErrCode.InvalidRequest,
 				errMessage: "Could not resolve a charge from the invoice to refund",
@@ -58,9 +57,8 @@ test(`${chalk.yellowBright("edge: refund_last_payment=full on unpaid past_due re
 				pastDue: [pro.id],
 				notPresent: [free.id],
 			});
-			const subscriptionAfter = await ctx.stripeCli.subscriptions.retrieve(
-				subscriptionId,
-			);
+			const subscriptionAfter =
+				await ctx.stripeCli.subscriptions.retrieve(subscriptionId);
 			expect(subscriptionAfter).toMatchObject({
 				status: subscriptionBefore.status,
 				cancel_at: subscriptionBefore.cancel_at,

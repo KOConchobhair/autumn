@@ -111,8 +111,8 @@ describe("stripeCandidatesFromCatalog", () => {
 			catalogByInternalId,
 		});
 
-		expect(
-			candidates.map((candidate) => candidate.internal_id).sort(),
-		).toEqual(["team_v1", "uk_v1"]);
+		expect(candidates.map((candidate) => candidate.internal_id).sort()).toEqual(
+			["team_v1", "uk_v1"],
+		);
 	});
 });

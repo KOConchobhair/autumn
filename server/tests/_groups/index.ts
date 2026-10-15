@@ -1,5 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { all } from "./all";
 import { core } from "./core";
 import { coreAttach } from "./core/coreAttach";
 import { coreBackSync } from "./core/coreBackSync";
@@ -33,7 +34,6 @@ import { misc } from "./domains/misc";
 import { unit } from "./domains/unit";
 import { webhooks } from "./domains/webhooks";
 import { suites } from "./suites";
-import { all } from "./all";
 import { temp } from "./temp";
 import type { TestGroup, TestSuite } from "./types";
 

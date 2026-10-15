@@ -5,11 +5,11 @@
  */
 
 import { expect, test } from "bun:test";
-import { type ApiCustomerV5 } from "@autumn/shared";
+import type { ApiCustomerV5 } from "@autumn/shared";
 import {
-	type FlashClient,
 	callFlash,
 	createRealStripeSub,
+	type FlashClient,
 } from "@tests/integration/billing/dfu/billing-import/utils/flashTestUtils.js";
 import { expectBalanceCorrect } from "@tests/integration/utils/expectBalanceCorrect.js";
 import { TestFeature } from "@tests/setup/v2Features.js";
@@ -30,7 +30,10 @@ test.concurrent(
 
 		const { autumnV2_2, autumnV2_3, ctx } = await initScenario({
 			customerId,
-			setup: [s.customer({ testClock: false }), s.products({ list: [seatPack] })],
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [seatPack] }),
+			],
 			actions: [],
 		});
 

@@ -167,7 +167,9 @@ test.concurrent(
 
 		expect(preview.total).toBe(0);
 
-		const creditLines = preview.line_items.filter((li: { total: number }) => li.total < 0);
+		const creditLines = preview.line_items.filter(
+			(li: { total: number }) => li.total < 0,
+		);
 		expect(creditLines.length).toBe(0);
 
 		await autumnV1.subscriptions.update(cancelParams);

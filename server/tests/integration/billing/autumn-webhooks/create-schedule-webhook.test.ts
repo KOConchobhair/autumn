@@ -28,7 +28,6 @@ import {
 	type CreateScheduleParamsV0Input,
 	ms,
 } from "@autumn/shared";
-import chalk from "chalk";
 import {
 	getTestSvixAppId,
 	setupWebhookTest,
@@ -39,6 +38,7 @@ import { items } from "@tests/utils/fixtures/items.js";
 import { products } from "@tests/utils/fixtures/products.js";
 import ctx from "@tests/utils/testInitUtils/createTestContext.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
+import chalk from "chalk";
 
 type CustomerProductsUpdatedPayload = {
 	type: string;
@@ -65,56 +65,53 @@ afterAll(async () => {
 	await webhook?.cleanup();
 });
 
-test(
-	`${chalk.yellowBright("sendProductsUpdated: multi-phase create_schedule fires webhook for inserted active cusProduct")}`,
-	async () => {
-		const customerId = "create-schedule-webhook-multiphase";
+test(`${chalk.yellowBright("sendProductsUpdated: multi-phase create_schedule fires webhook for inserted active cusProduct")}`, async () => {
+	const customerId = "create-schedule-webhook-multiphase";
 
-		const pro = products.pro({
-			id: "pro-create-schedule-webhook",
-			items: [items.monthlyMessages({ includedUsage: 100 })],
-		});
-		const premium = products.premium({
-			id: "premium-create-schedule-webhook",
-			items: [items.monthlyMessages({ includedUsage: 500 })],
-		});
+	const pro = products.pro({
+		id: "pro-create-schedule-webhook",
+		items: [items.monthlyMessages({ includedUsage: 100 })],
+	});
+	const premium = products.premium({
+		id: "premium-create-schedule-webhook",
+		items: [items.monthlyMessages({ includedUsage: 500 })],
+	});
 
-		const { autumnV1 } = await initScenario({
-			customerId,
-			setup: [
-				s.customer({ paymentMethod: "success" }),
-				s.products({ list: [pro, premium] }),
-			],
-			actions: [],
-		});
+	const { autumnV1 } = await initScenario({
+		customerId,
+		setup: [
+			s.customer({ paymentMethod: "success" }),
+			s.products({ list: [pro, premium] }),
+		],
+		actions: [],
+	});
 
-		const now = Date.now();
+	const now = Date.now();
 
-		// Mirror mintlify's actual call pattern: multi-phase schedule —
-		// immediate active plan (pro) + future scheduled plan (premium).
-		// This produces a cusProduct with scheduled_ids populated, exactly
-		// like cus_prod_3Dv4NvFlTFWBQXeIgELByDbl3lw in prod.
-		const response = await autumnV1.billing.createSchedule({
-			customer_id: customerId,
-			phases: [
-				{ starts_at: now, plans: [{ plan_id: pro.id }] },
-				{ starts_at: now + ms.days(30), plans: [{ plan_id: premium.id }] },
-			],
-		} satisfies CreateScheduleParamsV0Input);
-		expect(response.status).toBe("created");
+	// Mirror mintlify's actual call pattern: multi-phase schedule —
+	// immediate active plan (pro) + future scheduled plan (premium).
+	// This produces a cusProduct with scheduled_ids populated, exactly
+	// like cus_prod_3Dv4NvFlTFWBQXeIgELByDbl3lw in prod.
+	const response = await autumnV1.billing.createSchedule({
+		customer_id: customerId,
+		phases: [
+			{ starts_at: now, plans: [{ plan_id: pro.id }] },
+			{ starts_at: now + ms.days(30), plans: [{ plan_id: premium.id }] },
+		],
+	} satisfies CreateScheduleParamsV0Input);
+	expect(response.status).toBe("created");
 
-		// The immediate-phase pro cusProduct must deliver its
-		// customer.products.updated webhook.
-		const proWebhook = await waitForWebhook<CustomerProductsUpdatedPayload>({
-			token: playToken,
-			predicate: (payload) =>
-				payload.type === "customer.products.updated" &&
-				payload.data?.customer?.id === customerId &&
-				payload.data?.updated_product?.id === pro.id,
-			timeoutMs: 20_000,
-		});
+	// The immediate-phase pro cusProduct must deliver its
+	// customer.products.updated webhook.
+	const proWebhook = await waitForWebhook<CustomerProductsUpdatedPayload>({
+		token: playToken,
+		predicate: (payload) =>
+			payload.type === "customer.products.updated" &&
+			payload.data?.customer?.id === customerId &&
+			payload.data?.updated_product?.id === pro.id,
+		timeoutMs: 20_000,
+	});
 
-		expect(proWebhook).not.toBeNull();
-		expect(proWebhook!.payload.data.updated_product.id).toBe(pro.id);
-	},
-);
+	expect(proWebhook).not.toBeNull();
+	expect(proWebhook!.payload.data.updated_product.id).toBe(pro.id);
+});

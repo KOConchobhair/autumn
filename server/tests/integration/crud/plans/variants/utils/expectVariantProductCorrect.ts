@@ -1,9 +1,9 @@
 import { expect } from "bun:test";
 import {
+	billingControlsFromColumns,
 	type FullProduct,
 	type Price,
 	ProcessorType,
-	billingControlsFromColumns,
 } from "@autumn/shared";
 
 const stripeResourceFields = new Set([

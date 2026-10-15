@@ -4,7 +4,6 @@ import ctx from "@tests/utils/testInitUtils/createTestContext.js";
 import chalk from "chalk";
 import { getOrInitFullSubjectViewEpoch } from "@/internal/customers/cache/fullSubject/actions/invalidate/getOrInitFullSubjectViewEpoch.js";
 import type { CachedFullSubject } from "@/internal/customers/cache/fullSubject/fullSubjectCacheModel.js";
-import { sanitizeCachedFullSubject } from "@/internal/customers/cache/fullSubject/sanitize/sanitizeCachedFullSubject.js";
 import {
 	buildFullSubjectKey,
 	buildFullSubjectViewEpochKey,
@@ -14,6 +13,7 @@ import {
 	invalidateCachedFullSubject,
 	setCachedFullSubject,
 } from "@/internal/customers/cache/fullSubject/index.js";
+import { sanitizeCachedFullSubject } from "@/internal/customers/cache/fullSubject/sanitize/sanitizeCachedFullSubject.js";
 import { getFullSubjectNormalized } from "@/internal/customers/repos/getFullSubject/index.js";
 import { fullSubjectToComparableSubject } from "../full-subject/utils/buildComparableFullSubject.js";
 import {
@@ -348,13 +348,14 @@ describe(`${chalk.yellowBright("fullSubject cache roundtrip")}`, () => {
 					entityId,
 					source: "integration-test",
 				});
-				const { fullSubject: partialCached } = await getCachedPartialFullSubject({
-					ctx,
-					customerId: scenario.ids.customerId,
-					entityId,
-					featureIds: ["messages", "users"],
-					source: "integration-test",
-				});
+				const { fullSubject: partialCached } =
+					await getCachedPartialFullSubject({
+						ctx,
+						customerId: scenario.ids.customerId,
+						entityId,
+						featureIds: ["messages", "users"],
+						source: "integration-test",
+					});
 
 				expect(cached).toBeUndefined();
 				expect(partialCached).toBeUndefined();

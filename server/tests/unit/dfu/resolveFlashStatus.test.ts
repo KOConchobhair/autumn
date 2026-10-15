@@ -21,7 +21,11 @@ describe("resolveFlashStatus", () => {
 			status: CusProductStatus.Expired,
 			endedAt: PAST,
 		};
-		const result = resolveFlashStatus({ plan: plan("active"), now: NOW, hydration });
+		const result = resolveFlashStatus({
+			plan: plan("active"),
+			now: NOW,
+			hydration,
+		});
 		expect(result.status).toBe(CusProductStatus.Active);
 		expect(result.canceled).toBe(false);
 		expect(result.endedAt).toBeNull();

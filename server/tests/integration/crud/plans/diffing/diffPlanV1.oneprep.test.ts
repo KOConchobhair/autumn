@@ -1,7 +1,7 @@
-import { type ApiPlanV1 } from "@autumn/shared";
 import { describe, expect, test } from "bun:test";
-import { diffPlanV1 } from "@autumn/shared/utils/planV1Utils/diff/diffPlanV1.js";
+import type { ApiPlanV1 } from "@autumn/shared";
 import { applyDiff } from "@autumn/shared/utils/planV1Utils/diff/applyDiff.js";
+import { diffPlanV1 } from "@autumn/shared/utils/planV1Utils/diff/diffPlanV1.js";
 import { proBase, proVariants } from "./diffPlanV1.oneprep.fixtures.js";
 import { normalizePlan } from "./utils/normalizePlan.js";
 

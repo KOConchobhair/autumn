@@ -95,338 +95,321 @@ const setupVariantFamily = async ({ prefix }: { prefix: string }) => {
 	};
 };
 
-test.skip(
-	`${chalk.yellowBright("batch version repoint variants: base migration leaves variants untouched")}`,
-	async () => {
-		const prefix = "repoint-variant-base-only";
-		const scenario = await setupVariantFamily({ prefix });
-		const baseBefore = await readRepointableCustomerPlanRow({
+test.skip(`${chalk.yellowBright("batch version repoint variants: base migration leaves variants untouched")}`, async () => {
+	const prefix = "repoint-variant-base-only";
+	const scenario = await setupVariantFamily({ prefix });
+	const baseBefore = await readRepointableCustomerPlanRow({
+		ctx: scenario.ctx,
+		customerId: scenario.baseCustomerId,
+		planId: scenario.baseId,
+	});
+	const variantBefore = await readRepointableCustomerPlanRow({
+		ctx: scenario.ctx,
+		customerId: scenario.variantCustomerId,
+		planId: scenario.variantId,
+	});
+	const siblingBefore = await readRepointableCustomerPlanRow({
+		ctx: scenario.ctx,
+		customerId: scenario.siblingCustomerId,
+		planId: scenario.siblingId,
+	});
+	await createNextVersion({
+		autumnV2_3: scenario.autumnV2_3,
+		planId: scenario.baseId,
+	});
+
+	const { result } = await runVersionRepointMigration({
+		ctx: scenario.ctx,
+		migrationClient: scenario.autumnV2_3,
+		migrationId: `${prefix}-migration`,
+		filter: {
+			customer: {
+				customer_id: {
+					$in: [
+						scenario.baseCustomerId,
+						scenario.variantCustomerId,
+						scenario.siblingCustomerId,
+					],
+				},
+			},
+		},
+		operations: {
+			customer: [
+				versionOperation({
+					planFilter: { plan_id: scenario.baseId, custom: false },
+					version: 2,
+				}),
+			],
+		},
+	});
+	expectBatchLane({ result });
+	expectCustomerPlanRepointedInPlace({
+		before: baseBefore,
+		after: await readRepointableCustomerPlanRow({
 			ctx: scenario.ctx,
 			customerId: scenario.baseCustomerId,
 			planId: scenario.baseId,
-		});
-		const variantBefore = await readRepointableCustomerPlanRow({
+		}),
+		targetVersion: 2,
+	});
+	for (const [customerId, planId, before] of [
+		[scenario.variantCustomerId, scenario.variantId, variantBefore],
+		[scenario.siblingCustomerId, scenario.siblingId, siblingBefore],
+	] as const) {
+		expect(
+			await readRepointableCustomerPlanRow({
+				ctx: scenario.ctx,
+				customerId,
+				planId,
+			}),
+		).toEqual(before);
+	}
+});
+
+test.skip(`${chalk.yellowBright("batch version repoint variants: variant migration leaves base and sibling untouched")}`, async () => {
+	const prefix = "repoint-variant-one-only";
+	const scenario = await setupVariantFamily({ prefix });
+	const baseBefore = await readRepointableCustomerPlanRow({
+		ctx: scenario.ctx,
+		customerId: scenario.baseCustomerId,
+		planId: scenario.baseId,
+	});
+	const variantBefore = await readRepointableCustomerPlanRow({
+		ctx: scenario.ctx,
+		customerId: scenario.variantCustomerId,
+		planId: scenario.variantId,
+	});
+	const siblingBefore = await readRepointableCustomerPlanRow({
+		ctx: scenario.ctx,
+		customerId: scenario.siblingCustomerId,
+		planId: scenario.siblingId,
+	});
+	await createNextVersion({
+		autumnV2_3: scenario.autumnV2_3,
+		planId: scenario.variantId,
+	});
+
+	const { result } = await runVersionRepointMigration({
+		ctx: scenario.ctx,
+		migrationClient: scenario.autumnV2_3,
+		migrationId: `${prefix}-migration`,
+		filter: {
+			customer: {
+				customer_id: {
+					$in: [
+						scenario.baseCustomerId,
+						scenario.variantCustomerId,
+						scenario.siblingCustomerId,
+					],
+				},
+			},
+		},
+		operations: {
+			customer: [
+				versionOperation({
+					planFilter: { plan_id: scenario.variantId, custom: false },
+					version: 2,
+				}),
+			],
+		},
+	});
+	expectBatchLane({ result });
+	expectCustomerPlanRepointedInPlace({
+		before: variantBefore,
+		after: await readRepointableCustomerPlanRow({
 			ctx: scenario.ctx,
 			customerId: scenario.variantCustomerId,
 			planId: scenario.variantId,
-		});
-		const siblingBefore = await readRepointableCustomerPlanRow({
+		}),
+		targetVersion: 2,
+	});
+	expect(
+		await readRepointableCustomerPlanRow({
+			ctx: scenario.ctx,
+			customerId: scenario.baseCustomerId,
+			planId: scenario.baseId,
+		}),
+	).toEqual(baseBefore);
+	expect(
+		await readRepointableCustomerPlanRow({
 			ctx: scenario.ctx,
 			customerId: scenario.siblingCustomerId,
 			planId: scenario.siblingId,
-		});
-		await createNextVersion({
-			autumnV2_3: scenario.autumnV2_3,
-			planId: scenario.baseId,
-		});
+		}),
+	).toEqual(siblingBefore);
+});
 
-		const { result } = await runVersionRepointMigration({
-			ctx: scenario.ctx,
-			migrationClient: scenario.autumnV2_3,
-			migrationId: `${prefix}-migration`,
-			filter: {
-				customer: {
-					customer_id: {
-						$in: [
-							scenario.baseCustomerId,
-							scenario.variantCustomerId,
-							scenario.siblingCustomerId,
-						],
-					},
-				},
-			},
-			operations: {
-				customer: [
-					versionOperation({
-						planFilter: { plan_id: scenario.baseId, custom: false },
-						version: 2,
-					}),
-				],
-			},
-		});
-		expectBatchLane({ result });
-		expectCustomerPlanRepointedInPlace({
-			before: baseBefore,
-			after: await readRepointableCustomerPlanRow({
-				ctx: scenario.ctx,
-				customerId: scenario.baseCustomerId,
-				planId: scenario.baseId,
-			}),
-			targetVersion: 2,
-		});
-		for (const [customerId, planId, before] of [
-			[scenario.variantCustomerId, scenario.variantId, variantBefore],
-			[scenario.siblingCustomerId, scenario.siblingId, siblingBefore],
-		] as const) {
-			expect(
-				await readRepointableCustomerPlanRow({
-					ctx: scenario.ctx,
+test.skip(`${chalk.yellowBright("batch version repoint variants: one operation can target base and variant explicitly")}`, async () => {
+	const prefix = "repoint-variant-combined";
+	const scenario = await setupVariantFamily({ prefix });
+	const before = await Promise.all(
+		[
+			[scenario.baseCustomerId, scenario.baseId],
+			[scenario.variantCustomerId, scenario.variantId],
+		].map(
+			async ([customerId, planId]) =>
+				[
 					customerId,
 					planId,
-				}),
-			).toEqual(before);
-		}
-	},
-);
-
-test.skip(
-	`${chalk.yellowBright("batch version repoint variants: variant migration leaves base and sibling untouched")}`,
-	async () => {
-		const prefix = "repoint-variant-one-only";
-		const scenario = await setupVariantFamily({ prefix });
-		const baseBefore = await readRepointableCustomerPlanRow({
-			ctx: scenario.ctx,
-			customerId: scenario.baseCustomerId,
-			planId: scenario.baseId,
-		});
-		const variantBefore = await readRepointableCustomerPlanRow({
-			ctx: scenario.ctx,
-			customerId: scenario.variantCustomerId,
-			planId: scenario.variantId,
-		});
-		const siblingBefore = await readRepointableCustomerPlanRow({
-			ctx: scenario.ctx,
-			customerId: scenario.siblingCustomerId,
-			planId: scenario.siblingId,
-		});
-		await createNextVersion({
-			autumnV2_3: scenario.autumnV2_3,
-			planId: scenario.variantId,
-		});
-
-		const { result } = await runVersionRepointMigration({
-			ctx: scenario.ctx,
-			migrationClient: scenario.autumnV2_3,
-			migrationId: `${prefix}-migration`,
-			filter: {
-				customer: {
-					customer_id: {
-						$in: [
-							scenario.baseCustomerId,
-							scenario.variantCustomerId,
-							scenario.siblingCustomerId,
-						],
-					},
-				},
-			},
-			operations: {
-				customer: [
-					versionOperation({
-						planFilter: { plan_id: scenario.variantId, custom: false },
-						version: 2,
-					}),
-				],
-			},
-		});
-		expectBatchLane({ result });
-		expectCustomerPlanRepointedInPlace({
-			before: variantBefore,
-			after: await readRepointableCustomerPlanRow({
-				ctx: scenario.ctx,
-				customerId: scenario.variantCustomerId,
-				planId: scenario.variantId,
-			}),
-			targetVersion: 2,
-		});
-		expect(
-			await readRepointableCustomerPlanRow({
-				ctx: scenario.ctx,
-				customerId: scenario.baseCustomerId,
-				planId: scenario.baseId,
-			}),
-		).toEqual(baseBefore);
-		expect(
-			await readRepointableCustomerPlanRow({
-				ctx: scenario.ctx,
-				customerId: scenario.siblingCustomerId,
-				planId: scenario.siblingId,
-			}),
-		).toEqual(siblingBefore);
-	},
-);
-
-test.skip(
-	`${chalk.yellowBright("batch version repoint variants: one operation can target base and variant explicitly")}`,
-	async () => {
-		const prefix = "repoint-variant-combined";
-		const scenario = await setupVariantFamily({ prefix });
-		const before = await Promise.all(
-			[
-				[scenario.baseCustomerId, scenario.baseId],
-				[scenario.variantCustomerId, scenario.variantId],
-			].map(
-				async ([customerId, planId]) =>
-					[
+					await readRepointableCustomerPlanRow({
+						ctx: scenario.ctx,
 						customerId,
 						planId,
-						await readRepointableCustomerPlanRow({
-							ctx: scenario.ctx,
-							customerId,
-							planId,
-						}),
-					] as const,
-			),
-		);
-		await createNextVersion({
-			autumnV2_3: scenario.autumnV2_3,
-			planId: scenario.baseId,
-		});
-		await createNextVersion({
-			autumnV2_3: scenario.autumnV2_3,
-			planId: scenario.variantId,
-		});
+					}),
+				] as const,
+		),
+	);
+	await createNextVersion({
+		autumnV2_3: scenario.autumnV2_3,
+		planId: scenario.baseId,
+	});
+	await createNextVersion({
+		autumnV2_3: scenario.autumnV2_3,
+		planId: scenario.variantId,
+	});
 
-		const { result } = await runVersionRepointMigration({
-			ctx: scenario.ctx,
-			migrationClient: scenario.autumnV2_3,
-			migrationId: `${prefix}-migration`,
-			filter: {
-				customer: {
-					customer_id: {
-						$in: [scenario.baseCustomerId, scenario.variantCustomerId],
-					},
+	const { result } = await runVersionRepointMigration({
+		ctx: scenario.ctx,
+		migrationClient: scenario.autumnV2_3,
+		migrationId: `${prefix}-migration`,
+		filter: {
+			customer: {
+				customer_id: {
+					$in: [scenario.baseCustomerId, scenario.variantCustomerId],
 				},
 			},
-			operations: {
-				customer: [
-					versionOperation({
-						planFilter: {
-							plan_id: { $in: [scenario.baseId, scenario.variantId] },
-							custom: false,
-						},
-						version: 2,
-					}),
-				],
-			},
-		});
-		expectBatchLane({ result });
-		for (const [customerId, planId, rowBefore] of before) {
-			expectCustomerPlanRepointedInPlace({
-				before: rowBefore,
-				after: await readRepointableCustomerPlanRow({
-					ctx: scenario.ctx,
-					customerId,
-					planId,
+		},
+		operations: {
+			customer: [
+				versionOperation({
+					planFilter: {
+						plan_id: { $in: [scenario.baseId, scenario.variantId] },
+						custom: false,
+					},
+					version: 2,
 				}),
-				targetVersion: 2,
-			});
-		}
-	},
-);
-
-test.skip(
-	`${chalk.yellowBright("batch version repoint variants: each explicit target resolves its own plan and version")}`,
-	async () => {
-		const prefix = "repoint-variant-independent";
-		const scenario = await setupVariantFamily({ prefix });
-		const baseBefore = await readRepointableCustomerPlanRow({
-			ctx: scenario.ctx,
-			customerId: scenario.baseCustomerId,
-			planId: scenario.baseId,
-		});
-		const variantBefore = await readRepointableCustomerPlanRow({
-			ctx: scenario.ctx,
-			customerId: scenario.variantCustomerId,
-			planId: scenario.variantId,
-		});
-		await createNextVersion({
-			autumnV2_3: scenario.autumnV2_3,
-			planId: scenario.baseId,
-		});
-		await createNextVersion({
-			autumnV2_3: scenario.autumnV2_3,
-			planId: scenario.variantId,
-		});
-		await createNextVersion({
-			autumnV2_3: scenario.autumnV2_3,
-			planId: scenario.variantId,
-		});
-
-		const { result } = await runVersionRepointMigration({
-			ctx: scenario.ctx,
-			migrationClient: scenario.autumnV2_3,
-			migrationId: `${prefix}-migration`,
-			filter: {
-				customer: {
-					customer_id: {
-						$in: [scenario.baseCustomerId, scenario.variantCustomerId],
-					},
-				},
-			},
-			operations: {
-				customer: [
-					versionOperation({
-						planFilter: { plan_id: scenario.baseId, custom: false },
-						version: 2,
-					}),
-					versionOperation({
-						planFilter: { plan_id: scenario.variantId, custom: false },
-						version: 3,
-					}),
-				],
-			},
-		});
-		expectBatchLane({ result });
+			],
+		},
+	});
+	expectBatchLane({ result });
+	for (const [customerId, planId, rowBefore] of before) {
 		expectCustomerPlanRepointedInPlace({
-			before: baseBefore,
+			before: rowBefore,
 			after: await readRepointableCustomerPlanRow({
 				ctx: scenario.ctx,
-				customerId: scenario.baseCustomerId,
-				planId: scenario.baseId,
+				customerId,
+				planId,
 			}),
 			targetVersion: 2,
 		});
-		expectCustomerPlanRepointedInPlace({
-			before: variantBefore,
-			after: await readRepointableCustomerPlanRow({
-				ctx: scenario.ctx,
-				customerId: scenario.variantCustomerId,
-				planId: scenario.variantId,
-			}),
-			targetVersion: 3,
-		});
-	},
-);
+	}
+});
 
-test.skip(
-	`${chalk.yellowBright("batch version repoint variants: one missing target falls the whole migration back")}`,
-	async () => {
-		const prefix = "repoint-variant-missing-target";
-		const scenario = await setupVariantFamily({ prefix });
-		await createNextVersion({
-			autumnV2_3: scenario.autumnV2_3,
-			planId: scenario.baseId,
-		});
+test.skip(`${chalk.yellowBright("batch version repoint variants: each explicit target resolves its own plan and version")}`, async () => {
+	const prefix = "repoint-variant-independent";
+	const scenario = await setupVariantFamily({ prefix });
+	const baseBefore = await readRepointableCustomerPlanRow({
+		ctx: scenario.ctx,
+		customerId: scenario.baseCustomerId,
+		planId: scenario.baseId,
+	});
+	const variantBefore = await readRepointableCustomerPlanRow({
+		ctx: scenario.ctx,
+		customerId: scenario.variantCustomerId,
+		planId: scenario.variantId,
+	});
+	await createNextVersion({
+		autumnV2_3: scenario.autumnV2_3,
+		planId: scenario.baseId,
+	});
+	await createNextVersion({
+		autumnV2_3: scenario.autumnV2_3,
+		planId: scenario.variantId,
+	});
+	await createNextVersion({
+		autumnV2_3: scenario.autumnV2_3,
+		planId: scenario.variantId,
+	});
 
-		const { result } = await runVersionRepointMigration({
-			ctx: scenario.ctx,
-			migrationClient: scenario.autumnV2_3,
-			migrationId: `${prefix}-migration`,
-			filter: {
-				customer: {
-					customer_id: {
-						$in: [scenario.baseCustomerId, scenario.variantCustomerId],
-					},
+	const { result } = await runVersionRepointMigration({
+		ctx: scenario.ctx,
+		migrationClient: scenario.autumnV2_3,
+		migrationId: `${prefix}-migration`,
+		filter: {
+			customer: {
+				customer_id: {
+					$in: [scenario.baseCustomerId, scenario.variantCustomerId],
 				},
 			},
-			operations: {
-				customer: [
-					versionOperation({
-						planFilter: {
-							plan_id: { $in: [scenario.baseId, scenario.variantId] },
-							custom: false,
-						},
-						version: 2,
-					}),
-				],
+		},
+		operations: {
+			customer: [
+				versionOperation({
+					planFilter: { plan_id: scenario.baseId, custom: false },
+					version: 2,
+				}),
+				versionOperation({
+					planFilter: { plan_id: scenario.variantId, custom: false },
+					version: 3,
+				}),
+			],
+		},
+	});
+	expectBatchLane({ result });
+	expectCustomerPlanRepointedInPlace({
+		before: baseBefore,
+		after: await readRepointableCustomerPlanRow({
+			ctx: scenario.ctx,
+			customerId: scenario.baseCustomerId,
+			planId: scenario.baseId,
+		}),
+		targetVersion: 2,
+	});
+	expectCustomerPlanRepointedInPlace({
+		before: variantBefore,
+		after: await readRepointableCustomerPlanRow({
+			ctx: scenario.ctx,
+			customerId: scenario.variantCustomerId,
+			planId: scenario.variantId,
+		}),
+		targetVersion: 3,
+	});
+});
+
+test.skip(`${chalk.yellowBright("batch version repoint variants: one missing target falls the whole migration back")}`, async () => {
+	const prefix = "repoint-variant-missing-target";
+	const scenario = await setupVariantFamily({ prefix });
+	await createNextVersion({
+		autumnV2_3: scenario.autumnV2_3,
+		planId: scenario.baseId,
+	});
+
+	const { result } = await runVersionRepointMigration({
+		ctx: scenario.ctx,
+		migrationClient: scenario.autumnV2_3,
+		migrationId: `${prefix}-migration`,
+		filter: {
+			customer: {
+				customer_id: {
+					$in: [scenario.baseCustomerId, scenario.variantCustomerId],
+				},
 			},
-		});
-		expectPerCustomerLaneWithRejections({
-			result,
-			codes: ["missing_target_version"],
-		});
-		expect(result?.rejections?.every(({ opIndex }) => opIndex === 0)).toBe(
-			true,
-		);
-	},
-);
+		},
+		operations: {
+			customer: [
+				versionOperation({
+					planFilter: {
+						plan_id: { $in: [scenario.baseId, scenario.variantId] },
+						custom: false,
+					},
+					version: 2,
+				}),
+			],
+		},
+	});
+	expectPerCustomerLaneWithRejections({
+		result,
+		codes: ["missing_target_version"],
+	});
+	expect(result?.rejections?.every(({ opIndex }) => opIndex === 0)).toBe(true);
+});

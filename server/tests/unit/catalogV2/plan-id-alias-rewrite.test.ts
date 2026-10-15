@@ -1,8 +1,7 @@
 import { expect, test } from "bun:test";
 import { Hono } from "hono";
 import { planAliasMiddleware } from "@/honoMiddlewares/planAliasMiddleware.js";
-import type { AutumnContext } from "@/honoUtils/HonoEnv.js";
-import type { HonoEnv } from "@/honoUtils/HonoEnv.js";
+import type { AutumnContext, HonoEnv } from "@/honoUtils/HonoEnv.js";
 import { PLAN_ID_ALIAS_REWRITE_KEYS } from "@/internal/catalogV2/productAliases/planIdAliasRewriteKeys.js";
 import { rewritePlanIdAliasParams } from "@/internal/catalogV2/productAliases/rewritePlanIdAliasParams.js";
 import { rewritePlanIdAliasValues } from "@/internal/catalogV2/productAliases/rewritePlanIdAliasValues.js";
@@ -70,14 +69,30 @@ test.each([
 test("rewritePlanIdAliasValues rewrites nested objects and arrays", () => {
 	const body = rewriteBody({
 		body: {
-			plans: [{ plan_id: "pro", propagate: { license_parents: [{ plan_id: "starter" }] } }],
-			phases: [{ plans: [{ plan_id: "pro", license_quantities: [{ license_plan_id: "starter" }] }] }],
+			plans: [
+				{
+					plan_id: "pro",
+					propagate: { license_parents: [{ plan_id: "starter" }] },
+				},
+			],
+			phases: [
+				{
+					plans: [
+						{
+							plan_id: "pro",
+							license_quantities: [{ license_plan_id: "starter" }],
+						},
+					],
+				},
+			],
 			customize: {
 				upsert_licenses: [{ license_plan_id: "pro" }],
 				remove_licenses: [{ license_plan_id: "starter" }],
 			},
 			remove_plans: [{ plan_id: "pro" }],
-			mappings: [{ autumn_product_id: "pro", revenuecat_product_ids: ["rc_1"] }],
+			mappings: [
+				{ autumn_product_id: "pro", revenuecat_product_ids: ["rc_1"] },
+			],
 		},
 	});
 
@@ -127,8 +142,12 @@ test("rewritePlanIdAliasValues is a no-op for empty alias map", () => {
 });
 
 test("rewritePlanIdAliasValues ignores null, primitives, and missing body", () => {
-	expect(rewritePlanIdAliasValues({ value: null, aliases: ALIASES })).toBe(null);
-	expect(rewritePlanIdAliasValues({ value: "pro", aliases: ALIASES })).toBe("pro");
+	expect(rewritePlanIdAliasValues({ value: null, aliases: ALIASES })).toBe(
+		null,
+	);
+	expect(rewritePlanIdAliasValues({ value: "pro", aliases: ALIASES })).toBe(
+		"pro",
+	);
 	expect(rewritePlanIdAliasValues({ value: undefined, aliases: ALIASES })).toBe(
 		undefined,
 	);

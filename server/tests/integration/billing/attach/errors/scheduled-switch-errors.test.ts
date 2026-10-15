@@ -29,53 +29,56 @@ import chalk from "chalk";
  * Expected Result:
  * - Error thrown: scheduled switch with one-off prepaid quantities not supported
  */
-test.concurrent(`${chalk.yellowBright("error: scheduled switch with one-off prepaid quantity")}`, async () => {
-	const customerId = "sched-switch-err-oneoff-qty";
+test.concurrent(
+	`${chalk.yellowBright("error: scheduled switch with one-off prepaid quantity")}`,
+	async () => {
+		const customerId = "sched-switch-err-oneoff-qty";
 
-	const premiumOneOff = items.oneOffMessages({
-		includedUsage: 0,
-		billingUnits: 100,
-		price: 15,
-	});
-	const premium = products.premium({
-		id: "premium",
-		items: [premiumOneOff],
-	});
+		const premiumOneOff = items.oneOffMessages({
+			includedUsage: 0,
+			billingUnits: 100,
+			price: 15,
+		});
+		const premium = products.premium({
+			id: "premium",
+			items: [premiumOneOff],
+		});
 
-	const proOneOff = items.oneOffMessages({
-		includedUsage: 0,
-		billingUnits: 100,
-		price: 10,
-	});
-	const pro = products.pro({
-		id: "pro",
-		items: [proOneOff],
-	});
+		const proOneOff = items.oneOffMessages({
+			includedUsage: 0,
+			billingUnits: 100,
+			price: 10,
+		});
+		const pro = products.pro({
+			id: "pro",
+			items: [proOneOff],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [premium, pro] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: premium.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: 500 }],
-			}),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [premium, pro] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: premium.id,
+					options: [{ feature_id: TestFeature.Messages, quantity: 500 }],
+				}),
+			],
+		});
 
-	// Attempt scheduled downgrade with explicit one-off prepaid quantity
-	await expectAutumnError({
-		errCode: ErrCode.InvalidRequest,
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: pro.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: 200 }],
-				redirect_mode: "if_required",
-			});
-		},
-	});
-});
+		// Attempt scheduled downgrade with explicit one-off prepaid quantity
+		await expectAutumnError({
+			errCode: ErrCode.InvalidRequest,
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: pro.id,
+					options: [{ feature_id: TestFeature.Messages, quantity: 200 }],
+					redirect_mode: "if_required",
+				});
+			},
+		});
+	},
+);

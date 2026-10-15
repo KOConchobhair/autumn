@@ -8,9 +8,9 @@
 
 import { describe, expect, test } from "bun:test";
 import {
-	BillWhen,
 	BillingInterval,
 	BillingMethod,
+	BillWhen,
 	EntInterval,
 	type FullCustomerEntitlement,
 	type FullCustomerPrice,

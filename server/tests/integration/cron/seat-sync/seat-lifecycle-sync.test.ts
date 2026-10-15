@@ -16,8 +16,8 @@ import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { runSeatSyncCron } from "@/cron/seatSyncCron/runSeatSyncCron.js";
-import { CusProductService } from "@/internal/customers/cusProducts/CusProductService.js";
 import { CusService } from "@/internal/customers/CusService.js";
+import { CusProductService } from "@/internal/customers/cusProducts/CusProductService.js";
 
 test.concurrent(
 	`${chalk.yellowBright("seat-sync cron: seat rows converge onto parent lifecycle")}`,
@@ -76,10 +76,7 @@ test.concurrent(
 				.from(customerProducts)
 				.where(
 					and(
-						eq(
-							customerProducts.internal_customer_id,
-							fullCustomer.internal_id,
-						),
+						eq(customerProducts.internal_customer_id, fullCustomer.internal_id),
 						isNotNull(customerProducts.customer_license_link_id),
 					),
 				);

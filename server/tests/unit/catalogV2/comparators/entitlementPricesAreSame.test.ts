@@ -24,7 +24,11 @@ const expectSame = (
 
 describe("entitlementPricesAreSame", () => {
 	test("free vs free with identical entitlements are same", () => {
-		expectSame(entitlements.buildPricePair(), entitlements.buildPricePair(), true);
+		expectSame(
+			entitlements.buildPricePair(),
+			entitlements.buildPricePair(),
+			true,
+		);
 	});
 
 	test("different physical entitlement ids are still same (ids ignored)", () => {
@@ -119,7 +123,9 @@ describe("entitlementPricesAreSame", () => {
 	test("default-equivalence flows through: unset billing_units vs explicit 1", () => {
 		expectSame(
 			entitlements.buildPricePair({
-				price: prices.buildUsage({ configOverrides: { billing_units: undefined } }),
+				price: prices.buildUsage({
+					configOverrides: { billing_units: undefined },
+				}),
 			}),
 			entitlements.buildPricePair({
 				price: prices.buildUsage({ configOverrides: { billing_units: 1 } }),

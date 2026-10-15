@@ -44,111 +44,117 @@ import chalk from "chalk";
  *   - Prepaid messages: $20 (200 units = 2 packs × $10)
  * - After payment: line items still correct, invoice is "paid"
  */
-test.concurrent(`${chalk.yellowBright("deferred-line-items A: invoice mode (finalized, deferred)")}`, async () => {
-	const customerId = "def-li-invoice-mode";
+test.concurrent(
+	`${chalk.yellowBright("deferred-line-items A: invoice mode (finalized, deferred)")}`,
+	async () => {
+		const customerId = "def-li-invoice-mode";
 
-	const prepaidMessages = items.prepaidMessages({
-		includedUsage: 0,
-		billingUnits: 100,
-		price: 10,
-	});
+		const prepaidMessages = items.prepaidMessages({
+			includedUsage: 0,
+			billingUnits: 100,
+			price: 10,
+		});
 
-	const basePrice = 20;
-	const messagesQuantity = 200;
-	const messagesPrice = 20; // 2 packs × $10
-	const expectedTotal = basePrice + messagesPrice; // $40
+		const basePrice = 20;
+		const messagesQuantity = 200;
+		const messagesPrice = 20; // 2 packs × $10
+		const expectedTotal = basePrice + messagesPrice; // $40
 
-	const pro = products.pro({
-		id: "pro-def-inv",
-		items: [prepaidMessages],
-	});
+		const pro = products.pro({
+			id: "pro-def-inv",
+			items: [prepaidMessages],
+		});
 
-	const { autumnV1, ctx: testCtx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, ctx: testCtx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	// Attach with invoice mode (finalized, deferred)
-	const result = await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: messagesQuantity }],
-		invoice: true,
-		finalize_invoice: true,
-		enable_product_immediately: false,
-		redirect_mode: "if_required",
-	});
+		// Attach with invoice mode (finalized, deferred)
+		const result = await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			options: [
+				{ feature_id: TestFeature.Messages, quantity: messagesQuantity },
+			],
+			invoice: true,
+			finalize_invoice: true,
+			enable_product_immediately: false,
+			redirect_mode: "if_required",
+		});
 
-	// Verify invoice is open
-	expect(result.invoice).toBeDefined();
-	expect(result.invoice!.status).toBe("open");
-	expect(result.invoice!.stripe_id).toBeDefined();
-	expect(result.payment_url).toBeDefined();
+		// Verify invoice is open
+		expect(result.invoice).toBeDefined();
+		expect(result.invoice!.status).toBe("open");
+		expect(result.invoice!.stripe_id).toBeDefined();
+		expect(result.payment_url).toBeDefined();
 
-	const stripeInvoiceId = result.invoice!.stripe_id;
+		const stripeInvoiceId = result.invoice!.stripe_id;
 
-	// ═════════════════════════════════════════════════════════════════════
-	// KEY TEST: Line items should be stored BEFORE payment (open invoice)
-	// ═════════════════════════════════════════════════════════════════════
+		// ═════════════════════════════════════════════════════════════════════
+		// KEY TEST: Line items should be stored BEFORE payment (open invoice)
+		// ═════════════════════════════════════════════════════════════════════
 
-	await expectInvoiceLineItemsCorrect({
-		stripeInvoiceId,
-		expectedTotal,
-		allCharges: true,
-		expectedLineItems: [
-			{ isBasePrice: true, amount: basePrice },
-			{
-				featureId: TestFeature.Messages,
-				totalAmount: messagesPrice,
-				billingTiming: "in_advance",
-			},
-		],
-	});
+		await expectInvoiceLineItemsCorrect({
+			stripeInvoiceId,
+			expectedTotal,
+			allCharges: true,
+			expectedLineItems: [
+				{ isBasePrice: true, amount: basePrice },
+				{
+					featureId: TestFeature.Messages,
+					totalAmount: messagesPrice,
+					billingTiming: "in_advance",
+				},
+			],
+		});
 
-	// Complete payment
-	await completeInvoiceCheckout({
-		url: result.payment_url!,
-		ctx: testCtx,
-		customerId,
-	});
+		// Complete payment
+		await completeInvoiceCheckout({
+			url: result.payment_url!,
+			ctx: testCtx,
+			customerId,
+		});
 
-	// Wait for webhook processing
-	await timeout(5000);
+		// Wait for webhook processing
+		await timeout(5000);
 
-	// Verify invoice is now paid
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify invoice is now paid
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerInvoiceCorrect({
-		customer: customerAfter,
-		count: 1,
-		latestTotal: expectedTotal,
-		latestStatus: "paid",
-	});
+		await expectCustomerInvoiceCorrect({
+			customer: customerAfter,
+			count: 1,
+			latestTotal: expectedTotal,
+			latestStatus: "paid",
+		});
 
-	await expectProductActive({
-		customer: customerAfter,
-		productId: pro.id,
-	});
+		await expectProductActive({
+			customer: customerAfter,
+			productId: pro.id,
+		});
 
-	// Line items should still be correct after payment
-	await expectInvoiceLineItemsCorrect({
-		stripeInvoiceId,
-		expectedTotal,
-		allCharges: true,
-		expectedLineItems: [
-			{ isBasePrice: true, amount: basePrice },
-			{
-				featureId: TestFeature.Messages,
-				totalAmount: messagesPrice,
-				billingTiming: "in_advance",
-			},
-		],
-	});
-});
+		// Line items should still be correct after payment
+		await expectInvoiceLineItemsCorrect({
+			stripeInvoiceId,
+			expectedTotal,
+			allCharges: true,
+			expectedLineItems: [
+				{ isBasePrice: true, amount: basePrice },
+				{
+					featureId: TestFeature.Messages,
+					totalAmount: messagesPrice,
+					billingTiming: "in_advance",
+				},
+			],
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST B: Payment failure (3DS required) — line items on deferred invoice
@@ -168,112 +174,119 @@ test.concurrent(`${chalk.yellowBright("deferred-line-items A: invoice mode (fina
  *   - Prepaid messages: $20 (200 units = 2 packs × $10)
  * - After 3DS: line items still correct, product is active
  */
-test.concurrent(`${chalk.yellowBright("deferred-line-items B: payment failure (3DS required)")}`, async () => {
-	const customerId = "def-li-3ds";
+test.concurrent(
+	`${chalk.yellowBright("deferred-line-items B: payment failure (3DS required)")}`,
+	async () => {
+		const customerId = "def-li-3ds";
 
-	const prepaidMessages = items.prepaidMessages({
-		includedUsage: 0,
-		billingUnits: 100,
-		price: 10,
-	});
+		const prepaidMessages = items.prepaidMessages({
+			includedUsage: 0,
+			billingUnits: 100,
+			price: 10,
+		});
 
-	const basePrice = 20;
-	const messagesQuantity = 200;
-	const messagesPrice = 20; // 2 packs × $10
-	const expectedTotal = basePrice + messagesPrice; // $40
+		const basePrice = 20;
+		const messagesQuantity = 200;
+		const messagesPrice = 20; // 2 packs × $10
+		const expectedTotal = basePrice + messagesPrice; // $40
 
-	const pro = products.pro({
-		id: "pro-def-3ds",
-		items: [prepaidMessages],
-	});
+		const pro = products.pro({
+			id: "pro-def-3ds",
+			items: [prepaidMessages],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "authenticate" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "authenticate" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	// Attach normally — should trigger 3DS deferral
-	const result = await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: messagesQuantity }],
-	});
+		// Attach normally — should trigger 3DS deferral
+		const result = await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			options: [
+				{ feature_id: TestFeature.Messages, quantity: messagesQuantity },
+			],
+		});
 
-	// Verify 3DS required
-	expect(result.required_action).toBeDefined();
-	expect(result.required_action?.code).toBe("3ds_required");
-	expect(result.payment_url).toBeDefined();
+		// Verify 3DS required
+		expect(result.required_action).toBeDefined();
+		expect(result.required_action?.code).toBe("3ds_required");
+		expect(result.payment_url).toBeDefined();
 
-	// Verify invoice exists and is open
-	expect(result.invoice).toBeDefined();
-	expect(result.invoice!.stripe_id).toBeDefined();
+		// Verify invoice exists and is open
+		expect(result.invoice).toBeDefined();
+		expect(result.invoice!.stripe_id).toBeDefined();
 
-	const stripeInvoiceId = result.invoice!.stripe_id;
+		const stripeInvoiceId = result.invoice!.stripe_id;
 
-	// Verify Stripe invoice is open
-	const stripeInvoice = await ctx.stripeCli.invoices.retrieve(stripeInvoiceId);
-	expect(stripeInvoice.status).toBe("open");
+		// Verify Stripe invoice is open
+		const stripeInvoice =
+			await ctx.stripeCli.invoices.retrieve(stripeInvoiceId);
+		expect(stripeInvoice.status).toBe("open");
 
-	// ═════════════════════════════════════════════════════════════════════
-	// KEY TEST: Line items should be stored BEFORE 3DS completion
-	// ═════════════════════════════════════════════════════════════════════
+		// ═════════════════════════════════════════════════════════════════════
+		// KEY TEST: Line items should be stored BEFORE 3DS completion
+		// ═════════════════════════════════════════════════════════════════════
 
-	await expectInvoiceLineItemsCorrect({
-		stripeInvoiceId,
-		expectedTotal,
-		allCharges: true,
-		expectedLineItems: [
-			{ isBasePrice: true, amount: basePrice },
-			{
-				featureId: TestFeature.Messages,
-				totalAmount: messagesPrice,
-				billingTiming: "in_advance",
-			},
-		],
-	});
+		await expectInvoiceLineItemsCorrect({
+			stripeInvoiceId,
+			expectedTotal,
+			allCharges: true,
+			expectedLineItems: [
+				{ isBasePrice: true, amount: basePrice },
+				{
+					featureId: TestFeature.Messages,
+					totalAmount: messagesPrice,
+					billingTiming: "in_advance",
+				},
+			],
+		});
 
-	// Product should NOT be active before 3DS
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expect(customerBefore.features?.[TestFeature.Messages]).toBeUndefined();
+		// Product should NOT be active before 3DS
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expect(customerBefore.features?.[TestFeature.Messages]).toBeUndefined();
 
-	// Complete 3DS authentication
-	await completeInvoiceConfirmation({ url: result.payment_url! });
+		// Complete 3DS authentication
+		await completeInvoiceConfirmation({ url: result.payment_url! });
 
-	// Wait for webhook processing
-	await timeout(5000);
+		// Wait for webhook processing
+		await timeout(5000);
 
-	// Verify product is now active
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify product is now active
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer: customerAfter,
-		productId: pro.id,
-	});
+		await expectProductActive({
+			customer: customerAfter,
+			productId: pro.id,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer: customerAfter,
-		count: 1,
-		latestTotal: expectedTotal,
-		latestStatus: "paid",
-	});
+		await expectCustomerInvoiceCorrect({
+			customer: customerAfter,
+			count: 1,
+			latestTotal: expectedTotal,
+			latestStatus: "paid",
+		});
 
-	// Line items should still be correct after payment
-	await expectInvoiceLineItemsCorrect({
-		stripeInvoiceId,
-		expectedTotal,
-		allCharges: true,
-		expectedLineItems: [
-			{ isBasePrice: true, amount: basePrice },
-			{
-				featureId: TestFeature.Messages,
-				totalAmount: messagesPrice,
-				billingTiming: "in_advance",
-			},
-		],
-	});
-});
+		// Line items should still be correct after payment
+		await expectInvoiceLineItemsCorrect({
+			stripeInvoiceId,
+			expectedTotal,
+			allCharges: true,
+			expectedLineItems: [
+				{ isBasePrice: true, amount: basePrice },
+				{
+					featureId: TestFeature.Messages,
+					totalAmount: messagesPrice,
+					billingTiming: "in_advance",
+				},
+			],
+		});
+	},
+);

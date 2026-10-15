@@ -19,182 +19,206 @@ function sleepUntil(epochMs: number): Promise<void> {
 
 const testCase = "check-loose-expiry";
 
-test.concurrent(chalk.yellowBright(`${testCase}-basic: expiring loose entitlement should be allowed before expiry, then denied after`), async () => {
-	const customerId = `${testCase}-basic`;
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const freeProd = products.base({ id: "free", items: [messagesItem] });
+test.concurrent(
+	chalk.yellowBright(
+		`${testCase}-basic: expiring loose entitlement should be allowed before expiry, then denied after`,
+	),
+	async () => {
+		const customerId = `${testCase}-basic`;
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const freeProd = products.base({ id: "free", items: [messagesItem] });
 
-	const { ctx } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: false }), s.products({ list: [freeProd] })],
-		actions: [],
-	});
+		const { ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [freeProd] }),
+			],
+			actions: [],
+		});
 
-	const autumnV1 = new AutumnInt({
-		version: ApiVersion.V1_2,
-		secretKey: ctx.orgSecretKey,
-	});
-	const autumnV2 = new AutumnInt({
-		version: ApiVersion.V2_0,
-		secretKey: ctx.orgSecretKey,
-	});
+		const autumnV1 = new AutumnInt({
+			version: ApiVersion.V1_2,
+			secretKey: ctx.orgSecretKey,
+		});
+		const autumnV2 = new AutumnInt({
+			version: ApiVersion.V2_0,
+			secretKey: ctx.orgSecretKey,
+		});
 
-	const expiresAt = Date.now() + 3000;
+		const expiresAt = Date.now() + 3000;
 
-	await autumnV1.balances.create({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		granted_balance: 500,
-		expires_at: expiresAt,
-	});
-
-	const resBefore = (await autumnV2.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-	})) as unknown as CheckResponseV2;
-
-	expect(resBefore).toMatchObject({
-		allowed: true,
-		customer_id: customerId,
-		balance: {
-			plan_id: null,
+		await autumnV1.balances.create({
+			customer_id: customerId,
 			feature_id: TestFeature.Messages,
 			granted_balance: 500,
-			current_balance: 500,
-			usage: 0,
-			unlimited: false,
-		},
-	});
+			expires_at: expiresAt,
+		});
 
-	await sleepUntil(expiresAt + 1000);
+		const resBefore = (await autumnV2.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+		})) as unknown as CheckResponseV2;
 
-	const resAfter = (await autumnV2.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-	})) as unknown as CheckResponseV2;
+		expect(resBefore).toMatchObject({
+			allowed: true,
+			customer_id: customerId,
+			balance: {
+				plan_id: null,
+				feature_id: TestFeature.Messages,
+				granted_balance: 500,
+				current_balance: 500,
+				usage: 0,
+				unlimited: false,
+			},
+		});
 
-	expect(resAfter).toMatchObject({
-		allowed: false,
-		balance: null,
-	});
-});
+		await sleepUntil(expiresAt + 1000);
 
-test.concurrent(chalk.yellowBright(`${testCase}-product-mix: should combine product and expiring loose ent, then only product after expiry`), async () => {
-	const customerId = `${testCase}-product-mix`;
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const freeProd = products.base({ id: "free", items: [messagesItem] });
+		const resAfter = (await autumnV2.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+		})) as unknown as CheckResponseV2;
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: false }), s.products({ list: [freeProd] })],
-		actions: [s.attach({ productId: freeProd.id })],
-	});
+		expect(resAfter).toMatchObject({
+			allowed: false,
+			balance: null,
+		});
+	},
+);
 
-	const autumnV2 = new AutumnInt({
-		version: ApiVersion.V2_0,
-		secretKey: ctx.orgSecretKey,
-	});
+test.concurrent(
+	chalk.yellowBright(
+		`${testCase}-product-mix: should combine product and expiring loose ent, then only product after expiry`,
+	),
+	async () => {
+		const customerId = `${testCase}-product-mix`;
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const freeProd = products.base({ id: "free", items: [messagesItem] });
 
-	const expiresAt = Date.now() + 3000;
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [freeProd] }),
+			],
+			actions: [s.attach({ productId: freeProd.id })],
+		});
 
-	await autumnV1.balances.create({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		granted_balance: 200,
-		expires_at: expiresAt,
-	});
+		const autumnV2 = new AutumnInt({
+			version: ApiVersion.V2_0,
+			secretKey: ctx.orgSecretKey,
+		});
 
-	const resBefore = (await autumnV2.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-	})) as unknown as CheckResponseV2;
+		const expiresAt = Date.now() + 3000;
 
-	expect(resBefore).toMatchObject({
-		allowed: true,
-		balance: {
-			granted_balance: 300, // 100 from product + 200 from loose
-			current_balance: 300,
-		},
-	});
+		await autumnV1.balances.create({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			granted_balance: 200,
+			expires_at: expiresAt,
+		});
 
-	await sleepUntil(expiresAt + 1000);
+		const resBefore = (await autumnV2.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+		})) as unknown as CheckResponseV2;
 
-	const resAfter = (await autumnV2.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-	})) as unknown as CheckResponseV2;
+		expect(resBefore).toMatchObject({
+			allowed: true,
+			balance: {
+				granted_balance: 300, // 100 from product + 200 from loose
+				current_balance: 300,
+			},
+		});
 
-	expect(resAfter).toMatchObject({
-		allowed: true,
-		balance: {
-			granted_balance: 100, // Only product balance remains
-			current_balance: 100,
-		},
-	});
-});
+		await sleepUntil(expiresAt + 1000);
 
-test.concurrent(chalk.yellowBright(`${testCase}-reset-mix: should combine expiring and resetting loose ents, then only resetting after expiry`), async () => {
-	const customerId = `${testCase}-reset-mix`;
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const freeProd = products.base({ id: "free", items: [messagesItem] });
+		const resAfter = (await autumnV2.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+		})) as unknown as CheckResponseV2;
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: false }), s.products({ list: [freeProd] })],
-		actions: [],
-	});
+		expect(resAfter).toMatchObject({
+			allowed: true,
+			balance: {
+				granted_balance: 100, // Only product balance remains
+				current_balance: 100,
+			},
+		});
+	},
+);
 
-	const autumnV2 = new AutumnInt({
-		version: ApiVersion.V2_0,
-		secretKey: ctx.orgSecretKey,
-	});
+test.concurrent(
+	chalk.yellowBright(
+		`${testCase}-reset-mix: should combine expiring and resetting loose ents, then only resetting after expiry`,
+	),
+	async () => {
+		const customerId = `${testCase}-reset-mix`;
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const freeProd = products.base({ id: "free", items: [messagesItem] });
 
-	const expiresAt = Date.now() + 3000;
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: false }),
+				s.products({ list: [freeProd] }),
+			],
+			actions: [],
+		});
 
-	await autumnV1.balances.create({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		granted_balance: 200,
-		expires_at: expiresAt,
-	});
+		const autumnV2 = new AutumnInt({
+			version: ApiVersion.V2_0,
+			secretKey: ctx.orgSecretKey,
+		});
 
-	await autumnV1.balances.create({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-		granted_balance: 100,
-		reset: {
-			interval: ResetInterval.Month,
-		},
-	});
+		const expiresAt = Date.now() + 3000;
 
-	const resBefore = (await autumnV2.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-	})) as unknown as CheckResponseV2;
+		await autumnV1.balances.create({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			granted_balance: 200,
+			expires_at: expiresAt,
+		});
 
-	expect(resBefore).toMatchObject({
-		allowed: true,
-		balance: {
-			granted_balance: 300, // 200 expiring + 100 resetting
-			current_balance: 300,
-		},
-	});
-
-	await sleepUntil(expiresAt + 1000);
-
-	const resAfter = (await autumnV2.check({
-		customer_id: customerId,
-		feature_id: TestFeature.Messages,
-	})) as unknown as CheckResponseV2;
-
-	expect(resAfter).toMatchObject({
-		allowed: true,
-		balance: {
-			granted_balance: 100, // Only resetting balance remains
-			current_balance: 100,
+		await autumnV1.balances.create({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+			granted_balance: 100,
 			reset: {
 				interval: ResetInterval.Month,
 			},
-		},
-	});
-});
+		});
+
+		const resBefore = (await autumnV2.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+		})) as unknown as CheckResponseV2;
+
+		expect(resBefore).toMatchObject({
+			allowed: true,
+			balance: {
+				granted_balance: 300, // 200 expiring + 100 resetting
+				current_balance: 300,
+			},
+		});
+
+		await sleepUntil(expiresAt + 1000);
+
+		const resAfter = (await autumnV2.check({
+			customer_id: customerId,
+			feature_id: TestFeature.Messages,
+		})) as unknown as CheckResponseV2;
+
+		expect(resAfter).toMatchObject({
+			allowed: true,
+			balance: {
+				granted_balance: 100, // Only resetting balance remains
+				current_balance: 100,
+				reset: {
+					interval: ResetInterval.Month,
+				},
+			},
+		});
+	},
+);

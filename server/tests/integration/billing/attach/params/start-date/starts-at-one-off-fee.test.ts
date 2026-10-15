@@ -85,54 +85,67 @@ const expectOnboardingFeeOnActivatingPhase = async ({
 // Matches the customer exactly: brand-new plan, future starts_at, one-off
 // onboarding fee. Nothing is charged today (Scheduled); the fee is queued on
 // the activating phase and charged when the plan starts.
-test.concurrent(`${chalk.yellowBright("starts_at one-off: scheduled attach queues the onboarding fee on the activating phase")}`, async () => {
-	const customerId = "starts-at-oneoff-scheduled";
-	const pro = buildProWithOnboardingFee("pro-oneoff-scheduled");
+test.concurrent(
+	`${chalk.yellowBright("starts_at one-off: scheduled attach queues the onboarding fee on the activating phase")}`,
+	async () => {
+		const customerId = "starts-at-oneoff-scheduled";
+		const pro = buildProWithOnboardingFee("pro-oneoff-scheduled");
 
-	const { autumnV2_2, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV2_2, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	const startDate = addDays(advancedTo, 7).getTime();
+		const startDate = addDays(advancedTo, 7).getTime();
 
-	// Preview surfaces the one-off fee on the activation cycle ($0 due now).
-	const preview = await autumnV2_2.billing.previewAttach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: pro.id,
-		starts_at: startDate,
-		feature_quantities: onboardingFeeQuantities,
-	});
-	expect(preview.total).toBe(0);
-	expect(preview.next_cycle?.total).toBe(BASE_PRICE + ONBOARDING_FEE);
+		// Preview surfaces the one-off fee on the activation cycle ($0 due now).
+		const preview = await autumnV2_2.billing.previewAttach<AttachParamsV1Input>(
+			{
+				customer_id: customerId,
+				plan_id: pro.id,
+				starts_at: startDate,
+				feature_quantities: onboardingFeeQuantities,
+			},
+		);
+		expect(preview.total).toBe(0);
+		expect(preview.next_cycle?.total).toBe(BASE_PRICE + ONBOARDING_FEE);
 
-	await autumnV2_2.billing.attach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: pro.id,
-		starts_at: startDate,
-		feature_quantities: onboardingFeeQuantities,
-	});
+		await autumnV2_2.billing.attach<AttachParamsV1Input>({
+			customer_id: customerId,
+			plan_id: pro.id,
+			starts_at: startDate,
+			feature_quantities: onboardingFeeQuantities,
+		});
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectProductScheduled({ customer, productId: pro.id, startsAt: startDate });
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectProductScheduled({
+			customer,
+			productId: pro.id,
+			startsAt: startDate,
+		});
 
-	const cusProduct = await getCustomerProduct({ ctx, customerId, productId: pro.id });
-	expect(cusProduct.status).toBe(CusProductStatus.Scheduled);
-	expect(cusProduct.scheduled_ids).toHaveLength(1);
+		const cusProduct = await getCustomerProduct({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		expect(cusProduct.status).toBe(CusProductStatus.Scheduled);
+		expect(cusProduct.scheduled_ids).toHaveLength(1);
 
-	// Nothing is charged today — billing starts when the schedule activates.
-	await expectCustomerInvoiceCorrect({ customerId, count: 0 });
+		// Nothing is charged today — billing starts when the schedule activates.
+		await expectCustomerInvoiceCorrect({ customerId, count: 0 });
 
-	await expectOnboardingFeeOnActivatingPhase({
-		ctx,
-		scheduleId: cusProduct.scheduled_ids![0]!,
-		startDate,
-	});
-});
+		await expectOnboardingFeeOnActivatingPhase({
+			ctx,
+			scheduleId: cusProduct.scheduled_ids![0]!,
+			startDate,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: immediate-access future attach (enable_plan_immediately)
@@ -141,42 +154,49 @@ test.concurrent(`${chalk.yellowBright("starts_at one-off: scheduled attach queue
 // Access starts now, but billing starts later. The one-off onboarding fee is
 // NOT charged up front — it's deferred to the activating phase like the pure
 // scheduled case, so it's invoiced once when the plan starts.
-test.concurrent(`${chalk.yellowBright("starts_at one-off: immediate-access future attach defers the onboarding fee to the activating phase")}`, async () => {
-	const customerId = "starts-at-oneoff-immediate-access";
-	const pro = buildProWithOnboardingFee("pro-oneoff-immediate-access");
+test.concurrent(
+	`${chalk.yellowBright("starts_at one-off: immediate-access future attach defers the onboarding fee to the activating phase")}`,
+	async () => {
+		const customerId = "starts-at-oneoff-immediate-access";
+		const pro = buildProWithOnboardingFee("pro-oneoff-immediate-access");
 
-	const { autumnV2_2, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV2_2, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	const startDate = addDays(advancedTo, 7).getTime();
+		const startDate = addDays(advancedTo, 7).getTime();
 
-	await autumnV2_2.billing.attach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: pro.id,
-		starts_at: startDate,
-		enable_plan_immediately: true,
-		feature_quantities: onboardingFeeQuantities,
-	});
+		await autumnV2_2.billing.attach<AttachParamsV1Input>({
+			customer_id: customerId,
+			plan_id: pro.id,
+			starts_at: startDate,
+			enable_plan_immediately: true,
+			feature_quantities: onboardingFeeQuantities,
+		});
 
-	const cusProduct = await getCustomerProduct({ ctx, customerId, productId: pro.id });
-	expect(cusProduct.status).toBe(CusProductStatus.Active);
-	expect(cusProduct.scheduled_ids).toHaveLength(1);
+		const cusProduct = await getCustomerProduct({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		expect(cusProduct.status).toBe(CusProductStatus.Active);
+		expect(cusProduct.scheduled_ids).toHaveLength(1);
 
-	// Nothing is charged up front — the fee is billed when the plan activates.
-	await expectCustomerInvoiceCorrect({ customerId, count: 0 });
+		// Nothing is charged up front — the fee is billed when the plan activates.
+		await expectCustomerInvoiceCorrect({ customerId, count: 0 });
 
-	await expectOnboardingFeeOnActivatingPhase({
-		ctx,
-		scheduleId: cusProduct.scheduled_ids![0]!,
-		startDate,
-	});
-});
+		await expectOnboardingFeeOnActivatingPhase({
+			ctx,
+			scheduleId: cusProduct.scheduled_ids![0]!,
+			startDate,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: end-to-end — advance the clock to activation, assert the fee is charged
@@ -184,65 +204,81 @@ test.concurrent(`${chalk.yellowBright("starts_at one-off: immediate-access futur
 //
 // Proves the schedule doesn't just CARRY the fee but that Stripe actually
 // invoices it (base + onboarding fee) once the plan activates at starts_at.
-test.concurrent(`${chalk.yellowBright("starts_at one-off: fee is invoiced in full when the schedule activates")}`, async () => {
-	const customerId = "starts-at-oneoff-activation";
-	const pro = buildProWithOnboardingFee("pro-oneoff-activation");
+test.concurrent(
+	`${chalk.yellowBright("starts_at one-off: fee is invoiced in full when the schedule activates")}`,
+	async () => {
+		const customerId = "starts-at-oneoff-activation";
+		const pro = buildProWithOnboardingFee("pro-oneoff-activation");
 
-	const { autumnV2_2, ctx, advancedTo, testClockId } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV2_2, ctx, advancedTo, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	expect(testClockId).toBeDefined();
-	const startDate = addDays(advancedTo, 7).getTime();
+		expect(testClockId).toBeDefined();
+		const startDate = addDays(advancedTo, 7).getTime();
 
-	await autumnV2_2.billing.attach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: pro.id,
-		starts_at: startDate,
-		feature_quantities: onboardingFeeQuantities,
-	});
+		await autumnV2_2.billing.attach<AttachParamsV1Input>({
+			customer_id: customerId,
+			plan_id: pro.id,
+			starts_at: startDate,
+			feature_quantities: onboardingFeeQuantities,
+		});
 
-	// Nothing charged before activation.
-	await expectCustomerInvoiceCorrect({ customerId, count: 0 });
+		// Nothing charged before activation.
+		await expectCustomerInvoiceCorrect({ customerId, count: 0 });
 
-	const scheduledProduct = await getCustomerProduct({ ctx, customerId, productId: pro.id });
-	const scheduleId = scheduledProduct.scheduled_ids?.[0];
-	if (!scheduleId) throw new Error("Expected scheduled product to have schedule");
+		const scheduledProduct = await getCustomerProduct({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		const scheduleId = scheduledProduct.scheduled_ids?.[0];
+		if (!scheduleId)
+			throw new Error("Expected scheduled product to have schedule");
 
-	// Advance past starts_at so Stripe activates the schedule and invoices it.
-	await advanceTestClock({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-		advanceTo: addHours(startDate, 1).getTime(),
-		waitForSeconds: 30,
-	});
+		// Advance past starts_at so Stripe activates the schedule and invoices it.
+		await advanceTestClock({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+			advanceTo: addHours(startDate, 1).getTime(),
+			waitForSeconds: 30,
+		});
 
-	const stripeSchedule = (await ctx.stripeCli.subscriptionSchedules.retrieve(
-		scheduleId,
-	)) as Stripe.SubscriptionSchedule;
-	const stripeSubId = getScheduleSubscriptionId(stripeSchedule);
-	if (!stripeSubId) throw new Error("Expected schedule to have a subscription");
+		const stripeSchedule = (await ctx.stripeCli.subscriptionSchedules.retrieve(
+			scheduleId,
+		)) as Stripe.SubscriptionSchedule;
+		const stripeSubId = getScheduleSubscriptionId(stripeSchedule);
+		if (!stripeSubId)
+			throw new Error("Expected schedule to have a subscription");
 
-	await triggerSubscriptionCreated({
-		ctx,
-		stripeSubId,
-		scheduleId,
-		subscriptionCreatedAtMs: addMinutes(startDate, 5).getTime(),
-		fullCustomer: await CusService.getFull({ ctx, idOrInternalId: customerId }),
-	});
+		await triggerSubscriptionCreated({
+			ctx,
+			stripeSubId,
+			scheduleId,
+			subscriptionCreatedAtMs: addMinutes(startDate, 5).getTime(),
+			fullCustomer: await CusService.getFull({
+				ctx,
+				idOrInternalId: customerId,
+			}),
+		});
 
-	// Plan is now active, and the activation invoice charged base + onboarding fee.
-	const cusProduct = await getCustomerProduct({ ctx, customerId, productId: pro.id });
-	expect(cusProduct.status).toBe(CusProductStatus.Active);
+		// Plan is now active, and the activation invoice charged base + onboarding fee.
+		const cusProduct = await getCustomerProduct({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		expect(cusProduct.status).toBe(CusProductStatus.Active);
 
-	await expectCustomerInvoiceCorrect({
-		customerId,
-		count: 1,
-		latestTotal: BASE_PRICE + ONBOARDING_FEE,
-	});
-});
+		await expectCustomerInvoiceCorrect({
+			customerId,
+			count: 1,
+			latestTotal: BASE_PRICE + ONBOARDING_FEE,
+		});
+	},
+);

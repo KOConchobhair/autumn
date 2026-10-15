@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
-import { type Entity, type FullCusProduct } from "@autumn/shared";
-import { CusService } from "@/internal/customers/CusService.js";
+import type { Entity, FullCusProduct } from "@autumn/shared";
 import { TestFeature } from "@tests/setup/v2Features.js";
 import { items } from "@tests/utils/fixtures/items.js";
 import { products } from "@tests/utils/fixtures/products.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
+import { CusService } from "@/internal/customers/CusService.js";
 
 test.concurrent(
 	`${chalk.yellowBright("get-full: entity-scoped cusProducts ordered before customer-level when entityId passed")}`,
@@ -49,9 +49,7 @@ test.concurrent(
 		const entityScopedProducts = cusProducts.filter(
 			(cp) => cp.entity_id === entities[0].id,
 		);
-		const customerLevelProducts = cusProducts.filter(
-			(cp) => !cp.entity_id,
-		);
+		const customerLevelProducts = cusProducts.filter((cp) => !cp.entity_id);
 
 		expect(entityScopedProducts.length).toBeGreaterThan(0);
 		expect(customerLevelProducts.length).toBeGreaterThan(0);

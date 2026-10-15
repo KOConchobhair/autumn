@@ -101,9 +101,7 @@ test.concurrent(
 			product: plan,
 			kind: "prepaid",
 			featureId: TestFeature.Messages,
-			featureQuantities: [
-				{ feature_id: TestFeature.Messages, quantity: 100 },
-			],
+			featureQuantities: [{ feature_id: TestFeature.Messages, quantity: 100 }],
 		});
 	},
 );

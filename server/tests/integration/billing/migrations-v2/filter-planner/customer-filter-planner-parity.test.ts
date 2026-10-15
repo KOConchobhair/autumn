@@ -14,6 +14,7 @@
 import { expect, test } from "bun:test";
 import {
 	CusProductStatus,
+	type CustomerFilter,
 	customerProducts,
 	customers,
 	MigrationItemKind,
@@ -21,11 +22,11 @@ import {
 	migrationItemRuns,
 	migrations,
 	products as productsTable,
-	type CustomerFilter,
 } from "@autumn/shared";
 import { compileFilter } from "@autumn/shared/api/migrations/compiler/compileFilter.js";
+import { initScenario } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
-import { sql, type SQL } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 import {
 	buildCustomerCount,
 	buildCustomerSelect,
@@ -36,7 +37,6 @@ import {
 } from "@/internal/migrations/v2/filters/customers/buildCustomerSelect.js";
 import { getCustomerPage } from "@/internal/migrations/v2/filters/customers/filterCustomers.js";
 import { rawWithParamsToDrizzle } from "@/internal/migrations/v2/filters/rawWithParamsToDrizzle.js";
-import { initScenario } from "@tests/utils/testInitUtils/initScenario.js";
 
 const CREATED_AT = 1_780_000_000_000;
 const sorted = (values: string[]) => [...values].sort();
@@ -91,9 +91,13 @@ const cleanupSeededRows = async ({
 	await db.execute(
 		sql`DELETE FROM migration_item_runs WHERE migration_internal_id LIKE ${pattern}`,
 	);
-	await db.execute(sql`DELETE FROM migrations WHERE internal_id LIKE ${pattern}`);
+	await db.execute(
+		sql`DELETE FROM migrations WHERE internal_id LIKE ${pattern}`,
+	);
 	await db.execute(sql`DELETE FROM customer_products WHERE id LIKE ${pattern}`);
-	await db.execute(sql`DELETE FROM customers WHERE internal_id LIKE ${pattern}`);
+	await db.execute(
+		sql`DELETE FROM customers WHERE internal_id LIKE ${pattern}`,
+	);
 	await db.execute(sql`DELETE FROM products WHERE internal_id LIKE ${pattern}`);
 };
 

@@ -66,370 +66,400 @@ afterAll(async () => {
 // CUSTOMER-LEVEL TESTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("webhook v2: new product attach - scenario: new")}`, async () => {
-	const customerId = "webhook-v2-new";
+test.concurrent(
+	`${chalk.yellowBright("webhook v2: new product attach - scenario: new")}`,
+	async () => {
+		const customerId = "webhook-v2-new";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
 
-	// Setup: customer with NO products attached
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		// Setup: customer with NO products attached
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	// Action: attach Pro via billing.attach (v2)
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		// Action: attach Pro via billing.attach (v2)
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
 
-	// Assert: webhook received with scenario "new"
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "new" &&
-			payload.data?.updated_product?.id === pro.id,
-		timeoutMs: 15000,
-	});
+		// Assert: webhook received with scenario "new"
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "new" &&
+				payload.data?.updated_product?.id === pro.id,
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("new");
-	expect(data.updated_product.id).toBe(pro.id);
-	expect(data.customer.id).toBe(customerId);
-	expect(data.entity).toBeUndefined();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("new");
+		expect(data.updated_product.id).toBe(pro.id);
+		expect(data.customer.id).toBe(customerId);
+		expect(data.entity).toBeUndefined();
 
-	// Verify customer state: Pro is active
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({ customer, productId: pro.id });
-});
+		// Verify customer state: Pro is active
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({ customer, productId: pro.id });
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("webhook v2: upgrade Pro -> Premium - scenario: upgrade")}`, async () => {
-	const customerId = "webhook-v2-upgrade";
+test.concurrent(
+	`${chalk.yellowBright("webhook v2: upgrade Pro -> Premium - scenario: upgrade")}`,
+	async () => {
+		const customerId = "webhook-v2-upgrade";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	// Pro = $20/month, Premium = $50/month
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
-	const premium = products.premium({ id: "premium", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		// Pro = $20/month, Premium = $50/month
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const premium = products.premium({ id: "premium", items: [messagesItem] });
 
-	// Setup: customer with Pro attached via v1 (to have a baseline)
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [s.attach({ productId: pro.id })],
-	});
+		// Setup: customer with Pro attached via v1 (to have a baseline)
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [s.attach({ productId: pro.id })],
+		});
 
-	// Action: attach Premium via billing.attach (v2) - upgrade from Pro
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-	});
+		// Action: attach Premium via billing.attach (v2) - upgrade from Pro
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+		});
 
-	// Assert: webhook received with scenario "upgrade" for Premium
-	// NOTE: Currently this sends "new" - you mentioned you'll fix this later
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "upgrade" &&
-			payload.data?.updated_product?.id === premium.id,
-		timeoutMs: 15000,
-	});
+		// Assert: webhook received with scenario "upgrade" for Premium
+		// NOTE: Currently this sends "new" - you mentioned you'll fix this later
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "upgrade" &&
+				payload.data?.updated_product?.id === premium.id,
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("upgrade");
-	expect(data.updated_product.id).toBe(premium.id);
-	expect(data.customer.id).toBe(customerId);
-	expect(data.entity).toBeUndefined();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("upgrade");
+		expect(data.updated_product.id).toBe(premium.id);
+		expect(data.customer.id).toBe(customerId);
+		expect(data.entity).toBeUndefined();
 
-	// Verify customer state: Premium is active
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({ customer, productId: premium.id });
-});
+		// Verify customer state: Premium is active
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({ customer, productId: premium.id });
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("webhook v2: downgrade Premium -> Pro - scenario: downgrade")}`, async () => {
-	const customerId = "webhook-v2-downgrade";
+test.concurrent(
+	`${chalk.yellowBright("webhook v2: downgrade Premium -> Pro - scenario: downgrade")}`,
+	async () => {
+		const customerId = "webhook-v2-downgrade";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	// Pro = $20/month, Premium = $50/month
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
-	const premium = products.premium({ id: "premium", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		// Pro = $20/month, Premium = $50/month
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const premium = products.premium({ id: "premium", items: [messagesItem] });
 
-	// Setup: customer with Premium attached
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [s.attach({ productId: premium.id })],
-	});
+		// Setup: customer with Premium attached
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [s.attach({ productId: premium.id })],
+		});
 
-	// Action: attach Pro via billing.attach (v2) - downgrade from Premium
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		// Action: attach Pro via billing.attach (v2) - downgrade from Premium
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
 
-	// Assert: webhook received with scenario "downgrade" for Premium (being scheduled to cancel)
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "downgrade" &&
-			payload.data?.updated_product?.id === premium.id,
-		timeoutMs: 15000,
-	});
+		// Assert: webhook received with scenario "downgrade" for Premium (being scheduled to cancel)
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "downgrade" &&
+				payload.data?.updated_product?.id === premium.id,
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("downgrade");
-	expect(data.updated_product.id).toBe(premium.id);
-	expect(data.customer.id).toBe(customerId);
-	expect(data.entity).toBeUndefined();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("downgrade");
+		expect(data.updated_product.id).toBe(premium.id);
+		expect(data.customer.id).toBe(customerId);
+		expect(data.entity).toBeUndefined();
 
-	// Verify customer state: Premium is canceling, Pro is scheduled
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductCanceling({ customer, productId: premium.id });
-	await expectProductScheduled({ customer, productId: pro.id });
-});
+		// Verify customer state: Premium is canceling, Pro is scheduled
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductCanceling({ customer, productId: premium.id });
+		await expectProductScheduled({ customer, productId: pro.id });
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("webhook v2: cancel to free Premium -> Free - scenario: cancel")}`, async () => {
-	const customerId = "webhook-v2-cancel-to-free";
+test.concurrent(
+	`${chalk.yellowBright("webhook v2: cancel to free Premium -> Free - scenario: cancel")}`,
+	async () => {
+		const customerId = "webhook-v2-cancel-to-free";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	// Premium = $50/month, Free = $0
-	const free = products.base({
-		id: "free",
-		items: [messagesItem],
-		isDefault: true,
-	});
-	const premium = products.premium({ id: "premium", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		// Premium = $50/month, Free = $0
+		const free = products.base({
+			id: "free",
+			items: [messagesItem],
+			isDefault: true,
+		});
+		const premium = products.premium({ id: "premium", items: [messagesItem] });
 
-	// Setup: customer with Premium attached
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [free, premium] }),
-		],
-		actions: [s.attach({ productId: premium.id })],
-	});
+		// Setup: customer with Premium attached
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [free, premium] }),
+			],
+			actions: [s.attach({ productId: premium.id })],
+		});
 
-	// Action: attach Free via billing.attach (v2) - cancel to free from Premium
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: free.id,
-	});
+		// Action: attach Free via billing.attach (v2) - cancel to free from Premium
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: free.id,
+		});
 
-	// Assert: webhook received with scenario "cancel" for Premium (scheduled to free)
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "cancel" &&
-			payload.data?.updated_product?.id === premium.id,
-		timeoutMs: 15000,
-	});
+		// Assert: webhook received with scenario "cancel" for Premium (scheduled to free)
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "cancel" &&
+				payload.data?.updated_product?.id === premium.id,
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("cancel");
-	expect(data.updated_product.id).toBe(premium.id);
-	expect(data.customer.id).toBe(customerId);
-	expect(data.entity).toBeUndefined();
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("cancel");
+		expect(data.updated_product.id).toBe(premium.id);
+		expect(data.customer.id).toBe(customerId);
+		expect(data.entity).toBeUndefined();
 
-	// Verify customer state: Premium is canceling, Free is scheduled
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductCanceling({ customer, productId: premium.id });
-	await expectProductScheduled({ customer, productId: free.id });
-});
+		// Verify customer state: Premium is canceling, Free is scheduled
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductCanceling({ customer, productId: premium.id });
+		await expectProductScheduled({ customer, productId: free.id });
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ENTITY-LEVEL TESTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("webhook v2: entity new product - scenario: new")}`, async () => {
-	const customerId = "webhook-v2-entity-new";
+test.concurrent(
+	`${chalk.yellowBright("webhook v2: entity new product - scenario: new")}`,
+	async () => {
+		const customerId = "webhook-v2-entity-new";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
 
-	// Setup: customer with entity, NO products attached
-	const { autumnV1, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro] }),
-			s.entities({ count: 1, featureId: TestFeature.Users }),
-		],
-		actions: [],
-	});
+		// Setup: customer with entity, NO products attached
+		const { autumnV1, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro] }),
+				s.entities({ count: 1, featureId: TestFeature.Users }),
+			],
+			actions: [],
+		});
 
-	const entityId = entities[0].id;
+		const entityId = entities[0].id;
 
-	// Action: attach Pro to entity via billing.attach (v2)
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		entity_id: entityId,
-	});
+		// Action: attach Pro to entity via billing.attach (v2)
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			entity_id: entityId,
+		});
 
-	// Assert: webhook received with scenario "new" AND entity included
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "new" &&
-			payload.data?.updated_product?.id === pro.id &&
-			payload.data?.entity?.id === entityId,
-		timeoutMs: 15000,
-	});
+		// Assert: webhook received with scenario "new" AND entity included
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "new" &&
+				payload.data?.updated_product?.id === pro.id &&
+				payload.data?.entity?.id === entityId,
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("new");
-	expect(data.updated_product.id).toBe(pro.id);
-	expect(data.customer.id).toBe(customerId);
-	expect(data.entity).toBeDefined();
-	expect(data.entity?.id).toBe(entityId);
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("new");
+		expect(data.updated_product.id).toBe(pro.id);
+		expect(data.customer.id).toBe(customerId);
+		expect(data.entity).toBeDefined();
+		expect(data.entity?.id).toBe(entityId);
 
-	// Verify entity state: Pro is active
-	const entity = await autumnV1.entities.get<ApiEntityV0>(customerId, entityId);
-	await expectProductActive({ customer: entity, productId: pro.id });
-});
+		// Verify entity state: Pro is active
+		const entity = await autumnV1.entities.get<ApiEntityV0>(
+			customerId,
+			entityId,
+		);
+		await expectProductActive({ customer: entity, productId: pro.id });
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("webhook v2: entity upgrade Pro -> Premium - scenario: upgrade")}`, async () => {
-	const customerId = "webhook-v2-entity-upgrade";
+test.concurrent(
+	`${chalk.yellowBright("webhook v2: entity upgrade Pro -> Premium - scenario: upgrade")}`,
+	async () => {
+		const customerId = "webhook-v2-entity-upgrade";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
-	const premium = products.premium({ id: "premium", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const premium = products.premium({ id: "premium", items: [messagesItem] });
 
-	// Setup: customer with entity, Pro attached to entity
-	const { autumnV1, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro, premium] }),
-			s.entities({ count: 1, featureId: TestFeature.Users }),
-		],
-		actions: [s.attach({ productId: pro.id, entityIndex: 0 })],
-	});
+		// Setup: customer with entity, Pro attached to entity
+		const { autumnV1, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro, premium] }),
+				s.entities({ count: 1, featureId: TestFeature.Users }),
+			],
+			actions: [s.attach({ productId: pro.id, entityIndex: 0 })],
+		});
 
-	const entityId = entities[0].id;
+		const entityId = entities[0].id;
 
-	// Action: attach Premium to entity via billing.attach (v2) - upgrade
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-		entity_id: entityId,
-	});
+		// Action: attach Premium to entity via billing.attach (v2) - upgrade
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+			entity_id: entityId,
+		});
 
-	// Assert: webhook received with scenario "upgrade" AND entity included
-	// NOTE: Currently this sends "new" - you mentioned you'll fix this later
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "upgrade" &&
-			payload.data?.updated_product?.id === premium.id &&
-			payload.data?.entity?.id === entityId,
-		timeoutMs: 15000,
-	});
+		// Assert: webhook received with scenario "upgrade" AND entity included
+		// NOTE: Currently this sends "new" - you mentioned you'll fix this later
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "upgrade" &&
+				payload.data?.updated_product?.id === premium.id &&
+				payload.data?.entity?.id === entityId,
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("upgrade");
-	expect(data.updated_product.id).toBe(premium.id);
-	expect(data.customer.id).toBe(customerId);
-	expect(data.entity).toBeDefined();
-	expect(data.entity?.id).toBe(entityId);
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("upgrade");
+		expect(data.updated_product.id).toBe(premium.id);
+		expect(data.customer.id).toBe(customerId);
+		expect(data.entity).toBeDefined();
+		expect(data.entity?.id).toBe(entityId);
 
-	// Verify entity state: Premium is active
-	const entity = await autumnV1.entities.get<ApiEntityV0>(customerId, entityId);
-	await expectProductActive({ customer: entity, productId: premium.id });
-});
+		// Verify entity state: Premium is active
+		const entity = await autumnV1.entities.get<ApiEntityV0>(
+			customerId,
+			entityId,
+		);
+		await expectProductActive({ customer: entity, productId: premium.id });
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("webhook v2: entity downgrade Premium -> Pro - scenario: downgrade")}`, async () => {
-	const customerId = "webhook-v2-entity-downgrade";
+test.concurrent(
+	`${chalk.yellowBright("webhook v2: entity downgrade Premium -> Pro - scenario: downgrade")}`,
+	async () => {
+		const customerId = "webhook-v2-entity-downgrade";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
-	const premium = products.premium({ id: "premium", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const premium = products.premium({ id: "premium", items: [messagesItem] });
 
-	// Setup: customer with entity, Premium attached to entity
-	const { autumnV1, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro, premium] }),
-			s.entities({ count: 1, featureId: TestFeature.Users }),
-		],
-		actions: [s.attach({ productId: premium.id, entityIndex: 0 })],
-	});
+		// Setup: customer with entity, Premium attached to entity
+		const { autumnV1, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro, premium] }),
+				s.entities({ count: 1, featureId: TestFeature.Users }),
+			],
+			actions: [s.attach({ productId: premium.id, entityIndex: 0 })],
+		});
 
-	const entityId = entities[0].id;
+		const entityId = entities[0].id;
 
-	// Action: attach Pro to entity via billing.attach (v2) - downgrade
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		entity_id: entityId,
-	});
+		// Action: attach Pro to entity via billing.attach (v2) - downgrade
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			entity_id: entityId,
+		});
 
-	// Assert: webhook received with scenario "downgrade" AND entity included
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "downgrade" &&
-			payload.data?.updated_product?.id === premium.id &&
-			payload.data?.entity?.id === entityId,
-		timeoutMs: 15000,
-	});
+		// Assert: webhook received with scenario "downgrade" AND entity included
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "downgrade" &&
+				payload.data?.updated_product?.id === premium.id &&
+				payload.data?.entity?.id === entityId,
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("downgrade");
-	expect(data.updated_product.id).toBe(premium.id);
-	expect(data.customer.id).toBe(customerId);
-	expect(data.entity).toBeDefined();
-	expect(data.entity?.id).toBe(entityId);
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("downgrade");
+		expect(data.updated_product.id).toBe(premium.id);
+		expect(data.customer.id).toBe(customerId);
+		expect(data.entity).toBeDefined();
+		expect(data.entity?.id).toBe(entityId);
 
-	// Verify entity state: Premium is canceling, Pro is scheduled
-	const entity = await autumnV1.entities.get<ApiEntityV0>(customerId, entityId);
-	await expectProductCanceling({ customer: entity, productId: premium.id });
-	await expectProductScheduled({ customer: entity, productId: pro.id });
-});
+		// Verify entity state: Premium is canceling, Pro is scheduled
+		const entity = await autumnV1.entities.get<ApiEntityV0>(
+			customerId,
+			entityId,
+		);
+		await expectProductCanceling({ customer: entity, productId: premium.id });
+		await expectProductScheduled({ customer: entity, productId: pro.id });
+	},
+);

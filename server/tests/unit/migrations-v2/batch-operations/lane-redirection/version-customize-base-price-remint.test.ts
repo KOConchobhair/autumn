@@ -151,11 +151,7 @@ const preparedDomains = domainsEntitlement({
 	allowance: 10,
 });
 
-const computeResendShapedOp = ({
-	toPrice,
-}: {
-	toPrice: Price;
-}) => {
+const computeResendShapedOp = ({ toPrice }: { toPrice: Price }) => {
 	const targetProduct = planProduct({
 		internalId: "prod_tp_v2",
 		version: 2,

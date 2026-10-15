@@ -13,8 +13,8 @@
  * silently regress this cohort back down.
  */
 
-import type { ApiCustomerV5, CreatePlanItemParamsV1 } from "@autumn/shared";
 import { test } from "bun:test";
+import type { ApiCustomerV5, CreatePlanItemParamsV1 } from "@autumn/shared";
 import {
 	BillingInterval,
 	BillingMethod,
@@ -74,7 +74,10 @@ test.concurrent(
 				s.billing.attach({
 					productId: pro.id,
 					options: [
-						{ feature_id: TestFeature.Messages, quantity: OLD_BASE_TIER_CREDITS },
+						{
+							feature_id: TestFeature.Messages,
+							quantity: OLD_BASE_TIER_CREDITS,
+						},
 					],
 				}),
 			],
@@ -105,7 +108,10 @@ test.concurrent(
 							add_items: [NEW_LADDER_ITEM],
 						},
 						feature_quantities_strategy: [
-							{ feature_id: TestFeature.Messages, strategy: "round_to_lowest_price" },
+							{
+								feature_id: TestFeature.Messages,
+								strategy: "round_to_lowest_price",
+							},
 						],
 						proration: true,
 					},

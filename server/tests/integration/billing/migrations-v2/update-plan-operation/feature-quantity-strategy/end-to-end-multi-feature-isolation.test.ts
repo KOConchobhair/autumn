@@ -8,8 +8,17 @@
  */
 
 import { expect, test } from "bun:test";
-import type { ApiCustomerV3, ApiCustomerV5, CreatePlanItemParamsV1 } from "@autumn/shared";
-import { BillingInterval, BillingMethod, ResetInterval, TierBehavior } from "@autumn/shared";
+import type {
+	ApiCustomerV3,
+	ApiCustomerV5,
+	CreatePlanItemParamsV1,
+} from "@autumn/shared";
+import {
+	BillingInterval,
+	BillingMethod,
+	ResetInterval,
+	TierBehavior,
+} from "@autumn/shared";
 import { expectCustomerInvoiceCorrect } from "@tests/integration/billing/utils/expectCustomerInvoiceCorrect";
 import { expectStripeSubscriptionCorrect } from "@tests/integration/billing/utils/expectStripeSubCorrect";
 import { expectBalanceCorrect } from "@tests/integration/utils/expectBalanceCorrect";
@@ -100,7 +109,10 @@ test.concurrent(
 							add_items: [NEW_TIER_ITEM],
 						},
 						feature_quantities_strategy: [
-							{ feature_id: TestFeature.Messages, strategy: "round_to_lowest_price" },
+							{
+								feature_id: TestFeature.Messages,
+								strategy: "round_to_lowest_price",
+							},
 						],
 						proration: true,
 					},

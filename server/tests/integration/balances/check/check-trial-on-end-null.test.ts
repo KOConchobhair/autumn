@@ -7,7 +7,7 @@
  */
 
 import { expect, test } from "bun:test";
-import { type CheckResponseV3 } from "@autumn/shared";
+import type { CheckResponseV3 } from "@autumn/shared";
 import { TestFeature } from "@tests/setup/v2Features.js";
 import { items } from "@tests/utils/fixtures/items.js";
 import { products } from "@tests/utils/fixtures/products.js";

@@ -9,10 +9,7 @@ import {
 } from "@autumn/shared";
 import { eq } from "drizzle-orm";
 import { initDrizzle } from "@/db/initDrizzle.js";
-import {
-	ApiKeyPrefix,
-	createKey,
-} from "@/internal/dev/apiKeys/apiKeyUtils.js";
+import { ApiKeyPrefix, createKey } from "@/internal/dev/apiKeys/apiKeyUtils.js";
 import { OrgService } from "@/internal/orgs/OrgService.js";
 import { generateId } from "@/utils/genUtils.js";
 import { clearOrg } from "./clearOrg.js";

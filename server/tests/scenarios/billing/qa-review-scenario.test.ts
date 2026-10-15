@@ -1,7 +1,11 @@
 /** QA customers for the Set Plans review screen; run by hand, then open each in the dashboard. */
 
 import { test } from "bun:test";
-import { BillingInterval, ms, type SetPlansParamsV0Input } from "@autumn/shared";
+import {
+	BillingInterval,
+	ms,
+	type SetPlansParamsV0Input,
+} from "@autumn/shared";
 import { TestFeature } from "@tests/setup/v2Features";
 import { items } from "@tests/utils/fixtures/items";
 import { products } from "@tests/utils/fixtures/products";
@@ -106,48 +110,54 @@ test.concurrent("QA 2: Mintlify, renewal saved, repeat not added yet", () =>
 	}),
 );
 
-test.concurrent("QA 3: pro mid-cycle with usage, for an upgrade now", async () => {
-	await initScenario({
-		customerId: "qa-review-upgrade",
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [proPlan(), premiumPlan()] }),
-		],
-		actions: [
-			s.billing.attach({ productId: "pro" }),
-			s.track({ featureId: TestFeature.Messages, value: 40, timeout: 2000 }),
-			s.advanceTestClock({ days: 10 }),
-		],
-	});
-});
+test.concurrent(
+	"QA 3: pro mid-cycle with usage, for an upgrade now",
+	async () => {
+		await initScenario({
+			customerId: "qa-review-upgrade",
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [proPlan(), premiumPlan()] }),
+			],
+			actions: [
+				s.billing.attach({ productId: "pro" }),
+				s.track({ featureId: TestFeature.Messages, value: 40, timeout: 2000 }),
+				s.advanceTestClock({ days: 10 }),
+			],
+		});
+	},
+);
 
-test.concurrent("QA 4: pro with a saved schedule of two future phases", async () => {
-	const pro = proPlan();
-	const premium = premiumPlan();
-	const { autumnV2_4, customerId, advancedTo } = await initScenario({
-		customerId: "qa-review-removed-phase",
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [s.billing.attach({ productId: "pro" })],
-	});
-	const params: SetPlansParamsV0Input = {
-		customer_id: customerId,
-		phases: [
-			{ starts_at: "now", plans: [{ plan_id: pro.id }] },
-			{
-				starts_at: advancedTo + ms.days(45),
-				plans: [{ plan_id: premium.id }],
-			},
-			{
-				starts_at: advancedTo + ms.days(100),
-				plans: [{ plan_id: pro.id }],
-			},
-		],
-	};
-	await autumnV2_4.billing.setPlans(params);
-});
+test.concurrent(
+	"QA 4: pro with a saved schedule of two future phases",
+	async () => {
+		const pro = proPlan();
+		const premium = premiumPlan();
+		const { autumnV2_4, customerId, advancedTo } = await initScenario({
+			customerId: "qa-review-removed-phase",
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [s.billing.attach({ productId: "pro" })],
+		});
+		const params: SetPlansParamsV0Input = {
+			customer_id: customerId,
+			phases: [
+				{ starts_at: "now", plans: [{ plan_id: pro.id }] },
+				{
+					starts_at: advancedTo + ms.days(45),
+					plans: [{ plan_id: premium.id }],
+				},
+				{
+					starts_at: advancedTo + ms.days(100),
+					plans: [{ plan_id: pro.id }],
+				},
+			],
+		};
+		await autumnV2_4.billing.setPlans(params);
+	},
+);
 
 test.concurrent("QA 5: pro on a 14-day trial", async () => {
 	await initScenario({

@@ -87,10 +87,7 @@ test.concurrent(
 
 		const { autumnV2_3, ctx } = await initScenario({
 			customerId,
-			setup: [
-				s.customer({ testClock: false }),
-				s.products({ list: [plan] }),
-			],
+			setup: [s.customer({ testClock: false }), s.products({ list: [plan] })],
 			actions: [s.billing.attach({ productId: plan.id })],
 		});
 
@@ -157,10 +154,7 @@ test.concurrent(
 
 		const { autumnV2_3, ctx } = await initScenario({
 			customerId,
-			setup: [
-				s.customer({ testClock: false }),
-				s.products({ list: [plan] }),
-			],
+			setup: [s.customer({ testClock: false }), s.products({ list: [plan] })],
 			actions: [s.billing.attach({ productId: plan.id })],
 		});
 
@@ -306,10 +300,7 @@ test.concurrent(
 
 		const { autumnV2_3, ctx } = await initScenario({
 			customerId,
-			setup: [
-				s.customer({ testClock: false }),
-				s.products({ list: [plan] }),
-			],
+			setup: [s.customer({ testClock: false }), s.products({ list: [plan] })],
 			actions: [s.billing.attach({ productId: plan.id })],
 		});
 

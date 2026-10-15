@@ -12,14 +12,14 @@
 
 import {
 	type Feature,
-	FeatureType,
+	type FeatureType,
 	FeatureUsageType,
 	features,
 	prices,
 } from "@autumn/shared";
 import { and, eq, sql } from "drizzle-orm";
-import { executeFeatureReferenceRewrites } from "@/internal/catalogV2/execute/executeFeatureReferenceRewrites.js";
 import type { UpdateFeaturePlan } from "@/internal/catalogV2/actions/updateCatalog/types/updateFeaturePlan.js";
+import { executeFeatureReferenceRewrites } from "@/internal/catalogV2/execute/executeFeatureReferenceRewrites.js";
 import { FeatureService } from "@/internal/features/FeatureService.js";
 import { FEATURE_REWRITE_ROW_LIMIT } from "@/internal/features/repos/featureReferenceRewriteScopes.js";
 import {
@@ -32,7 +32,10 @@ import {
 const BUDGET_MS = 500;
 const RENAMED_ID = `${FEATURE_REWRITE_BENCH_FEATURE_ID}__renamed`;
 
-const time = async <T>(label: string, fn: () => Promise<T>): Promise<{
+const time = async <T>(
+	label: string,
+	fn: () => Promise<T>,
+): Promise<{
 	result: T;
 	ms: number;
 }> => {

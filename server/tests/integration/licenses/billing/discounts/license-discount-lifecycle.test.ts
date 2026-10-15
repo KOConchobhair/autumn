@@ -240,9 +240,7 @@ test.concurrent(
 			direction: "refund",
 			subtotal: -10,
 			total: -10,
-			discounts: [
-				{ rewardId: coupon.id, percentOff: 50, amountOff: 20 },
-			],
+			discounts: [{ rewardId: coupon.id, percentOff: 50, amountOff: 20 }],
 		});
 		expectLicensePreviewLineCorrect({
 			preview,

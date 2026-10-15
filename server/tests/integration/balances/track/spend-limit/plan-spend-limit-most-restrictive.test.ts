@@ -18,12 +18,20 @@ import chalk from "chalk";
 
 const overageItems = () => [
 	items.lifetimeMessages({ includedUsage: 1000 }),
-	items.consumableMessages({ includedUsage: 100, maxPurchase: 300, price: 0.5 }),
+	items.consumableMessages({
+		includedUsage: 100,
+		maxPurchase: 300,
+		price: 0.5,
+	}),
 ];
 
 const spendLimit = (overageLimit: number) => ({
 	spend_limits: [
-		{ feature_id: TestFeature.Messages, enabled: true, overage_limit: overageLimit },
+		{
+			feature_id: TestFeature.Messages,
+			enabled: true,
+			overage_limit: overageLimit,
+		},
 	],
 });
 

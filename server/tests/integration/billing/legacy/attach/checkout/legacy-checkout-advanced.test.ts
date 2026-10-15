@@ -46,56 +46,59 @@ import { constructCoupon } from "@/utils/scriptUtils/createTestProducts";
 // - 1 invoice for $10 (50% of $20)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-checkout-adv 1: coupon/reward checkout")}`, async () => {
-	const customerId = "legacy-checkout-adv-1";
-	const rewardId = "legacycheckoutadv1reward";
+test.concurrent(
+	`${chalk.yellowBright("legacy-checkout-adv 1: coupon/reward checkout")}`,
+	async () => {
+		const customerId = "legacy-checkout-adv-1";
+		const rewardId = "legacycheckoutadv1reward";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({
-		id: "pro",
-		items: [messagesItem],
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({
+			id: "pro",
+			items: [messagesItem],
+		});
 
-	const reward = constructCoupon({
-		id: rewardId,
-		promoCode: "LEGACYCHECKOUTADV1",
-		discountType: RewardType.PercentageDiscount,
-		discountValue: 50,
-	});
+		const reward = constructCoupon({
+			id: rewardId,
+			promoCode: "LEGACYCHECKOUTADV1",
+			discountType: RewardType.PercentageDiscount,
+			discountValue: 50,
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }),
-			s.products({ list: [pro] }),
-			s.reward({ reward, productId: pro.id }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }),
+				s.products({ list: [pro] }),
+				s.reward({ reward, productId: pro.id }),
+			],
+			actions: [],
+		});
 
-	// reward.id is modified in place by s.reward (suffixed with productPrefix)
-	const res = await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		reward: reward.id,
-	});
+		// reward.id is modified in place by s.reward (suffixed with productPrefix)
+		const res = await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			reward: reward.id,
+		});
 
-	await completeStripeCheckoutFormV2({ url: res.checkout_url });
-	await timeout(10000);
+		await completeStripeCheckoutFormV2({ url: res.checkout_url });
+		await timeout(10000);
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: pro.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: pro.id,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 10, // 50% of $20
-	});
-});
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 10, // 50% of $20
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Prepaid with quantity=0
@@ -114,69 +117,72 @@ test.concurrent(`${chalk.yellowBright("legacy-checkout-adv 1: coupon/reward chec
 // - Words balance = 400
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-checkout-adv 2: prepaid with quantity=0")}`, async () => {
-	const customerId = "legacy-checkout-adv-2";
+test.concurrent(
+	`${chalk.yellowBright("legacy-checkout-adv 2: prepaid with quantity=0")}`,
+	async () => {
+		const customerId = "legacy-checkout-adv-2";
 
-	const messagesItem = items.oneOffMessages({
-		price: 5,
-		billingUnits: 100,
-		includedUsage: 0,
-	});
-	const wordsItem = items.oneOffWords({
-		price: 10,
-		billingUnits: 100,
-		includedUsage: 0,
-	});
-	const pro = products.pro({
-		id: "pro",
-		items: [messagesItem, wordsItem],
-	});
+		const messagesItem = items.oneOffMessages({
+			price: 5,
+			billingUnits: 100,
+			includedUsage: 0,
+		});
+		const wordsItem = items.oneOffWords({
+			price: 10,
+			billingUnits: 100,
+			includedUsage: 0,
+		});
+		const pro = products.pro({
+			id: "pro",
+			items: [messagesItem, wordsItem],
+		});
 
-	const options = [
-		{ feature_id: TestFeature.Messages, quantity: 0 },
-		{ feature_id: TestFeature.Words, quantity: 400 },
-	];
+		const options = [
+			{ feature_id: TestFeature.Messages, quantity: 0 },
+			{ feature_id: TestFeature.Words, quantity: 400 },
+		];
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: true }), s.products({ list: [pro] })],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [s.customer({ testClock: true }), s.products({ list: [pro] })],
+			actions: [],
+		});
 
-	const res = await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		options,
-	});
+		const res = await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			options,
+		});
 
-	await completeStripeCheckoutFormV2({ url: res.checkout_url });
+		await completeStripeCheckoutFormV2({ url: res.checkout_url });
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: pro.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: pro.id,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 60, // $20 base + $40 (4 x $10 for Words)
-	});
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 60, // $20 base + $40 (4 x $10 for Words)
+		});
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: 0,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Words,
-		includedUsage: 400,
-		balance: 400, // 4 packs x 100 units
-	});
-});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Words,
+			includedUsage: 400,
+			balance: 400, // 4 packs x 100 units
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: Force checkout upgrade after cancel
@@ -192,80 +198,83 @@ test.concurrent(`${chalk.yellowBright("legacy-checkout-adv 2: prepaid with quant
 // - 2 invoices (Pro + Premium)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-checkout-adv 3: force checkout upgrade after cancel")}`, async () => {
-	const customerId = "legacy-checkout-adv-3";
+test.concurrent(
+	`${chalk.yellowBright("legacy-checkout-adv 3: force checkout upgrade after cancel")}`,
+	async () => {
+		const customerId = "legacy-checkout-adv-3";
 
-	const pro = products.pro({ id: "pro", items: [] });
-	const premium = products.premium({ id: "premium", items: [] });
+		const pro = products.pro({ id: "pro", items: [] });
+		const premium = products.premium({ id: "premium", items: [] });
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [],
+		});
 
-	// Attach Pro
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		// Attach Pro
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
 
-	const customerAfterPro =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfterPro =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer: customerAfterPro,
-		active: [pro.id],
-	});
+		await expectCustomerProducts({
+			customer: customerAfterPro,
+			active: [pro.id],
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer: customerAfterPro,
-		count: 1,
-		latestTotal: 20, // Pro $20
-	});
+		await expectCustomerInvoiceCorrect({
+			customer: customerAfterPro,
+			count: 1,
+			latestTotal: 20, // Pro $20
+		});
 
-	// Cancel Pro immediately
-	await autumnV1.cancel({
-		customer_id: customerId,
-		product_id: pro.id,
-		cancel_immediately: true,
-		prorate: false,
-	});
+		// Cancel Pro immediately
+		await autumnV1.cancel({
+			customer_id: customerId,
+			product_id: pro.id,
+			cancel_immediately: true,
+			prorate: false,
+		});
 
-	const customerAfterCancel =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfterCancel =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer: customerAfterCancel,
-		active: [],
-	});
+		await expectCustomerProducts({
+			customer: customerAfterCancel,
+			active: [],
+		});
 
-	// Attach Premium with force_checkout
-	const res = await autumnV1.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-		force_checkout: true,
-	});
+		// Attach Premium with force_checkout
+		const res = await autumnV1.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+			force_checkout: true,
+		});
 
-	await completeStripeCheckoutFormV2({ url: res.checkout_url });
+		await completeStripeCheckoutFormV2({ url: res.checkout_url });
 
-	const customerAfterPremium =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfterPremium =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer: customerAfterPremium,
-		active: [premium.id],
-	});
+		await expectCustomerProducts({
+			customer: customerAfterPremium,
+			active: [premium.id],
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer: customerAfterPremium,
-		count: 2,
-		latestTotal: 50, // Premium $50
-	});
-});
+		await expectCustomerInvoiceCorrect({
+			customer: customerAfterPremium,
+			count: 2,
+			latestTotal: 50, // Premium $50
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 4: Separate subscriptions due to force checkout (per entity)
@@ -284,141 +293,148 @@ test.concurrent(`${chalk.yellowBright("legacy-checkout-adv 3: force checkout upg
 // - Add-on attaches to correct entity's subscription
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-checkout-adv 4: separate subs due to force checkout")}`, async () => {
-	const customerId = "legacy-checkout-adv-4";
+test.concurrent(
+	`${chalk.yellowBright("legacy-checkout-adv 4: separate subs due to force checkout")}`,
+	async () => {
+		const customerId = "legacy-checkout-adv-4";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
-	const premium = products.premium({ id: "premium", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const premium = products.premium({ id: "premium", items: [messagesItem] });
 
-	const addOnBillingUnits = 100;
-	const creditsItem = items.prepaidMessages({
-		price: 10,
-		billingUnits: addOnBillingUnits,
-		includedUsage: 0,
-	});
-	const addOn = products.base({
-		id: "credits-addon",
-		items: [creditsItem],
-	});
-
-	const { autumnV1, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }),
-			s.products({ list: [pro, premium, addOn] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [],
-	});
-
-	const { db, org, env } = ctx;
-	const subIds: string[] = [];
-
-	// Attach Pro to each entity with force_checkout (creates separate subs)
-	for (const entity of entities) {
-		const res = await autumnV1.attach({
-			customer_id: customerId,
-			product_id: pro.id,
-			entity_id: entity.id,
-			force_checkout: true,
+		const addOnBillingUnits = 100;
+		const creditsItem = items.prepaidMessages({
+			price: 10,
+			billingUnits: addOnBillingUnits,
+			includedUsage: 0,
+		});
+		const addOn = products.base({
+			id: "credits-addon",
+			items: [creditsItem],
 		});
 
-		expect(res.checkout_url).toBeDefined();
-		await completeStripeCheckoutFormV2({ url: res.checkout_url });
-	}
+		const { autumnV1, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }),
+				s.products({ list: [pro, premium, addOn] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [],
+		});
 
-	// Verify separate subscriptions
-	const fullCus = await CusService.getFull({
-		ctx,
-		idOrInternalId: customerId,
-	});
+		const { db, org, env } = ctx;
+		const subIds: string[] = [];
 
-	const cusProducts = fullCus.customer_products;
-	const entity1Prod = cusProducts.find((cp) => cp.entity_id === entities[0].id);
-	const entity2Prod = cusProducts.find((cp) => cp.entity_id === entities[1].id);
+		// Attach Pro to each entity with force_checkout (creates separate subs)
+		for (const entity of entities) {
+			const res = await autumnV1.attach({
+				customer_id: customerId,
+				product_id: pro.id,
+				entity_id: entity.id,
+				force_checkout: true,
+			});
 
-	const entity1SubId = entity1Prod?.subscription_ids?.[0];
-	const entity2SubId = entity2Prod?.subscription_ids?.[0];
+			expect(res.checkout_url).toBeDefined();
+			await completeStripeCheckoutFormV2({ url: res.checkout_url });
+		}
 
-	expect(entity1SubId).not.toBe(entity2SubId);
-	subIds.push(entity1SubId!);
-	subIds.push(entity2SubId!);
+		// Verify separate subscriptions
+		const fullCus = await CusService.getFull({
+			ctx,
+			idOrInternalId: customerId,
+		});
 
-	await expectSubToBeCorrect({
-		db,
-		customerId,
-		org,
-		env,
-		subId: entity1SubId,
-	});
+		const cusProducts = fullCus.customer_products;
+		const entity1Prod = cusProducts.find(
+			(cp) => cp.entity_id === entities[0].id,
+		);
+		const entity2Prod = cusProducts.find(
+			(cp) => cp.entity_id === entities[1].id,
+		);
 
-	// Upgrade both entities to Premium
-	for (const entity of entities) {
+		const entity1SubId = entity1Prod?.subscription_ids?.[0];
+		const entity2SubId = entity2Prod?.subscription_ids?.[0];
+
+		expect(entity1SubId).not.toBe(entity2SubId);
+		subIds.push(entity1SubId!);
+		subIds.push(entity2SubId!);
+
+		await expectSubToBeCorrect({
+			db,
+			customerId,
+			org,
+			env,
+			subId: entity1SubId,
+		});
+
+		// Upgrade both entities to Premium
+		for (const entity of entities) {
+			await autumnV1.attach({
+				customer_id: customerId,
+				product_id: premium.id,
+				entity_id: entity.id,
+			});
+		}
+
+		// Verify subs still correct after upgrades
+		await expectSubToBeCorrect({
+			db,
+			customerId,
+			org,
+			env,
+			subId: subIds[0],
+		});
+
+		await expectSubToBeCorrect({
+			db,
+			customerId,
+			org,
+			env,
+			subId: subIds[1],
+		});
+
+		// Attach add-on to entity 2
 		await autumnV1.attach({
 			customer_id: customerId,
-			product_id: premium.id,
-			entity_id: entity.id,
+			product_id: addOn.id,
+			entity_id: entities[1].id,
+			options: [
+				{
+					feature_id: TestFeature.Messages,
+					quantity: addOnBillingUnits * 2,
+				},
+			],
 		});
-	}
 
-	// Verify subs still correct after upgrades
-	await expectSubToBeCorrect({
-		db,
-		customerId,
-		org,
-		env,
-		subId: subIds[0],
-	});
+		// Verify add-on is on entity 2's subscription
+		const fullCusAfterAddOn = await CusService.getFull({
+			ctx,
+			idOrInternalId: customerId,
+		});
 
-	await expectSubToBeCorrect({
-		db,
-		customerId,
-		org,
-		env,
-		subId: subIds[1],
-	});
+		const addOnProd = fullCusAfterAddOn.customer_products.find(
+			(cp) => cp.product.id === addOn.id,
+		);
 
-	// Attach add-on to entity 2
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: addOn.id,
-		entity_id: entities[1].id,
-		options: [
-			{
-				feature_id: TestFeature.Messages,
-				quantity: addOnBillingUnits * 2,
-			},
-		],
-	});
+		expect(addOnProd).toBeDefined();
+		const addOnSubId = addOnProd?.subscription_ids?.[0];
+		expect(addOnSubId).toBe(subIds[1]); // Should be on entity 2's sub
 
-	// Verify add-on is on entity 2's subscription
-	const fullCusAfterAddOn = await CusService.getFull({
-		ctx,
-		idOrInternalId: customerId,
-	});
+		await expectSubToBeCorrect({
+			db,
+			customerId,
+			org,
+			env,
+			subId: subIds[1],
+		});
 
-	const addOnProd = fullCusAfterAddOn.customer_products.find(
-		(cp) => cp.product.id === addOn.id,
-	);
+		// Verify entities have correct products
+		const entity1 = await autumnV1.entities.get(customerId, entities[0].id);
+		expectProductAttached({ customer: entity1, productId: premium.id });
 
-	expect(addOnProd).toBeDefined();
-	const addOnSubId = addOnProd?.subscription_ids?.[0];
-	expect(addOnSubId).toBe(subIds[1]); // Should be on entity 2's sub
-
-	await expectSubToBeCorrect({
-		db,
-		customerId,
-		org,
-		env,
-		subId: subIds[1],
-	});
-
-	// Verify entities have correct products
-	const entity1 = await autumnV1.entities.get(customerId, entities[0].id);
-	expectProductAttached({ customer: entity1, productId: premium.id });
-
-	const entity2 = await autumnV1.entities.get(customerId, entities[1].id);
-	expectProductAttached({ customer: entity2, productId: premium.id });
-	expectProductAttached({ customer: entity2, productId: addOn.id });
-});
+		const entity2 = await autumnV1.entities.get(customerId, entities[1].id);
+		expectProductAttached({ customer: entity2, productId: premium.id });
+		expectProductAttached({ customer: entity2, productId: addOn.id });
+	},
+);

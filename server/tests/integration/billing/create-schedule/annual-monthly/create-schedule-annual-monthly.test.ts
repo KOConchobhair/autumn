@@ -31,11 +31,11 @@ import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
 import { addHours, addMonths } from "date-fns";
 import { inArray } from "drizzle-orm";
-import { expectBackdatedStripeSubscriptionCorrect } from "../../utils/expectBackdatedStripeSubscriptionCorrect";
 import {
 	expectResetAnchoredTo,
 	getCustomerProduct,
 } from "../../attach/params/start-date/utils";
+import { expectBackdatedStripeSubscriptionCorrect } from "../../utils/expectBackdatedStripeSubscriptionCorrect";
 
 const previewCreateSchedule = async ({
 	autumnV1,
@@ -111,7 +111,10 @@ const expectThreePhaseBackdatedRowsCorrect = async ({
 	cycleCount: number;
 	expectedInvoiceTotal: number;
 }) => {
-	const expectTimestamp = (actual: number | null | undefined, expected: number) => {
+	const expectTimestamp = (
+		actual: number | null | undefined,
+		expected: number,
+	) => {
 		expect(actual).toBeDefined();
 		expect(Math.abs(actual! - expected)).toBeLessThan(ms.seconds(2));
 	};
@@ -326,22 +329,16 @@ test.concurrent(
 		const customerId = "create-schedule-annual-monthly-backdate-renewal";
 		const plan = annualMonthlyMessagesPlan();
 
-		const {
-			autumnV1,
-			autumnV2_1,
-			ctx,
-			entities,
-			testClockId,
-			advancedTo,
-		} = await initScenario({
-			customerId,
-			setup: [
-				s.customer({ paymentMethod: "success" }),
-				s.products({ list: [plan] }),
-				s.entities({ count: 1, featureId: TestFeature.Users }),
-			],
-			actions: [],
-		});
+		const { autumnV1, autumnV2_1, ctx, entities, testClockId, advancedTo } =
+			await initScenario({
+				customerId,
+				setup: [
+					s.customer({ paymentMethod: "success" }),
+					s.products({ list: [plan] }),
+					s.entities({ count: 1, featureId: TestFeature.Users }),
+				],
+				actions: [],
+			});
 
 		const entityId = entities[0]!.id;
 		const startsAt = advancedTo - ms.days(40);
@@ -380,7 +377,10 @@ test.concurrent(
 		expectAnnualMonthlyStripeInvoiceCorrect({
 			invoice,
 			monthlyAmount: prepaidAmount,
-			monthlyPeriods: monthlyPeriodsFrom({ startsAt: nextCycleStart, count: 1 }),
+			monthlyPeriods: monthlyPeriodsFrom({
+				startsAt: nextCycleStart,
+				count: 1,
+			}),
 			expectedTotal: prepaidAmount,
 		});
 

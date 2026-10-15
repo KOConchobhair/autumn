@@ -44,320 +44,355 @@ const VOLUME_TIERS = [
 
 // ─── Test 1: Increase — same tier (300 → 500, both tier 1) ───────────────────
 
-test.concurrent(`${chalk.yellowBright("volume-tiers-update-quantity: increase same tier 300→500")}`, async () => {
-	const customerId = "volume-update-qty-increase-t1";
-	const initQuantity = 300;
-	const newQuantity = 500;
+test.concurrent(
+	`${chalk.yellowBright("volume-tiers-update-quantity: increase same tier 300→500")}`,
+	async () => {
+		const customerId = "volume-update-qty-increase-t1";
+		const initQuantity = 300;
+		const newQuantity = 500;
 
-	// Old cost: 3 × $10 = $30. New cost: 5 × $10 = $50. Delta: +$20.
-	// Graduated delta: same (+$20) — no difference within same tier.
-	const expectedDelta =
-		(newQuantity / BILLING_UNITS) * 10 - (initQuantity / BILLING_UNITS) * 10; // $20
+		// Old cost: 3 × $10 = $30. New cost: 5 × $10 = $50. Delta: +$20.
+		// Graduated delta: same (+$20) — no difference within same tier.
+		const expectedDelta =
+			(newQuantity / BILLING_UNITS) * 10 - (initQuantity / BILLING_UNITS) * 10; // $20
 
-	const volumeItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
+		const volumeItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
 
-	const product = products.base({
-		id: "vol-upd-qty-inc-t1",
-		items: [volumeItem],
-	});
+		const product = products.base({
+			id: "vol-upd-qty-inc-t1",
+			items: [volumeItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: initQuantity }],
-			}),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initQuantity },
+					],
+				}),
+			],
+		});
 
-	// Preview update
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
-	expect(preview.total).toBe(expectedDelta);
+		// Preview update
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
+		expect(preview.total).toBe(expectedDelta);
 
-	// Execute update
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
+		// Execute update
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expect(customer.features?.[TestFeature.Messages]?.balance).toBe(newQuantity);
+		expect(customer.features?.[TestFeature.Messages]?.balance).toBe(
+			newQuantity,
+		);
 
-	expectLatestInvoiceCorrect({
-		customer,
-		productId: product.id,
-		amount: expectedDelta,
-	});
-});
+		expectLatestInvoiceCorrect({
+			customer,
+			productId: product.id,
+			amount: expectedDelta,
+		});
+	},
+);
 
 // ─── Test 2: Increase — crosses tier boundary (300 → 800, tier 1 → tier 2) ──
 
-test.concurrent(`${chalk.yellowBright("volume-tiers-update-quantity: increase crossing tier 300→800")}`, async () => {
-	const customerId = "volume-update-qty-increase-t2";
-	const initQuantity = 300;
-	const newQuantity = 800;
+test.concurrent(
+	`${chalk.yellowBright("volume-tiers-update-quantity: increase crossing tier 300→800")}`,
+	async () => {
+		const customerId = "volume-update-qty-increase-t2";
+		const initQuantity = 300;
+		const newQuantity = 800;
 
-	// Volume: old cost = 3 × $10 = $30. New cost = 8 × $5 = $40. Delta: +$10.
-	// Graduated would charge: 5×$10 + 3×$5 = $65 for new; delta = $65 − $30 = +$35. KEY DIFF.
-	const expectedDelta =
-		(newQuantity / BILLING_UNITS) * 5 - (initQuantity / BILLING_UNITS) * 10; // $40 − $30 = $10
+		// Volume: old cost = 3 × $10 = $30. New cost = 8 × $5 = $40. Delta: +$10.
+		// Graduated would charge: 5×$10 + 3×$5 = $65 for new; delta = $65 − $30 = +$35. KEY DIFF.
+		const expectedDelta =
+			(newQuantity / BILLING_UNITS) * 5 - (initQuantity / BILLING_UNITS) * 10; // $40 − $30 = $10
 
-	const volumeItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
+		const volumeItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
 
-	const product = products.base({
-		id: "vol-upd-qty-inc-t2",
-		items: [volumeItem],
-	});
+		const product = products.base({
+			id: "vol-upd-qty-inc-t2",
+			items: [volumeItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: initQuantity }],
-			}),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initQuantity },
+					],
+				}),
+			],
+		});
 
-	// Preview update
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
-	// Volume charges $10; graduated would charge $35 — assert the volume amount
-	expect(preview.total).toBe(expectedDelta);
+		// Preview update
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
+		// Volume charges $10; graduated would charge $35 — assert the volume amount
+		expect(preview.total).toBe(expectedDelta);
 
-	// Execute update
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
+		// Execute update
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expect(customer.features?.[TestFeature.Messages]?.balance).toBe(newQuantity);
+		expect(customer.features?.[TestFeature.Messages]?.balance).toBe(
+			newQuantity,
+		);
 
-	expectLatestInvoiceCorrect({
-		customer,
-		productId: product.id,
-		amount: expectedDelta,
-	});
-});
+		expectLatestInvoiceCorrect({
+			customer,
+			productId: product.id,
+			amount: expectedDelta,
+		});
+	},
+);
 
 // ─── Test 3: Increase — within tier 2 already (600 → 1000) ──────────────────
 
-test.concurrent(`${chalk.yellowBright("volume-tiers-update-quantity: increase same tier 600→1000")}`, async () => {
-	const customerId = "volume-update-qty-increase-t3";
-	const initQuantity = 600;
-	const newQuantity = 1000;
+test.concurrent(
+	`${chalk.yellowBright("volume-tiers-update-quantity: increase same tier 600→1000")}`,
+	async () => {
+		const customerId = "volume-update-qty-increase-t3";
+		const initQuantity = 600;
+		const newQuantity = 1000;
 
-	// Old cost: 6 × $5 = $30. New cost: 10 × $5 = $50. Delta: +$20.
-	// Graduated delta: same (+$20) — no difference within same tier.
-	const expectedDelta =
-		(newQuantity / BILLING_UNITS) * 5 - (initQuantity / BILLING_UNITS) * 5; // $50 − $30 = $20
+		// Old cost: 6 × $5 = $30. New cost: 10 × $5 = $50. Delta: +$20.
+		// Graduated delta: same (+$20) — no difference within same tier.
+		const expectedDelta =
+			(newQuantity / BILLING_UNITS) * 5 - (initQuantity / BILLING_UNITS) * 5; // $50 − $30 = $20
 
-	const volumeItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
+		const volumeItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
 
-	const product = products.base({
-		id: "vol-upd-qty-inc-t3",
-		items: [volumeItem],
-	});
+		const product = products.base({
+			id: "vol-upd-qty-inc-t3",
+			items: [volumeItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: initQuantity }],
-			}),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initQuantity },
+					],
+				}),
+			],
+		});
 
-	// Preview update
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
-	expect(preview.total).toBe(expectedDelta);
+		// Preview update
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
+		expect(preview.total).toBe(expectedDelta);
 
-	// Execute update
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
+		// Execute update
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expect(customer.features?.[TestFeature.Messages]?.balance).toBe(newQuantity);
+		expect(customer.features?.[TestFeature.Messages]?.balance).toBe(
+			newQuantity,
+		);
 
-	expectLatestInvoiceCorrect({
-		customer,
-		productId: product.id,
-		amount: expectedDelta,
-	});
-});
+		expectLatestInvoiceCorrect({
+			customer,
+			productId: product.id,
+			amount: expectedDelta,
+		});
+	},
+);
 
 // ─── Test 4: Decrease — same tier (500 → 300, both tier 1) ──────────────────
 
-test.concurrent(`${chalk.yellowBright("volume-tiers-update-quantity: decrease same tier 500→300")}`, async () => {
-	const customerId = "volume-update-qty-decrease-t1";
-	const initQuantity = 500;
-	const newQuantity = 300;
+test.concurrent(
+	`${chalk.yellowBright("volume-tiers-update-quantity: decrease same tier 500→300")}`,
+	async () => {
+		const customerId = "volume-update-qty-decrease-t1";
+		const initQuantity = 500;
+		const newQuantity = 300;
 
-	// Old cost: 5 × $10 = $50. New cost: 3 × $10 = $30. Delta: −$20.
-	// Graduated delta: same (−$20) — no difference within same tier.
-	const expectedDelta =
-		(newQuantity / BILLING_UNITS) * 10 - (initQuantity / BILLING_UNITS) * 10; // $30 − $50 = −$20
+		// Old cost: 5 × $10 = $50. New cost: 3 × $10 = $30. Delta: −$20.
+		// Graduated delta: same (−$20) — no difference within same tier.
+		const expectedDelta =
+			(newQuantity / BILLING_UNITS) * 10 - (initQuantity / BILLING_UNITS) * 10; // $30 − $50 = −$20
 
-	const volumeItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
+		const volumeItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
 
-	const product = products.base({
-		id: "vol-upd-qty-dec-t1",
-		items: [volumeItem],
-	});
+		const product = products.base({
+			id: "vol-upd-qty-dec-t1",
+			items: [volumeItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: initQuantity }],
-			}),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initQuantity },
+					],
+				}),
+			],
+		});
 
-	// Preview downgrade
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
-	expect(preview.total).toBe(expectedDelta);
+		// Preview downgrade
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
+		expect(preview.total).toBe(expectedDelta);
 
-	// Execute downgrade
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
+		// Execute downgrade
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expect(customer.features?.[TestFeature.Messages]?.balance).toBe(newQuantity);
+		expect(customer.features?.[TestFeature.Messages]?.balance).toBe(
+			newQuantity,
+		);
 
-	expectLatestInvoiceCorrect({
-		customer,
-		productId: product.id,
-		amount: expectedDelta,
-	});
-});
+		expectLatestInvoiceCorrect({
+			customer,
+			productId: product.id,
+			amount: expectedDelta,
+		});
+	},
+);
 
 // ─── Test 5: Decrease — crosses tier boundary (800 → 300, tier 2 → tier 1) ──
 
-test.concurrent(`${chalk.yellowBright("volume-tiers-update-quantity: decrease crossing tier 800→300")}`, async () => {
-	const customerId = "volume-update-qty-decrease-t2";
-	const initQuantity = 800;
-	const newQuantity = 300;
+test.concurrent(
+	`${chalk.yellowBright("volume-tiers-update-quantity: decrease crossing tier 800→300")}`,
+	async () => {
+		const customerId = "volume-update-qty-decrease-t2";
+		const initQuantity = 800;
+		const newQuantity = 300;
 
-	// Volume: old cost = 8 × $5 = $40. New cost = 3 × $10 = $30. Delta: −$10.
-	// Graduated old cost: 5×$10 + 3×$5 = $65. New: 3×$10 = $30. Graduated delta = −$35. KEY DIFF.
-	const expectedDelta =
-		(newQuantity / BILLING_UNITS) * 10 - (initQuantity / BILLING_UNITS) * 5; // $30 − $40 = −$10
+		// Volume: old cost = 8 × $5 = $40. New cost = 3 × $10 = $30. Delta: −$10.
+		// Graduated old cost: 5×$10 + 3×$5 = $65. New: 3×$10 = $30. Graduated delta = −$35. KEY DIFF.
+		const expectedDelta =
+			(newQuantity / BILLING_UNITS) * 10 - (initQuantity / BILLING_UNITS) * 5; // $30 − $40 = −$10
 
-	const volumeItem = items.volumePrepaidMessages({
-		includedUsage: 0,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
+		const volumeItem = items.volumePrepaidMessages({
+			includedUsage: 0,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
 
-	const product = products.base({
-		id: "vol-upd-qty-dec-t2",
-		items: [volumeItem],
-	});
+		const product = products.base({
+			id: "vol-upd-qty-dec-t2",
+			items: [volumeItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: initQuantity }],
-			}),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initQuantity },
+					],
+				}),
+			],
+		});
 
-	// Preview downgrade
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
-	// Volume credits $10; graduated would credit $35 — assert the volume amount
-	expect(preview.total).toBe(expectedDelta);
+		// Preview downgrade
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
+		// Volume credits $10; graduated would credit $35 — assert the volume amount
+		expect(preview.total).toBe(expectedDelta);
 
-	// Execute downgrade
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
+		// Execute downgrade
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expect(customer.features?.[TestFeature.Messages]?.balance).toBe(newQuantity);
+		expect(customer.features?.[TestFeature.Messages]?.balance).toBe(
+			newQuantity,
+		);
 
-	expectLatestInvoiceCorrect({
-		customer,
-		productId: product.id,
-		amount: expectedDelta,
-	});
-});
+		expectLatestInvoiceCorrect({
+			customer,
+			productId: product.id,
+			amount: expectedDelta,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Tests 6–7: With included usage (includedUsage=100)
@@ -375,132 +410,144 @@ const INCLUDED_USAGE = 100;
 
 // ─── Test 6: Increase with included — crosses tier (400 → 900 total) ─────────
 
-test.concurrent(`${chalk.yellowBright("volume-tiers-update-quantity: increase with included 400→900")}`, async () => {
-	const customerId = "volume-update-qty-incl-increase";
-	const initQuantity = 400; // 4 total packs (1 included + 3 purchased)
-	const newQuantity = 900; // 9 total packs (1 included + 8 purchased)
+test.concurrent(
+	`${chalk.yellowBright("volume-tiers-update-quantity: increase with included 400→900")}`,
+	async () => {
+		const customerId = "volume-update-qty-incl-increase";
+		const initQuantity = 400; // 4 total packs (1 included + 3 purchased)
+		const newQuantity = 900; // 9 total packs (1 included + 8 purchased)
 
-	// Stripe V2 volume tiers shifted by allowance (1 pack): [{up_to:6,$10}, {up_to:inf,$5}]
-	// Old: 4 total packs → tier 1 (≤6) → 4 × $10 = $40
-	// New: 9 total packs → tier 2 (>6) → 9 × $5 = $45
-	// Delta: +$5
-	const oldCost = (initQuantity / BILLING_UNITS) * 10; // $40
-	const newCost = (newQuantity / BILLING_UNITS) * 5; // $45
-	const expectedDelta = newCost - oldCost; // $5
+		// Stripe V2 volume tiers shifted by allowance (1 pack): [{up_to:6,$10}, {up_to:inf,$5}]
+		// Old: 4 total packs → tier 1 (≤6) → 4 × $10 = $40
+		// New: 9 total packs → tier 2 (>6) → 9 × $5 = $45
+		// Delta: +$5
+		const oldCost = (initQuantity / BILLING_UNITS) * 10; // $40
+		const newCost = (newQuantity / BILLING_UNITS) * 5; // $45
+		const expectedDelta = newCost - oldCost; // $5
 
-	const volumeItem = items.volumePrepaidMessages({
-		includedUsage: INCLUDED_USAGE,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
+		const volumeItem = items.volumePrepaidMessages({
+			includedUsage: INCLUDED_USAGE,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
 
-	const product = products.base({
-		id: "vol-upd-qty-incl-inc",
-		items: [volumeItem],
-	});
+		const product = products.base({
+			id: "vol-upd-qty-incl-inc",
+			items: [volumeItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: initQuantity }],
-			}),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initQuantity },
+					],
+				}),
+			],
+		});
 
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
-	expect(preview.total).toBe(expectedDelta);
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
+		expect(preview.total).toBe(expectedDelta);
 
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
 
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expect(customerAfter.features?.[TestFeature.Messages]?.balance).toBe(
-		newQuantity,
-	);
+		expect(customerAfter.features?.[TestFeature.Messages]?.balance).toBe(
+			newQuantity,
+		);
 
-	expectLatestInvoiceCorrect({
-		customer: customerAfter,
-		productId: product.id,
-		amount: expectedDelta,
-	});
-});
+		expectLatestInvoiceCorrect({
+			customer: customerAfter,
+			productId: product.id,
+			amount: expectedDelta,
+		});
+	},
+);
 
 // ─── Test 7: Decrease with included — crosses tier (900 → 400 total) ─────────
 
-test.concurrent(`${chalk.yellowBright("volume-tiers-update-quantity: decrease with included 900→400")}`, async () => {
-	const customerId = "volume-update-qty-incl-decrease";
-	const initQuantity = 900; // 9 total packs (1 included + 8 purchased)
-	const newQuantity = 400; // 4 total packs (1 included + 3 purchased)
+test.concurrent(
+	`${chalk.yellowBright("volume-tiers-update-quantity: decrease with included 900→400")}`,
+	async () => {
+		const customerId = "volume-update-qty-incl-decrease";
+		const initQuantity = 900; // 9 total packs (1 included + 8 purchased)
+		const newQuantity = 400; // 4 total packs (1 included + 3 purchased)
 
-	// Stripe V2 volume tiers shifted by allowance (1 pack): [{up_to:6,$10}, {up_to:inf,$5}]
-	// Old: 9 total packs → tier 2 (>6) → 9 × $5 = $45
-	// New: 4 total packs → tier 1 (≤6) → 4 × $10 = $40
-	// Delta: −$5
-	const oldCost = (initQuantity / BILLING_UNITS) * 5; // $45
-	const newCost = (newQuantity / BILLING_UNITS) * 10; // $40
-	const expectedDelta = newCost - oldCost; // -$5
+		// Stripe V2 volume tiers shifted by allowance (1 pack): [{up_to:6,$10}, {up_to:inf,$5}]
+		// Old: 9 total packs → tier 2 (>6) → 9 × $5 = $45
+		// New: 4 total packs → tier 1 (≤6) → 4 × $10 = $40
+		// Delta: −$5
+		const oldCost = (initQuantity / BILLING_UNITS) * 5; // $45
+		const newCost = (newQuantity / BILLING_UNITS) * 10; // $40
+		const expectedDelta = newCost - oldCost; // -$5
 
-	const volumeItem = items.volumePrepaidMessages({
-		includedUsage: INCLUDED_USAGE,
-		billingUnits: BILLING_UNITS,
-		tiers: VOLUME_TIERS,
-	});
+		const volumeItem = items.volumePrepaidMessages({
+			includedUsage: INCLUDED_USAGE,
+			billingUnits: BILLING_UNITS,
+			tiers: VOLUME_TIERS,
+		});
 
-	const product = products.base({
-		id: "vol-upd-qty-incl-dec",
-		items: [volumeItem],
-	});
+		const product = products.base({
+			id: "vol-upd-qty-incl-dec",
+			items: [volumeItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [product] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: product.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: initQuantity }],
-			}),
-		],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [product] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: product.id,
+					options: [
+						{ feature_id: TestFeature.Messages, quantity: initQuantity },
+					],
+				}),
+			],
+		});
 
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
-	expect(preview.total).toBe(expectedDelta);
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
+		expect(preview.total).toBe(expectedDelta);
 
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: product.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
-	});
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: product.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: newQuantity }],
+		});
 
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expect(customerAfter.features?.[TestFeature.Messages]?.balance).toBe(
-		newQuantity,
-	);
+		expect(customerAfter.features?.[TestFeature.Messages]?.balance).toBe(
+			newQuantity,
+		);
 
-	expectLatestInvoiceCorrect({
-		customer: customerAfter,
-		productId: product.id,
-		amount: expectedDelta,
-	});
-});
+		expectLatestInvoiceCorrect({
+			customer: customerAfter,
+			productId: product.id,
+			amount: expectedDelta,
+		});
+	},
+);

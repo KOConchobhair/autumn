@@ -1,8 +1,4 @@
-import {
-	type ApiCustomerV5,
-	EntInterval,
-	ResetInterval,
-} from "@autumn/shared";
+import { type ApiCustomerV5, EntInterval, ResetInterval } from "@autumn/shared";
 import { expectBalanceCorrect } from "@tests/integration/utils/expectBalanceCorrect";
 import { expectFlagCorrect } from "@tests/integration/utils/expectFlagCorrect";
 import { TestFeature } from "@tests/setup/v2Features";

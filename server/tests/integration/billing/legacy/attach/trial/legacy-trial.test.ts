@@ -64,83 +64,86 @@ import { timeout } from "@/utils/genUtils";
 // - Sub is correct in DB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-trial 1: upgrade during trial (pro → premium)")}`, async () => {
-	const customerId = "legacy-trial-1";
+test.concurrent(
+	`${chalk.yellowBright("legacy-trial 1: upgrade during trial (pro → premium)")}`,
+	async () => {
+		const customerId = "legacy-trial-1";
 
-	const wordsItem = items.consumableWords();
-	const proPrice = items.monthlyPrice({ price: 20 });
-	const premiumPrice = items.monthlyPrice({ price: 50 });
+		const wordsItem = items.consumableWords();
+		const proPrice = items.monthlyPrice({ price: 20 });
+		const premiumPrice = items.monthlyPrice({ price: 50 });
 
-	const pro = products.base({
-		id: "pro",
-		items: [wordsItem, proPrice],
-		trialDays: 7,
-	});
-	const premium = products.base({
-		id: "premium",
-		items: [wordsItem, premiumPrice],
-		trialDays: 7,
-	});
+		const pro = products.base({
+			id: "pro",
+			items: [wordsItem, proPrice],
+			trialDays: 7,
+		});
+		const premium = products.base({
+			id: "premium",
+			items: [wordsItem, premiumPrice],
+			trialDays: 7,
+		});
 
-	const { autumnV1, testClockId } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [s.attach({ productId: pro.id })],
-	});
+		const { autumnV1, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [s.attach({ productId: pro.id })],
+		});
 
-	// Verify Pro is trialing
-	let customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({
-		customer: customer as any,
-		productId: pro.id,
-		status: CusProductStatus.Trialing,
-	});
+		// Verify Pro is trialing
+		let customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({
+			customer: customer as any,
+			productId: pro.id,
+			status: CusProductStatus.Trialing,
+		});
 
-	// Advance clock 2 days (still in trial)
-	const curUnix = await advanceTestClock({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-		advanceTo: addDays(new Date(), 2).getTime(),
-	});
+		// Advance clock 2 days (still in trial)
+		const curUnix = await advanceTestClock({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+			advanceTo: addDays(new Date(), 2).getTime(),
+		});
 
-	// Preview attach → should be MainIsTrial branch
-	const attachPreview = await autumnV1.attachPreview({
-		customer_id: customerId,
-		product_id: premium.id,
-	});
-	expect(attachPreview?.branch).toBe(AttachBranch.MainIsTrial);
+		// Preview attach → should be MainIsTrial branch
+		const attachPreview = await autumnV1.attachPreview({
+			customer_id: customerId,
+			product_id: premium.id,
+		});
+		expect(attachPreview?.branch).toBe(AttachBranch.MainIsTrial);
 
-	// Upgrade to Premium
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-	});
+		// Upgrade to Premium
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+		});
 
-	customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({
-		customer: customer as any,
-		productId: premium.id,
-		status: CusProductStatus.Trialing,
-	});
+		customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({
+			customer: customer as any,
+			productId: premium.id,
+			status: CusProductStatus.Trialing,
+		});
 
-	// Premium period_end ≈ curUnix + 7 days
-	await expectProductTrialing({
-		customer: customer as any,
-		productId: premium.id,
-		trialEndsAt: addDays(curUnix, 7).getTime(),
-		toleranceMs: 1000 * 60 * 30, // 30 min tolerance
-	});
+		// Premium period_end ≈ curUnix + 7 days
+		await expectProductTrialing({
+			customer: customer as any,
+			productId: premium.id,
+			trialEndsAt: addDays(curUnix, 7).getTime(),
+			toleranceMs: 1000 * 60 * 30, // 30 min tolerance
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Upgrade after trial ends (pro trial → active → premium trial)
@@ -163,97 +166,100 @@ test.concurrent(`${chalk.yellowBright("legacy-trial 1: upgrade during trial (pro
 // - Invoice total matches checkout
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-trial 2: upgrade after trial ends (pro active → premium trial)")}`, async () => {
-	const customerId = "legacy-trial-2";
+test.concurrent(
+	`${chalk.yellowBright("legacy-trial 2: upgrade after trial ends (pro active → premium trial)")}`,
+	async () => {
+		const customerId = "legacy-trial-2";
 
-	const wordsItem = items.consumableWords();
-	const proPrice = items.monthlyPrice({ price: 20 });
-	const premiumPrice = items.monthlyPrice({ price: 50 });
+		const wordsItem = items.consumableWords();
+		const proPrice = items.monthlyPrice({ price: 20 });
+		const premiumPrice = items.monthlyPrice({ price: 50 });
 
-	const pro = products.base({
-		id: "pro",
-		items: [wordsItem, proPrice],
-		trialDays: 7,
-	});
-	const premium = products.base({
-		id: "premium",
-		items: [wordsItem, premiumPrice],
-		trialDays: 7,
-	});
+		const pro = products.base({
+			id: "pro",
+			items: [wordsItem, proPrice],
+			trialDays: 7,
+		});
+		const premium = products.base({
+			id: "premium",
+			items: [wordsItem, premiumPrice],
+			trialDays: 7,
+		});
 
-	const { autumnV1, testClockId } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [s.attach({ productId: pro.id })],
-	});
+		const { autumnV1, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [s.attach({ productId: pro.id })],
+		});
 
-	// Verify Pro is trialing
-	let customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({
-		customer: customer as any,
-		productId: pro.id,
-		status: CusProductStatus.Trialing,
-	});
+		// Verify Pro is trialing
+		let customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({
+			customer: customer as any,
+			productId: pro.id,
+			status: CusProductStatus.Trialing,
+		});
 
-	// Advance clock 8 days (past the 7-day trial → Pro becomes active)
-	const curUnix = await advanceTestClock({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-		advanceTo: addDays(new Date(), 12).getTime(),
-		waitForSeconds: 30,
-	});
+		// Advance clock 8 days (past the 7-day trial → Pro becomes active)
+		const curUnix = await advanceTestClock({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+			advanceTo: addDays(new Date(), 12).getTime(),
+			waitForSeconds: 30,
+		});
 
-	// Get checkout total for comparison
-	const checkoutRes = await autumnV1.checkout({
-		customer_id: customerId,
-		product_id: premium.id,
-	});
+		// Get checkout total for comparison
+		const checkoutRes = await autumnV1.checkout({
+			customer_id: customerId,
+			product_id: premium.id,
+		});
 
-	// Upgrade to Premium
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-	});
+		// Upgrade to Premium
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+		});
 
-	await timeout(5000);
+		await timeout(5000);
 
-	customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectProductAttached({
-		customer: customer as any,
-		productId: premium.id,
-		status: CusProductStatus.Trialing,
-	});
+		customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectProductAttached({
+			customer: customer as any,
+			productId: premium.id,
+			status: CusProductStatus.Trialing,
+		});
 
-	// Premium period_end ≈ curUnix + 7 days
-	await expectProductTrialing({
-		customer: customer as any,
-		productId: premium.id,
-		trialEndsAt: addDays(curUnix, 7).getTime(),
-		toleranceMs: 1000 * 60 * 30, // 30 min tolerance
-	});
+		// Premium period_end ≈ curUnix + 7 days
+		await expectProductTrialing({
+			customer: customer as any,
+			productId: premium.id,
+			trialEndsAt: addDays(curUnix, 7).getTime(),
+			toleranceMs: 1000 * 60 * 30, // 30 min tolerance
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer: customer as any,
-		count: 4,
-		latestTotal: 0,
-	});
+		await expectCustomerInvoiceCorrect({
+			customer: customer as any,
+			count: 4,
+			latestTotal: 0,
+		});
 
-	// Invoice total should match checkout preview
-	expect(customer.invoices?.[1]?.total).toBe(
-		new Decimal(checkoutRes.total ?? 0).toDP(2).toNumber(),
-	);
+		// Invoice total should match checkout preview
+		expect(customer.invoices?.[1]?.total).toBe(
+			new Decimal(checkoutRes.total ?? 0).toDP(2).toNumber(),
+		);
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		shouldBeTrialing: true,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			shouldBeTrialing: true,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: Upgrade from trial product to paid product
@@ -272,60 +278,63 @@ test.concurrent(`${chalk.yellowBright("legacy-trial 2: upgrade after trial ends 
 // - Invoice total is $50 (premium price)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-trial 3: trial to paid upgrade")}`, async () => {
-	const customerId = "legacy-trial-3";
+test.concurrent(
+	`${chalk.yellowBright("legacy-trial 3: trial to paid upgrade")}`,
+	async () => {
+		const customerId = "legacy-trial-3";
 
-	const proWithTrial = products.proWithTrial({
-		id: "pro-trial",
-		items: [items.dashboard(), items.monthlyMessages({ includedUsage: 10 })],
-		trialDays: 7,
-		cardRequired: true,
-	});
+		const proWithTrial = products.proWithTrial({
+			id: "pro-trial",
+			items: [items.dashboard(), items.monthlyMessages({ includedUsage: 10 })],
+			trialDays: 7,
+			cardRequired: true,
+		});
 
-	const premium = products.premium({
-		id: "premium",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+		const premium = products.premium({
+			id: "premium",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const autumn = new AutumnInt({ secretKey: ctx.orgSecretKey });
-	const autumnV1 = new AutumnInt({
-		secretKey: ctx.orgSecretKey,
-		version: ApiVersion.V0_1,
-	});
+		const autumn = new AutumnInt({ secretKey: ctx.orgSecretKey });
+		const autumnV1 = new AutumnInt({
+			secretKey: ctx.orgSecretKey,
+			version: ApiVersion.V0_1,
+		});
 
-	await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [proWithTrial, premium] }),
-		],
-		actions: [
-			s.attach({ productId: proWithTrial.id }),
-			s.advanceTestClock({ days: 3 }),
-		],
-	});
+		await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [proWithTrial, premium] }),
+			],
+			actions: [
+				s.attach({ productId: proWithTrial.id }),
+				s.advanceTestClock({ days: 3 }),
+			],
+		});
 
-	// Upgrade to premium
-	await autumn.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-	});
+		// Upgrade to premium
+		await autumn.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+		});
 
-	await timeout(2500);
+		await timeout(2500);
 
-	// Check product, entitlements and invoices
-	const res = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Check product, entitlements and invoices
+		const res = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerV0Correct({
-		sent: premium,
-		cusRes: res,
-	});
+		await expectCustomerV0Correct({
+			sent: premium,
+			cusRes: res,
+		});
 
-	const invoices = res.invoices;
+		const invoices = res.invoices;
 
-	expect(invoices?.[0].total).toBe(50);
-	expect(invoices?.[0].product_ids).toContain(premium.id);
-});
+		expect(invoices?.[0].total).toBe(50);
+		expect(invoices?.[0].product_ids).toContain(premium.id);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 4: Trial duplicates with same fingerprint
@@ -341,76 +350,79 @@ test.concurrent(`${chalk.yellowBright("legacy-trial 3: trial to paid upgrade")}`
 // - Customer 2: active (no trial), invoice total $20
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-trial 4: trial duplicates with same fingerprint")}`, async () => {
-	const customerId = "legacy-trial-4";
-	const customerId2 = "legacy-trial-4-dup";
-	const randFingerprint = Math.random().toString(36).substring(2, 15);
+test.concurrent(
+	`${chalk.yellowBright("legacy-trial 4: trial duplicates with same fingerprint")}`,
+	async () => {
+		const customerId = "legacy-trial-4";
+		const customerId2 = "legacy-trial-4-dup";
+		const randFingerprint = Math.random().toString(36).substring(2, 15);
 
-	const proWithTrial = products.proWithTrial({
-		id: "pro",
-		items: [
-			items.dashboard(),
-			items.monthlyMessages({ includedUsage: 10 }),
-			items.adminRights(),
-		],
-		trialDays: 7,
-		cardRequired: true,
-		uniqueFingerprint: true,
-	});
+		const proWithTrial = products.proWithTrial({
+			id: "pro",
+			items: [
+				items.dashboard(),
+				items.monthlyMessages({ includedUsage: 10 }),
+				items.adminRights(),
+			],
+			trialDays: 7,
+			cardRequired: true,
+			uniqueFingerprint: true,
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({
-				paymentMethod: "success",
-				data: { fingerprint: randFingerprint },
-			}),
-			s.otherCustomers([
-				{
-					id: customerId2,
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({
 					paymentMethod: "success",
 					data: { fingerprint: randFingerprint },
-				},
-			]),
-			s.products({ list: [proWithTrial] }),
-		],
-		actions: [s.attach({ productId: proWithTrial.id })],
-	});
+				}),
+				s.otherCustomers([
+					{
+						id: customerId2,
+						paymentMethod: "success",
+						data: { fingerprint: randFingerprint },
+					},
+				]),
+				s.products({ list: [proWithTrial] }),
+			],
+			actions: [s.attach({ productId: proWithTrial.id })],
+		});
 
-	// Verify customer 1 is trialing with $0 invoice
-	const customer1 = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify customer 1 is trialing with $0 invoice
+		const customer1 = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductTrialing({
-		customer: customer1,
-		productId: proWithTrial.id,
-	});
+		await expectProductTrialing({
+			customer: customer1,
+			productId: proWithTrial.id,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer: customer1,
-		count: 1,
-		latestTotal: 0,
-	});
+		await expectCustomerInvoiceCorrect({
+			customer: customer1,
+			count: 1,
+			latestTotal: 0,
+		});
 
-	// Attach same product to customer 2 (same fingerprint → no trial)
-	await autumnV1.attach({
-		customer_id: customerId2,
-		product_id: proWithTrial.id,
-	});
+		// Attach same product to customer 2 (same fingerprint → no trial)
+		await autumnV1.attach({
+			customer_id: customerId2,
+			product_id: proWithTrial.id,
+		});
 
-	// Verify customer 2 is active (not trialing) with $20 invoice
-	const customer2 = await autumnV1.customers.get<ApiCustomerV3>(customerId2);
+		// Verify customer 2 is active (not trialing) with $20 invoice
+		const customer2 = await autumnV1.customers.get<ApiCustomerV3>(customerId2);
 
-	await expectProductActive({
-		customer: customer2,
-		productId: proWithTrial.id,
-	});
+		await expectProductActive({
+			customer: customer2,
+			productId: proWithTrial.id,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer: customer2,
-		count: 1,
-		latestTotal: 20,
-	});
-});
+		await expectCustomerInvoiceCorrect({
+			customer: customer2,
+			count: 1,
+			latestTotal: 20,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 5: Paid to trial upgrade
@@ -426,89 +438,92 @@ test.concurrent(`${chalk.yellowBright("legacy-trial 4: trial duplicates with sam
 // - Customer is trialing on Premium after upgrade
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-trial 5: paid to trial upgrade")}`, async () => {
-	const customerId = "legacy-trial-5";
+test.concurrent(
+	`${chalk.yellowBright("legacy-trial 5: paid to trial upgrade")}`,
+	async () => {
+		const customerId = "legacy-trial-5";
 
-	// Pro: $20/month, no trial
-	const pro = products.pro({
-		id: "pro",
-		items: [
-			items.dashboard(),
-			items.monthlyMessages({ includedUsage: 10 }),
-			items.adminRights(),
-		],
-	});
+		// Pro: $20/month, no trial
+		const pro = products.pro({
+			id: "pro",
+			items: [
+				items.dashboard(),
+				items.monthlyMessages({ includedUsage: 10 }),
+				items.adminRights(),
+			],
+		});
 
-	// Premium: $50/month with 7-day trial
-	const premiumWithTrial = products.premiumWithTrial({
-		id: "premium",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-		trialDays: 7,
-		cardRequired: true,
-	});
+		// Premium: $50/month with 7-day trial
+		const premiumWithTrial = products.premiumWithTrial({
+			id: "premium",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+			trialDays: 7,
+			cardRequired: true,
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [pro, premiumWithTrial] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [pro, premiumWithTrial] }),
+			],
+			actions: [],
+		});
 
-	// Attach Pro (paid)
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		// Attach Pro (paid)
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
 
-	const customerAfterPro =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfterPro =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer: customerAfterPro,
-		productId: pro.id,
-	});
+		await expectProductActive({
+			customer: customerAfterPro,
+			productId: pro.id,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer: customerAfterPro,
-		count: 1,
-		latestTotal: 20, // Pro $20
-	});
+		await expectCustomerInvoiceCorrect({
+			customer: customerAfterPro,
+			count: 1,
+			latestTotal: 20, // Pro $20
+		});
 
-	// Upgrade to Premium with trial
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: premiumWithTrial.id,
-	});
+		// Upgrade to Premium with trial
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: premiumWithTrial.id,
+		});
 
-	// Stripe issues the $0 trial invoice via webhook, so poll for the settled set:
-	// Pro paid ($20) + pro refund (-$20) + Premium trial ($0).
-	await expectCustomerInvoiceCorrect({
-		autumn: autumnV1,
-		customerId,
-		count: 3,
-		latestTotal: 0, // Premium trial - $0
-	});
+		// Stripe issues the $0 trial invoice via webhook, so poll for the settled set:
+		// Pro paid ($20) + pro refund (-$20) + Premium trial ($0).
+		await expectCustomerInvoiceCorrect({
+			autumn: autumnV1,
+			customerId,
+			count: 3,
+			latestTotal: 0, // Premium trial - $0
+		});
 
-	const customerAfterPremium =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfterPremium =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductTrialing({
-		customer: customerAfterPremium,
-		productId: premiumWithTrial.id,
-	});
+		await expectProductTrialing({
+			customer: customerAfterPremium,
+			productId: premiumWithTrial.id,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer: customerAfterPremium,
-		featureId: TestFeature.Messages,
-		includedUsage: 100,
-		balance: 100,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer: customerAfterPremium,
+			featureId: TestFeature.Messages,
+			includedUsage: 100,
+			balance: 100,
+			usage: 0,
+		});
 
-	expect(customerAfterPremium.invoices?.[1].total).toBe(-20); // refund for pro
-});
+		expect(customerAfterPremium.invoices?.[1].total).toBe(-20); // refund for pro
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 6: Trial to trial upgrade with time advancement
@@ -526,89 +541,92 @@ test.concurrent(`${chalk.yellowBright("legacy-trial 5: paid to trial upgrade")}`
 // - Invoice total is $0 (still in trial)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-trial 6: trial to trial upgrade with time advancement")}`, async () => {
-	const customerId = "legacy-trial-6";
+test.concurrent(
+	`${chalk.yellowBright("legacy-trial 6: trial to trial upgrade with time advancement")}`,
+	async () => {
+		const customerId = "legacy-trial-6";
 
-	// Pro: $20/month with 7-day trial
-	const proWithTrial = products.proWithTrial({
-		id: "pro",
-		items: [
-			items.dashboard(),
-			items.monthlyMessages({ includedUsage: 10 }),
-			items.adminRights(),
-		],
-		trialDays: 7,
-		cardRequired: true,
-		uniqueFingerprint: true,
-	});
+		// Pro: $20/month with 7-day trial
+		const proWithTrial = products.proWithTrial({
+			id: "pro",
+			items: [
+				items.dashboard(),
+				items.monthlyMessages({ includedUsage: 10 }),
+				items.adminRights(),
+			],
+			trialDays: 7,
+			cardRequired: true,
+			uniqueFingerprint: true,
+		});
 
-	// Premium: $50/month with 7-day trial
-	const premiumWithTrial = products.premiumWithTrial({
-		id: "premium",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-		trialDays: 7,
-		cardRequired: true,
-	});
+		// Premium: $50/month with 7-day trial
+		const premiumWithTrial = products.premiumWithTrial({
+			id: "premium",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+			trialDays: 7,
+			cardRequired: true,
+		});
 
-	const { autumnV1, testClockId } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [proWithTrial, premiumWithTrial] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [proWithTrial, premiumWithTrial] }),
+			],
+			actions: [],
+		});
 
-	// Attach Pro with trial
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: proWithTrial.id,
-	});
+		// Attach Pro with trial
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: proWithTrial.id,
+		});
 
-	const customerAfterPro =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfterPro =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductTrialing({
-		customer: customerAfterPro,
-		productId: proWithTrial.id,
-	});
+		await expectProductTrialing({
+			customer: customerAfterPro,
+			productId: proWithTrial.id,
+		});
 
-	// Advance clock 3 days (still in trial)
-	await advanceTestClock({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-		advanceTo: addDays(new Date(), 3).getTime(),
-		waitForSeconds: 10,
-	});
+		// Advance clock 3 days (still in trial)
+		await advanceTestClock({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+			advanceTo: addDays(new Date(), 3).getTime(),
+			waitForSeconds: 10,
+		});
 
-	// Upgrade to Premium with trial
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: premiumWithTrial.id,
-	});
+		// Upgrade to Premium with trial
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: premiumWithTrial.id,
+		});
 
-	const customerAfterPremium =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfterPremium =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductTrialing({
-		customer: customerAfterPremium,
-		productId: premiumWithTrial.id,
-	});
+		await expectProductTrialing({
+			customer: customerAfterPremium,
+			productId: premiumWithTrial.id,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer: customerAfterPremium,
-		featureId: TestFeature.Messages,
-		includedUsage: 100,
-		balance: 100,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer: customerAfterPremium,
+			featureId: TestFeature.Messages,
+			includedUsage: 100,
+			balance: 100,
+			usage: 0,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer: customerAfterPremium,
-		count: 2,
-		latestTotal: 0, // Trial - $0
-	});
-});
+		await expectCustomerInvoiceCorrect({
+			customer: customerAfterPremium,
+			count: 2,
+			latestTotal: 0, // Trial - $0
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 7: Skip trial with free_trial=false flag
@@ -623,45 +641,48 @@ test.concurrent(`${chalk.yellowBright("legacy-trial 6: trial to trial upgrade wi
 // - 1 invoice for base price ($20)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-trial 7: skip trial with free_trial=false")}`, async () => {
-	const customerId = "legacy-trial-7";
+test.concurrent(
+	`${chalk.yellowBright("legacy-trial 7: skip trial with free_trial=false")}`,
+	async () => {
+		const customerId = "legacy-trial-7";
 
-	// Pro with trial and arrear words
-	const proWithTrial = products.proWithTrial({
-		id: "pro",
-		items: [items.consumableWords()],
-		trialDays: 7,
-		cardRequired: true,
-	});
+		// Pro with trial and arrear words
+		const proWithTrial = products.proWithTrial({
+			id: "pro",
+			items: [items.consumableWords()],
+			trialDays: 7,
+			cardRequired: true,
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [proWithTrial] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [proWithTrial] }),
+			],
+			actions: [],
+		});
 
-	// Attach with free_trial=false to skip trial
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: proWithTrial.id,
-		free_trial: false,
-	});
+		// Attach with free_trial=false to skip trial
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: proWithTrial.id,
+			free_trial: false,
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Should be active, not trialing
-	await expectProductActive({
-		customer,
-		productId: proWithTrial.id,
-	});
+		// Should be active, not trialing
+		await expectProductActive({
+			customer,
+			productId: proWithTrial.id,
+		});
 
-	// Invoice should be for base price ($20)
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 20, // Pro base price
-	});
-});
+		// Invoice should be for base price ($20)
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 20, // Pro base price
+		});
+	},
+);

@@ -1,5 +1,4 @@
-import { test } from "bun:test";
-import { expect } from "bun:test";
+import { expect, test } from "bun:test";
 import { TestFeature } from "@tests/setup/v2Features.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";

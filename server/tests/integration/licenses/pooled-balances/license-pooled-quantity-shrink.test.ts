@@ -25,8 +25,8 @@ import { products } from "@tests/utils/fixtures/products.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
 import {
-	LICENSE_POOLED_GRANT,
 	expectLicensePooledGrant,
+	LICENSE_POOLED_GRANT,
 	parentPlan,
 	pooledMonthlyMessages,
 	seatLinkId,
@@ -268,10 +268,7 @@ test.concurrent(
 		await autumnV2_3.licenses.attach<AttachLicenseParamsV0>({
 			customer_id: customerId,
 			plan_id: seat.id,
-			entities: [
-				{ entity_id: entities[0].id },
-				{ entity_id: entities[1].id },
-			],
+			entities: [{ entity_id: entities[0].id }, { entity_id: entities[1].id }],
 		});
 
 		await expectLicensePooledGrant({

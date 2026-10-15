@@ -20,122 +20,125 @@ import chalk from "chalk";
 // next_reset_at to shift away from the original anchor.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("free-to-free: anchor drifts after multiple updates (regression)")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const free = products.base({ items: [messagesItem] });
+test.concurrent(
+	`${chalk.yellowBright("free-to-free: anchor drifts after multiple updates (regression)")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const free = products.base({ items: [messagesItem] });
 
-	const { customerId, autumnV1, ctx, testClockId } = await initScenario({
-		customerId: "f2f-anchor-drift",
-		setup: [s.customer({}), s.products({ list: [free] })],
-		actions: [s.attach({ productId: "base" })],
-	});
+		const { customerId, autumnV1, ctx, testClockId } = await initScenario({
+			customerId: "f2f-anchor-drift",
+			setup: [s.customer({}), s.products({ list: [free] })],
+			actions: [s.attach({ productId: "base" })],
+		});
 
-	// Track some usage
-	const messagesUsage = 20;
-	await autumnV1.track(
-		{
+		// Track some usage
+		const messagesUsage = 20;
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Messages,
+				value: messagesUsage,
+			},
+			{ timeout: 2000 },
+		);
+
+		// Record the original reset time and started_at
+		const customerInitial =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const originalResetAt =
+			customerInitial.features[TestFeature.Messages].next_reset_at;
+		expect(originalResetAt).toBeDefined();
+
+		const originalStartedAt = customerInitial.products[0].started_at;
+		expect(originalStartedAt).toBeDefined();
+
+		// ─── Step 1: Advance 3 days, do first free-to-free update ─────────
+		await advanceTestClock({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+			numberOfDays: 3,
+		});
+
+		const update1Items = items.monthlyMessages({ includedUsage: 150 });
+		const update1Params = {
 			customer_id: customerId,
-			feature_id: TestFeature.Messages,
-			value: messagesUsage,
-		},
-		{ timeout: 2000 },
-	);
+			product_id: free.id,
+			items: [update1Items],
+		};
 
-	// Record the original reset time and started_at
-	const customerInitial =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	const originalResetAt =
-		customerInitial.features[TestFeature.Messages].next_reset_at;
-	expect(originalResetAt).toBeDefined();
+		const preview1 = await autumnV1.subscriptions.previewUpdate(update1Params);
+		expect(preview1.total).toEqual(0);
 
-	const originalStartedAt = customerInitial.products[0].started_at;
-	expect(originalStartedAt).toBeDefined();
+		await autumnV1.subscriptions.update(update1Params);
 
-	// ─── Step 1: Advance 3 days, do first free-to-free update ─────────
-	await advanceTestClock({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-		numberOfDays: 3,
-	});
+		const customerAfter1 =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	const update1Items = items.monthlyMessages({ includedUsage: 150 });
-	const update1Params = {
-		customer_id: customerId,
-		product_id: free.id,
-		items: [update1Items],
-	};
+		// After first update: anchor should be preserved (bug is latent here)
+		expectCustomerFeatureCorrect({
+			customer: customerAfter1,
+			featureId: TestFeature.Messages,
+			includedUsage: 150,
+			balance: 150 - messagesUsage,
+			usage: messagesUsage,
+			resetsAt: originalResetAt!,
+		});
 
-	const preview1 = await autumnV1.subscriptions.previewUpdate(update1Params);
-	expect(preview1.total).toEqual(0);
+		// started_at should be preserved from the original product
+		expect(customerAfter1.products[0].started_at).toEqual(originalStartedAt);
 
-	await autumnV1.subscriptions.update(update1Params);
+		expectCustomerInvoiceCorrect({
+			customer: customerAfter1,
+			count: 0,
+		});
 
-	const customerAfter1 =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// ─── Step 2: Advance 3 more days (T+6), do second free-to-free update ─
+		await advanceTestClock({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+			numberOfDays: 3,
+		});
 
-	// After first update: anchor should be preserved (bug is latent here)
-	expectCustomerFeatureCorrect({
-		customer: customerAfter1,
-		featureId: TestFeature.Messages,
-		includedUsage: 150,
-		balance: 150 - messagesUsage,
-		usage: messagesUsage,
-		resetsAt: originalResetAt!,
-	});
+		const update2Items = items.monthlyMessages({ includedUsage: 200 });
+		const update2Params = {
+			customer_id: customerId,
+			product_id: free.id,
+			items: [update2Items],
+		};
 
-	// started_at should be preserved from the original product
-	expect(customerAfter1.products[0].started_at).toEqual(originalStartedAt);
+		const preview2 = await autumnV1.subscriptions.previewUpdate(update2Params);
+		expect(preview2.total).toEqual(0);
 
-	expectCustomerInvoiceCorrect({
-		customer: customerAfter1,
-		count: 0,
-	});
+		await autumnV1.subscriptions.update(update2Params);
 
-	// ─── Step 2: Advance 3 more days (T+6), do second free-to-free update ─
-	await advanceTestClock({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-		numberOfDays: 3,
-	});
+		const customerAfter2 =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	const update2Items = items.monthlyMessages({ includedUsage: 200 });
-	const update2Params = {
-		customer_id: customerId,
-		product_id: free.id,
-		items: [update2Items],
-	};
+		// After second update: THIS IS WHERE THE BUG MANIFESTS
+		// With the bug, the anchor drifts to the intermediate CusProduct's
+		// created_at (T+3 days), causing next_reset_at to shift ~3 days forward.
+		// The correct behavior is to preserve the original anchor from starts_at.
+		expectCustomerFeatureCorrect({
+			customer: customerAfter2,
+			featureId: TestFeature.Messages,
+			includedUsage: 200,
+			balance: 200 - messagesUsage,
+			usage: messagesUsage,
+			resetsAt: originalResetAt!,
+		});
 
-	const preview2 = await autumnV1.subscriptions.previewUpdate(update2Params);
-	expect(preview2.total).toEqual(0);
+		// started_at should still match the original
+		expect(customerAfter2.products[0].started_at).toEqual(originalStartedAt);
 
-	await autumnV1.subscriptions.update(update2Params);
+		expectCustomerInvoiceCorrect({
+			customer: customerAfter2,
+			count: 0,
+		});
 
-	const customerAfter2 =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-
-	// After second update: THIS IS WHERE THE BUG MANIFESTS
-	// With the bug, the anchor drifts to the intermediate CusProduct's
-	// created_at (T+3 days), causing next_reset_at to shift ~3 days forward.
-	// The correct behavior is to preserve the original anchor from starts_at.
-	expectCustomerFeatureCorrect({
-		customer: customerAfter2,
-		featureId: TestFeature.Messages,
-		includedUsage: 200,
-		balance: 200 - messagesUsage,
-		usage: messagesUsage,
-		resetsAt: originalResetAt!,
-	});
-
-	// started_at should still match the original
-	expect(customerAfter2.products[0].started_at).toEqual(originalStartedAt);
-
-	expectCustomerInvoiceCorrect({
-		customer: customerAfter2,
-		count: 0,
-	});
-
-	await expectProductActive({
-		customer: customerAfter2,
-		productId: free.id,
-	});
-});
+		await expectProductActive({
+			customer: customerAfter2,
+			productId: free.id,
+		});
+	},
+);

@@ -21,12 +21,12 @@
  */
 
 import { expect, test } from "bun:test";
-import chalk from "chalk";
 import { items } from "@tests/utils/fixtures/items";
 import { products } from "@tests/utils/fixtures/products";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
-import { CusProductService } from "@/internal/customers/cusProducts/CusProductService";
+import chalk from "chalk";
 import { CusService } from "@/internal/customers/CusService";
+import { CusProductService } from "@/internal/customers/cusProducts/CusProductService";
 
 test(`${chalk.yellowBright("attach addon with orphaned base: one-off add-on does not create a new recurring sub")}`, async () => {
 	const customerId = "attach-addon-orphaned-base";
@@ -44,7 +44,11 @@ test(`${chalk.yellowBright("attach addon with orphaned base: one-off add-on does
 		items: [oneOffCreditsItem],
 	});
 
-	const { customerId: cid, autumnV1, ctx } = await initScenario({
+	const {
+		customerId: cid,
+		autumnV1,
+		ctx,
+	} = await initScenario({
 		customerId,
 		setup: [
 			s.customer({ paymentMethod: "success" }),

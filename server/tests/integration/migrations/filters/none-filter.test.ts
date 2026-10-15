@@ -16,17 +16,17 @@
  * That makes assertion 1 below count the complement instead of the no-plan set.
  */
 
-import { test, expect } from "bun:test";
-import chalk from "chalk";
+import { expect, test } from "bun:test";
 import { CustomerFilterSchema } from "@autumn/shared/api/migrations/filters/customerFilter.js";
-import {
-	countCustomers,
-	filterCustomers,
-	type CustomerRow,
-} from "@/internal/migrations/v2/filters/customers/filterCustomers.js";
 import { items } from "@tests/utils/fixtures/items";
 import { products } from "@tests/utils/fixtures/products";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
+import chalk from "chalk";
+import {
+	type CustomerRow,
+	countCustomers,
+	filterCustomers,
+} from "@/internal/migrations/v2/filters/customers/filterCustomers.js";
 
 async function collectIds(
 	gen: AsyncGenerator<CustomerRow[]>,

@@ -40,280 +40,301 @@ const getProducts = () => {
 	};
 };
 
-test.concurrent(`${chalk.yellowBright("update-subscription preview: update quantity")}`, async () => {
-	const customerId = "update-sub-preview-quantity";
-	const pro = products.pro({
-		id: "pro",
-		items: [
-			items.prepaidMessages({
-				includedUsage: 100,
-				billingUnits: 100,
-				price: 10,
-			}),
-		],
-	});
+test.concurrent(
+	`${chalk.yellowBright("update-subscription preview: update quantity")}`,
+	async () => {
+		const customerId = "update-sub-preview-quantity";
+		const pro = products.pro({
+			id: "pro",
+			items: [
+				items.prepaidMessages({
+					includedUsage: 100,
+					billingUnits: 100,
+					price: 10,
+				}),
+			],
+		});
 
-	const { advancedTo, autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [
-			s.billing.attach({
-				productId: pro.id,
-				options: [{ feature_id: TestFeature.Messages, quantity: 200 }],
-			}),
-		],
-	});
+		const { advancedTo, autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [
+				s.billing.attach({
+					productId: pro.id,
+					options: [{ feature_id: TestFeature.Messages, quantity: 200 }],
+				}),
+			],
+		});
 
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: pro.id,
-		options: [{ feature_id: TestFeature.Messages, quantity: 300 }],
-	});
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: pro.id,
+			options: [{ feature_id: TestFeature.Messages, quantity: 300 }],
+		});
 
-	expect(preview.intent).toBe(UpdateSubscriptionPreviewIntent.UpdateQuantity);
+		expect(preview.intent).toBe(UpdateSubscriptionPreviewIntent.UpdateQuantity);
 
-	expectPreviewChanges({
-		preview,
-		incoming: [
-			{
-				planId: pro.id,
-				featureQuantities: [
-					{ feature_id: TestFeature.Messages, quantity: 300 },
-				],
-				effectiveAt: null,
+		expectPreviewChanges({
+			preview,
+			incoming: [
+				{
+					planId: pro.id,
+					featureQuantities: [
+						{ feature_id: TestFeature.Messages, quantity: 300 },
+					],
+					effectiveAt: null,
+				},
+			],
+			outgoing: [
+				{
+					planId: pro.id,
+					featureQuantities: [
+						{ feature_id: TestFeature.Messages, quantity: 200 },
+					],
+					effectiveAt: advancedTo,
+				},
+			],
+		});
+	},
+);
+
+test.concurrent(
+	`${chalk.yellowBright("update-subscription preview: update custom plan")}`,
+	async () => {
+		const customerId = "update-sub-preview-custom-plan";
+		const pro = products.base({
+			id: "pro",
+			items: [
+				items.monthlyMessages({ includedUsage: 100 }),
+				items.monthlyPrice({ price: 20 }),
+			],
+		});
+
+		const { autumnV2_1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
+
+		const preview = await autumnV2_1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			plan_id: pro.id,
+			customize: {
+				price: itemsV2.monthlyPrice({ amount: 30 }),
+				items: [itemsV2.monthlyWords({ included: 200 })],
 			},
-		],
-		outgoing: [
-			{
-				planId: pro.id,
-				featureQuantities: [
-					{ feature_id: TestFeature.Messages, quantity: 200 },
-				],
-				effectiveAt: advancedTo,
-			},
-		],
-	});
-});
+		});
 
-test.concurrent(`${chalk.yellowBright("update-subscription preview: update custom plan")}`, async () => {
-	const customerId = "update-sub-preview-custom-plan";
-	const pro = products.base({
-		id: "pro",
-		items: [
-			items.monthlyMessages({ includedUsage: 100 }),
-			items.monthlyPrice({ price: 20 }),
-		],
-	});
+		expect(preview.intent).toBe(UpdateSubscriptionPreviewIntent.UpdatePlan);
+		expectPreviewChanges({
+			preview,
+			incoming: [{ planId: pro.id, effectiveAt: null }],
+			outgoing: [{ planId: pro.id }],
+		});
+	},
+);
 
-	const { autumnV2_1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
+test.concurrent(
+	`${chalk.yellowBright("update-subscription preview: cancel immediately with default free")}`,
+	async () => {
+		const customerId = "update-sub-preview-cancel-immediately";
+		const { free, pro } = getProducts();
 
-	const preview = await autumnV2_1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		plan_id: pro.id,
-		customize: {
-			price: itemsV2.monthlyPrice({ amount: 30 }),
-			items: [itemsV2.monthlyWords({ included: 200 })],
-		},
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, pro] }),
+			],
+			actions: [s.attach({ productId: pro.id })],
+		});
 
-	expect(preview.intent).toBe(UpdateSubscriptionPreviewIntent.UpdatePlan);
-	expectPreviewChanges({
-		preview,
-		incoming: [{ planId: pro.id, effectiveAt: null }],
-		outgoing: [{ planId: pro.id }],
-	});
-});
+		const customerBeforePreview =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({
+			customer: customerBeforePreview,
+			productId: pro.id,
+		});
+		await expectProductNotPresent({
+			customer: customerBeforePreview,
+			productId: free.id,
+		});
 
-test.concurrent(`${chalk.yellowBright("update-subscription preview: cancel immediately with default free")}`, async () => {
-	const customerId = "update-sub-preview-cancel-immediately";
-	const { free, pro } = getProducts();
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: pro.id,
+			cancel_action: "cancel_immediately",
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, pro] }),
-		],
-		actions: [s.attach({ productId: pro.id })],
-	});
+		expect(preview.total).toBe(-20);
+		expectPreviewChanges({
+			preview,
+			incoming: [{ planId: free.id, effectiveAt: null }],
+			outgoing: [{ planId: pro.id }],
+		});
+	},
+);
 
-	const customerBeforePreview =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({
-		customer: customerBeforePreview,
-		productId: pro.id,
-	});
-	await expectProductNotPresent({
-		customer: customerBeforePreview,
-		productId: free.id,
-	});
+test.concurrent(
+	`${chalk.yellowBright("update-subscription preview: cancel end of cycle with default free")}`,
+	async () => {
+		const customerId = "update-sub-preview-cancel-eoc";
+		const { free, pro } = getProducts();
 
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: pro.id,
-		cancel_action: "cancel_immediately",
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, pro] }),
+			],
+			actions: [s.attach({ productId: pro.id })],
+		});
 
-	expect(preview.total).toBe(-20);
-	expectPreviewChanges({
-		preview,
-		incoming: [{ planId: free.id, effectiveAt: null }],
-		outgoing: [{ planId: pro.id }],
-	});
-});
+		const customerBeforePreview =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({
+			customer: customerBeforePreview,
+			productId: pro.id,
+		});
+		await expectProductNotPresent({
+			customer: customerBeforePreview,
+			productId: free.id,
+		});
 
-test.concurrent(`${chalk.yellowBright("update-subscription preview: cancel end of cycle with default free")}`, async () => {
-	const customerId = "update-sub-preview-cancel-eoc";
-	const { free, pro } = getProducts();
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: pro.id,
+			cancel_action: "cancel_end_of_cycle",
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, pro] }),
-		],
-		actions: [s.attach({ productId: pro.id })],
-	});
+		const endOfCycle = preview.incoming.find(
+			(change: BillingPreviewChange) => change.plan_id === pro.id,
+		)?.expires_at;
+		expect(endOfCycle).toBeNumber();
 
-	const customerBeforePreview =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({
-		customer: customerBeforePreview,
-		productId: pro.id,
-	});
-	await expectProductNotPresent({
-		customer: customerBeforePreview,
-		productId: free.id,
-	});
+		expectPreviewChanges({
+			preview,
+			incoming: [
+				{
+					planId: free.id,
+					effectiveAt: endOfCycle,
+					canceledAt: null,
+					expiresAt: null,
+				},
+				{
+					planId: pro.id,
+					effectiveAt: null,
+					canceledAtDefined: true,
+					expiresAtDefined: true,
+				},
+			],
+			outgoing: [
+				{
+					planId: pro.id,
+					canceledAt: null,
+					expiresAt: null,
+				},
+			],
+		});
+	},
+);
 
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: pro.id,
-		cancel_action: "cancel_end_of_cycle",
-	});
+test.concurrent(
+	`${chalk.yellowBright("update-subscription preview: uncancel with scheduled default free")}`,
+	async () => {
+		const customerId = "update-sub-preview-uncancel";
+		const { free, pro } = getProducts();
 
-	const endOfCycle = preview.incoming.find(
-		(change: BillingPreviewChange) => change.plan_id === pro.id,
-	)?.expires_at;
-	expect(endOfCycle).toBeNumber();
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, pro] }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.updateSubscription({
+					productId: pro.id,
+					cancelAction: "cancel_end_of_cycle",
+				}),
+			],
+		});
 
-	expectPreviewChanges({
-		preview,
-		incoming: [
-			{
-				planId: free.id,
-				effectiveAt: endOfCycle,
-				canceledAt: null,
-				expiresAt: null,
-			},
-			{
-				planId: pro.id,
-				effectiveAt: null,
-				canceledAtDefined: true,
-				expiresAtDefined: true,
-			},
-		],
-		outgoing: [
-			{
-				planId: pro.id,
-				canceledAt: null,
-				expiresAt: null,
-			},
-		],
-	});
-});
+		const customerBeforePreview =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductCanceling({
+			customer: customerBeforePreview,
+			productId: pro.id,
+		});
+		await expectProductScheduled({
+			customer: customerBeforePreview,
+			productId: free.id,
+		});
 
-test.concurrent(`${chalk.yellowBright("update-subscription preview: uncancel with scheduled default free")}`, async () => {
-	const customerId = "update-sub-preview-uncancel";
-	const { free, pro } = getProducts();
+		const preview = await autumnV1.subscriptions.previewUpdate({
+			customer_id: customerId,
+			product_id: pro.id,
+			cancel_action: "uncancel",
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, pro] }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.updateSubscription({
-				productId: pro.id,
-				cancelAction: "cancel_end_of_cycle",
-			}),
-		],
-	});
-
-	const customerBeforePreview =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductCanceling({
-		customer: customerBeforePreview,
-		productId: pro.id,
-	});
-	await expectProductScheduled({
-		customer: customerBeforePreview,
-		productId: free.id,
-	});
-
-	const preview = await autumnV1.subscriptions.previewUpdate({
-		customer_id: customerId,
-		product_id: pro.id,
-		cancel_action: "uncancel",
-	});
-
-	expectPreviewChanges({
-		preview,
-		incoming: [{ planId: pro.id, effectiveAt: null }],
-		outgoing: [{ planId: pro.id }],
-	});
-});
+		expectPreviewChanges({
+			preview,
+			incoming: [{ planId: pro.id, effectiveAt: null }],
+			outgoing: [{ planId: pro.id }],
+		});
+	},
+);
 
 // Regression: no_billing_changes previews showed immediate charges despite skipping Stripe.
 // Green: entitlement-only DB updates preview $0 due now and still show the plan change.
-test.concurrent(`${chalk.yellowBright("update-subscription preview: no_billing_changes custom entitlement has no immediate due")}`, async () => {
-	const customerId = "update-sub-preview-no-billing-custom-ent";
-	const pro = products.base({
-		id: "pro-no-billing-preview",
-		items: [
-			items.monthlyMessages({ includedUsage: 100 }),
-			items.monthlyPrice({ price: 20 }),
-		],
-	});
+test.concurrent(
+	`${chalk.yellowBright("update-subscription preview: no_billing_changes custom entitlement has no immediate due")}`,
+	async () => {
+		const customerId = "update-sub-preview-no-billing-custom-ent";
+		const pro = products.base({
+			id: "pro-no-billing-preview",
+			items: [
+				items.monthlyMessages({ includedUsage: 100 }),
+				items.monthlyPrice({ price: 20 }),
+			],
+		});
 
-	const { autumnV2_2 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
+		const { autumnV2_2 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	const preview = await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>({
-		customer_id: customerId,
-		plan_id: pro.id,
-		no_billing_changes: true,
-		customize: {
-			price: itemsV2.monthlyPrice({ amount: 20 }),
-			items: [itemsV2.monthlyMessages({ included: 250 })],
-		},
-	});
+		const preview =
+			await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+				{
+					customer_id: customerId,
+					plan_id: pro.id,
+					no_billing_changes: true,
+					customize: {
+						price: itemsV2.monthlyPrice({ amount: 20 }),
+						items: [itemsV2.monthlyMessages({ included: 250 })],
+					},
+				},
+			);
 
-	expect(preview.intent).toBe(UpdateSubscriptionPreviewIntent.UpdatePlan);
-	expect(preview.line_items).toEqual([]);
-	expect(preview.subtotal).toBe(0);
-	expect(preview.total).toBe(0);
-	expectPreviewChanges({
-		preview,
-		incoming: [{ planId: pro.id, effectiveAt: null }],
-		outgoing: [{ planId: pro.id }],
-	});
-});
+		expect(preview.intent).toBe(UpdateSubscriptionPreviewIntent.UpdatePlan);
+		expect(preview.line_items).toEqual([]);
+		expect(preview.subtotal).toBe(0);
+		expect(preview.total).toBe(0);
+		expectPreviewChanges({
+			preview,
+			incoming: [{ planId: pro.id, effectiveAt: null }],
+			outgoing: [{ planId: pro.id }],
+		});
+	},
+);

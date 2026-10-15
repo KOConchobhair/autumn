@@ -27,87 +27,91 @@ import chalk from "chalk";
  * buildStripeSubscriptionScheduleAction then sees hasSchedule=false and emits
  * type:"create" instead of type:"update", which Stripe rejects.
  */
-test.concurrent(`${chalk.yellowBright("bug-repro: attach one-off add-on after scheduled downgrade hits 'subscription already attached to schedule'")}`, async () => {
-	const customerId = "repro-schedule-addon-attach";
+test.concurrent(
+	`${chalk.yellowBright("bug-repro: attach one-off add-on after scheduled downgrade hits 'subscription already attached to schedule'")}`,
+	async () => {
+		const customerId = "repro-schedule-addon-attach";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
 
-	const premium = products.premium({
-		id: "premium",
-		items: [messagesItem],
-	});
+		const premium = products.premium({
+			id: "premium",
+			items: [messagesItem],
+		});
 
-	const pro = products.pro({
-		id: "pro",
-		items: [messagesItem],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [messagesItem],
+		});
 
-	const topupAddon = products.base({
-		id: "topup-addon",
-		items: [
-			items.oneOffWords({
-				includedUsage: 0,
-				billingUnits: 100,
-				price: 25,
-			}),
-		],
-	});
+		const topupAddon = products.base({
+			id: "topup-addon",
+			items: [
+				items.oneOffWords({
+					includedUsage: 0,
+					billingUnits: 100,
+					price: 25,
+				}),
+			],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [premium, pro, topupAddon] }),
-		],
-		actions: [s.billing.attach({ productId: premium.id })],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [premium, pro, topupAddon] }),
+			],
+			actions: [s.billing.attach({ productId: premium.id })],
+		});
 
-	// Apply a 20% discount to the subscription (matches production scenario)
-	const { stripeCli, subscription: subBefore } = await getStripeSubscription({
-		customerId,
-	});
+		// Apply a 20% discount to the subscription (matches production scenario)
+		const { stripeCli, subscription: subBefore } = await getStripeSubscription({
+			customerId,
+		});
 
-	const coupon = await createPercentCoupon({
-		stripeCli,
-		percentOff: 20,
-	});
+		const coupon = await createPercentCoupon({
+			stripeCli,
+			percentOff: 20,
+		});
 
-	await applySubscriptionDiscount({
-		stripeCli,
-		subscriptionId: subBefore.id,
-		couponIds: [coupon.id],
-	});
+		await applySubscriptionDiscount({
+			stripeCli,
+			subscriptionId: subBefore.id,
+			couponIds: [coupon.id],
+		});
 
-	// Schedule downgrade: Premium -> Pro (creates a subscription schedule)
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		redirect_mode: "if_required",
-	});
+		// Schedule downgrade: Premium -> Pro (creates a subscription schedule)
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			redirect_mode: "if_required",
+		});
 
-	// Verify the downgrade was scheduled correctly
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductCanceling({ customer, productId: premium.id });
-	await expectProductScheduled({ customer, productId: pro.id });
+		// Verify the downgrade was scheduled correctly
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductCanceling({ customer, productId: premium.id });
+		await expectProductScheduled({ customer, productId: pro.id });
 
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: topupAddon.id,
-		redirect_mode: "if_required",
-		options: [{ feature_id: TestFeature.Words, quantity: 100 }],
-	});
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: topupAddon.id,
+			redirect_mode: "if_required",
+			options: [{ feature_id: TestFeature.Words, quantity: 100 }],
+		});
 
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectCustomerFeatureCorrect({
-		customer: customerAfter,
-		featureId: TestFeature.Words,
-		balance: 100,
-		usage: 0,
-	});
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerFeatureCorrect({
+			customer: customerAfter,
+			featureId: TestFeature.Words,
+			balance: 100,
+			usage: 0,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer: customerAfter,
-		count: 2,
-		latestTotal: 25,
-	});
-});
+		await expectCustomerInvoiceCorrect({
+			customer: customerAfter,
+			count: 2,
+			latestTotal: 25,
+		});
+	},
+);

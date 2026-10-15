@@ -25,7 +25,9 @@ import { ProductService } from "@/internal/products/ProductService.js";
 
 type RpcUpdate = Omit<UpdatePlanParamsV2Input, "plan_id">;
 type TestContext = Awaited<ReturnType<typeof initScenario>>["ctx"];
-type FullProductRow = Awaited<ReturnType<typeof ProductService.listFull>>[number];
+type FullProductRow = Awaited<
+	ReturnType<typeof ProductService.listFull>
+>[number];
 
 const monthlyMessagesItem = (included: number) => ({
 	feature_id: TestFeature.Messages,
@@ -90,7 +92,8 @@ const setupVersionedPlan = async (testId: string) => {
 				plan_id: base.id,
 				name: "V2",
 				items: [monthlyMessagesItem(200)],
-				versioning: "new_version", active: true,
+				versioning: "new_version",
+				active: true,
 			},
 		],
 	});

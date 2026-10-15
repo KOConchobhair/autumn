@@ -77,7 +77,9 @@ const replay = ({ receiveCount }: { receiveCount: number }) =>
 
 beforeEach(() => {
 	state.claim = "claimed";
-	state.handlerError = new Error("duplicate key value violates unique constraint");
+	state.handlerError = new Error(
+		"duplicate key value violates unique constraint",
+	);
 });
 
 test("rethrows handler errors before the attempt cap", async () => {

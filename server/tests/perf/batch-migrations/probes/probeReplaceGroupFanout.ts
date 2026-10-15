@@ -314,7 +314,9 @@ const main = async () => {
 	const messages = ctx.features.find(
 		(feature) => feature.id === TestFeature.Messages,
 	);
-	const words = ctx.features.find((feature) => feature.id === TestFeature.Words);
+	const words = ctx.features.find(
+		(feature) => feature.id === TestFeature.Words,
+	);
 	if (!messages || !words) throw new Error("bench: messages/words missing");
 
 	const cleanupStarted = Date.now();
@@ -395,7 +397,9 @@ const main = async () => {
 			});
 		}
 	} else {
-		console.log("probe: no leftover bench-plan-replace rows — skip 5k leftover EXPLAIN");
+		console.log(
+			"probe: no leftover bench-plan-replace rows — skip 5k leftover EXPLAIN",
+		);
 	}
 
 	const toEntitlement = {

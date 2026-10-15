@@ -45,86 +45,89 @@ import chalk from "chalk";
  * - next_cycle.starts_at = trial end, next_cycle.total = $20
  * - Invoice count = 0 (no invoice during trial)
  */
-test.concurrent(`${chalk.yellowBright("trial-basic 1: new subscription with trial product")}`, async () => {
-	const customerId = "trial-basic-new-sub";
+test.concurrent(
+	`${chalk.yellowBright("trial-basic 1: new subscription with trial product")}`,
+	async () => {
+		const customerId = "trial-basic-new-sub";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 500 });
-	const proTrial = products.proWithTrial({
-		id: "pro-trial",
-		items: [messagesItem],
-		trialDays: 7,
-		cardRequired: true,
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 500 });
+		const proTrial = products.proWithTrial({
+			id: "pro-trial",
+			items: [messagesItem],
+			trialDays: 7,
+			cardRequired: true,
+		});
 
-	const { autumnV1, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [proTrial] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [proTrial] }),
+			],
+			actions: [],
+		});
 
-	// 1. Preview attach - should show $0 during trial, next_cycle shows first charge
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: proTrial.id,
-	});
-	expect(preview.total).toBe(0);
-	expectPreviewNextCycleCorrect({
-		preview,
-		startsAt: advancedTo + ms.days(7),
-		total: 20, // Pro base price after trial
-	});
+		// 1. Preview attach - should show $0 during trial, next_cycle shows first charge
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: proTrial.id,
+		});
+		expect(preview.total).toBe(0);
+		expectPreviewNextCycleCorrect({
+			preview,
+			startsAt: advancedTo + ms.days(7),
+			total: 20, // Pro base price after trial
+		});
 
-	// 2. Attach product with trial
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: proTrial.id,
-		redirect_mode: "if_required",
-	});
+		// 2. Attach product with trial
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: proTrial.id,
+			redirect_mode: "if_required",
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Verify product is active
-	await expectProductActive({
-		customer,
-		productId: proTrial.id,
-	});
+		// Verify product is active
+		await expectProductActive({
+			customer,
+			productId: proTrial.id,
+		});
 
-	// Verify product is trialing with correct end date
-	await expectProductTrialing({
-		customer,
-		productId: proTrial.id,
-		trialEndsAt: advancedTo + ms.days(7),
-	});
+		// Verify product is trialing with correct end date
+		await expectProductTrialing({
+			customer,
+			productId: proTrial.id,
+			trialEndsAt: advancedTo + ms.days(7),
+		});
 
-	// Verify feature balance is available during trial with resetsAt aligned to trial end
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 500,
-		balance: 500,
-		usage: 0,
-		resetsAt: advancedTo + ms.days(7),
-	});
+		// Verify feature balance is available during trial with resetsAt aligned to trial end
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 500,
+			balance: 500,
+			usage: 0,
+			resetsAt: advancedTo + ms.days(7),
+		});
 
-	// Verify no invoice during trial
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 0,
-	});
+		// Verify no invoice during trial
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 0,
+		});
 
-	// Verify Stripe subscription state
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		flags: { checkTrialing: true },
-	});
-});
+		// Verify Stripe subscription state
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			flags: { checkTrialing: true },
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 5: Free-to-trial (no existing Stripe subscription)
@@ -141,93 +144,96 @@ test.concurrent(`${chalk.yellowBright("trial-basic 1: new subscription with tria
  * - Free product is removed
  * - next_cycle shows first charge after trial
  */
-test.concurrent(`${chalk.yellowBright("trial-basic 5: free to trial product")}`, async () => {
-	const customerId = "trial-basic-free-to-trial";
+test.concurrent(
+	`${chalk.yellowBright("trial-basic 5: free to trial product")}`,
+	async () => {
+		const customerId = "trial-basic-free-to-trial";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const free = products.base({
-		id: "free",
-		items: [messagesItem],
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const free = products.base({
+			id: "free",
+			items: [messagesItem],
+		});
 
-	const proMessagesItem = items.monthlyMessages({ includedUsage: 500 });
-	const proTrial = products.proWithTrial({
-		id: "pro-trial",
-		items: [proMessagesItem],
-		trialDays: 7,
-		cardRequired: true,
-	});
+		const proMessagesItem = items.monthlyMessages({ includedUsage: 500 });
+		const proTrial = products.proWithTrial({
+			id: "pro-trial",
+			items: [proMessagesItem],
+			trialDays: 7,
+			cardRequired: true,
+		});
 
-	const { autumnV1, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, proTrial] }),
-		],
-		actions: [s.billing.attach({ productId: free.id })],
-	});
+		const { autumnV1, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, proTrial] }),
+			],
+			actions: [s.billing.attach({ productId: free.id })],
+		});
 
-	// 1. Preview upgrade to trial product - should show $0, next_cycle = $20
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: proTrial.id,
-	});
-	expect(preview.total).toBe(0);
-	expectPreviewNextCycleCorrect({
-		preview,
-		startsAt: advancedTo + ms.days(7),
-		total: 20,
-	});
+		// 1. Preview upgrade to trial product - should show $0, next_cycle = $20
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: proTrial.id,
+		});
+		expect(preview.total).toBe(0);
+		expectPreviewNextCycleCorrect({
+			preview,
+			startsAt: advancedTo + ms.days(7),
+			total: 20,
+		});
 
-	// 2. Attach trial product
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: proTrial.id,
-		redirect_mode: "if_required",
-	});
+		// 2. Attach trial product
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: proTrial.id,
+			redirect_mode: "if_required",
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Verify product states
-	await expectCustomerProducts({
-		customer,
-		active: [proTrial.id],
-		notPresent: [free.id],
-	});
+		// Verify product states
+		await expectCustomerProducts({
+			customer,
+			active: [proTrial.id],
+			notPresent: [free.id],
+		});
 
-	// Verify product is trialing
-	await expectProductTrialing({
-		customer,
-		productId: proTrial.id,
-		trialEndsAt: advancedTo + ms.days(7),
-	});
+		// Verify product is trialing
+		await expectProductTrialing({
+			customer,
+			productId: proTrial.id,
+			trialEndsAt: advancedTo + ms.days(7),
+		});
 
-	// Verify feature balance is pro's balance with resetsAt aligned to trial end
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 500,
-		balance: 500,
-		usage: 0,
-		resetsAt: advancedTo + ms.days(7),
-	});
+		// Verify feature balance is pro's balance with resetsAt aligned to trial end
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 500,
+			balance: 500,
+			usage: 0,
+			resetsAt: advancedTo + ms.days(7),
+		});
 
-	// Verify $0 invoice during trial (Stripe creates invoice for trial subscriptions)
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 0,
-	});
+		// Verify $0 invoice during trial (Stripe creates invoice for trial subscriptions)
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 0,
+		});
 
-	// Verify Stripe subscription state
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		flags: { checkTrialing: true },
-	});
-});
+		// Verify Stripe subscription state
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			flags: { checkTrialing: true },
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 6: Free product to free product with trial
@@ -244,66 +250,69 @@ test.concurrent(`${chalk.yellowBright("trial-basic 5: free to trial product")}`,
  * - No Stripe subscription (both products are free)
  * - Feature balance reflects the new product's included usage
  */
-test.concurrent(`${chalk.yellowBright("trial-basic 6: free product to free product with trial")}`, async () => {
-	const customerId = "trial-basic-free-to-free-trial";
+test.concurrent(
+	`${chalk.yellowBright("trial-basic 6: free product to free product with trial")}`,
+	async () => {
+		const customerId = "trial-basic-free-to-free-trial";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const free = products.base({
-		id: "free",
-		items: [messagesItem],
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const free = products.base({
+			id: "free",
+			items: [messagesItem],
+		});
 
-	const trialMessagesItem = items.monthlyMessages({ includedUsage: 500 });
-	const freeWithTrial = products.baseWithTrial({
-		id: "free-trial",
-		items: [trialMessagesItem],
-		trialDays: 14,
-		cardRequired: false,
-	});
+		const trialMessagesItem = items.monthlyMessages({ includedUsage: 500 });
+		const freeWithTrial = products.baseWithTrial({
+			id: "free-trial",
+			items: [trialMessagesItem],
+			trialDays: 14,
+			cardRequired: false,
+		});
 
-	const { autumnV1, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [s.customer({}), s.products({ list: [free, freeWithTrial] })],
-		actions: [s.billing.attach({ productId: free.id })],
-	});
+		const { autumnV1, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [s.customer({}), s.products({ list: [free, freeWithTrial] })],
+			actions: [s.billing.attach({ productId: free.id })],
+		});
 
-	// Attach the free trial product (upgrade from free → free with trial)
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: freeWithTrial.id,
-		redirect_mode: "if_required",
-	});
+		// Attach the free trial product (upgrade from free → free with trial)
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: freeWithTrial.id,
+			redirect_mode: "if_required",
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Verify product states
-	await expectCustomerProducts({
-		customer,
-		active: [freeWithTrial.id],
-		notPresent: [free.id],
-	});
+		// Verify product states
+		await expectCustomerProducts({
+			customer,
+			active: [freeWithTrial.id],
+			notPresent: [free.id],
+		});
 
-	// Verify product is trialing with correct end date
-	await expectProductTrialing({
-		customer,
-		productId: freeWithTrial.id,
-		trialEndsAt: advancedTo + ms.days(14),
-	});
+		// Verify product is trialing with correct end date
+		await expectProductTrialing({
+			customer,
+			productId: freeWithTrial.id,
+			trialEndsAt: advancedTo + ms.days(14),
+		});
 
-	// Verify feature balance reflects new product
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 500,
-		balance: 500,
-		usage: 0,
-	});
+		// Verify feature balance reflects new product
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 500,
+			balance: 500,
+			usage: 0,
+		});
 
-	// Verify no Stripe subscription (both products are free)
-	await expectNoStripeSubscription({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		// Verify no Stripe subscription (both products are free)
+		await expectNoStripeSubscription({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);

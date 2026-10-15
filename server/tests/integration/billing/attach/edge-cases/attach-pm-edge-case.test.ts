@@ -14,45 +14,48 @@ import chalk from "chalk";
 import { expectCustomerProductCorrect } from "../../utils/expectCustomerProductCorrect";
 import { expectStripeSubscriptionCorrect } from "../../utils/expectStripeSubCorrect";
 
-test.concurrent(`${chalk.yellowBright("pm-edge-case 1: attach succeeds when invoice_settings.default_payment_method is null")}`, async () => {
-	const customerId = "attach-pm-edge-null-default";
+test.concurrent(
+	`${chalk.yellowBright("pm-edge-case 1: attach succeeds when invoice_settings.default_payment_method is null")}`,
+	async () => {
+		const customerId = "attach-pm-edge-null-default";
 
-	const proMessagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({
-		id: "pro",
-		items: [proMessagesItem],
-	});
+		const proMessagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({
+			id: "pro",
+			items: [proMessagesItem],
+		});
 
-	const { autumnV1, ctx, customer } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, ctx, customer } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	const stripeCustomerId = customer.processor?.id;
-	if (!stripeCustomerId) throw new Error("No stripe customer id");
+		const stripeCustomerId = customer.processor?.id;
+		if (!stripeCustomerId) throw new Error("No stripe customer id");
 
-	await ctx.stripeCli.customers.update(stripeCustomerId, {
-		invoice_settings: {
-			default_payment_method: "" as string,
-		},
-	});
+		await ctx.stripeCli.customers.update(stripeCustomerId, {
+			invoice_settings: {
+				default_payment_method: "" as string,
+			},
+		});
 
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
 
-	const customerAfter = await autumnV1.customers.get(customerId);
-	await expectCustomerProductCorrect({
-		customerId,
-		customer: customerAfter,
-		productId: pro.id,
-		state: "active",
-	});
+		const customerAfter = await autumnV1.customers.get(customerId);
+		await expectCustomerProductCorrect({
+			customerId,
+			customer: customerAfter,
+			productId: pro.id,
+			state: "active",
+		});
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);

@@ -36,11 +36,11 @@ import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
 import { AutumnRpcCli } from "@/external/autumn/autumnRpcCli.js";
 import { ProductService } from "@/internal/products/ProductService.js";
-import { expectVariantProductCorrect } from "./utils/expectVariantProductCorrect.js";
 import {
 	expectPreviewItemChangeCorrect,
 	expectPreviewVariantsCorrect,
 } from "./utils/expectVariantPreviewCorrect.js";
+import { expectVariantProductCorrect } from "./utils/expectVariantProductCorrect.js";
 import { readableVariantTestId } from "./utils/readableVariantTestId.js";
 import { createVariantPlan } from "./utils/variantTestPlanUtils.js";
 

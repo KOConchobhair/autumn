@@ -70,9 +70,7 @@ const completeScheduledRetainedTransition = async ({
 		licensePlanId: scenario.fromSeat.id,
 		active: true,
 	});
-	expect(assignmentsMidCycle.map(({ id }) => id).sort()).toEqual(
-		assignmentIds,
-	);
+	expect(assignmentsMidCycle.map(({ id }) => id).sort()).toEqual(assignmentIds);
 	for (let index = 0; index < scenario.entities.length; index++) {
 		const entity = await scenario.autumnV2_3.entities.get<ApiEntityV2>(
 			scenario.customerId,
@@ -117,8 +115,7 @@ const completeScheduledRetainedTransition = async ({
 				licensePlanId: scenario.toSeat.id,
 				active: true,
 			}),
-		until: (assignments) =>
-			assignments.length === ITEM_TRANSITION_ENTITY_COUNT,
+		until: (assignments) => assignments.length === ITEM_TRANSITION_ENTITY_COUNT,
 	});
 	expect(assignmentsAfter.map(({ id }) => id).sort()).toEqual(assignmentIds);
 

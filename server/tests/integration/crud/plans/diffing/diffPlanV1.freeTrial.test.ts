@@ -1,5 +1,5 @@
-import { AppEnv, type ApiPlanV1, FreeTrialDuration } from "@autumn/shared";
 import { describe, expect, test } from "bun:test";
+import { type ApiPlanV1, AppEnv, FreeTrialDuration } from "@autumn/shared";
 import { applyDiff } from "@autumn/shared/utils/planV1Utils/diff/applyDiff.js";
 import { diffPlanV1 } from "@autumn/shared/utils/planV1Utils/diff/diffPlanV1.js";
 

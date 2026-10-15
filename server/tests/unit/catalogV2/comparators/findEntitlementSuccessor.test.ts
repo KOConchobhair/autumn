@@ -64,7 +64,9 @@ describe("findEntitlementSuccessor", () => {
 			expect(
 				findEntitlementSuccessor({
 					sourceEntitlement: ent({ interval: EntInterval.Month }),
-					candidateEntitlements: [ent({ id: "cand", interval: EntInterval.Year })],
+					candidateEntitlements: [
+						ent({ id: "cand", interval: EntInterval.Year }),
+					],
 					matchPrecision: EntitlementMatchPrecision.Interval,
 				}),
 			).toBeUndefined();
@@ -128,7 +130,9 @@ describe("findEntitlementSuccessor", () => {
 			expect(
 				findEntitlementSuccessor({
 					sourceEntitlement: ent({ interval: null }),
-					candidateEntitlements: [ent({ id: "cand", interval: EntInterval.Month })],
+					candidateEntitlements: [
+						ent({ id: "cand", interval: EntInterval.Month }),
+					],
 					matchPrecision: EntitlementMatchPrecision.Interval,
 				}),
 			).toBeUndefined();

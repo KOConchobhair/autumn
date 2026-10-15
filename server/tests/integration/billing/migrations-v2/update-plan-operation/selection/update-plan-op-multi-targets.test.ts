@@ -69,264 +69,273 @@ const getCustomerProductPriceAmounts = async ({
 		.filter((amount): amount is number => typeof amount === "number")
 		.sort((a, b) => a - b);
 
-test.concurrent(`${chalk.yellowBright("migrations update_plan: plan filter patches multiple entity products")}`, async () => {
-	const customerId = "migration-update-multi-entity";
-	const pro = products.pro({ items: [] });
+test.concurrent(
+	`${chalk.yellowBright("migrations update_plan: plan filter patches multiple entity products")}`,
+	async () => {
+		const customerId = "migration-update-multi-entity";
+		const pro = products.pro({ items: [] });
 
-	const { autumnV1, autumnV2_2, ctx, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.billing.attach({ productId: pro.id, entityIndex: 0 }),
-			s.billing.attach({ productId: pro.id, entityIndex: 1 }),
-		],
-	});
-
-	await runUpdatePlanMigration({
-		ctx,
-		migrationClient: autumnV2_2,
-		migrationId: `${customerId}-mig`,
-		customerId,
-		filter: { customer: { plan: { plan_id: pro.id } } },
-		operations: {
-			customer: [
-				{
-					type: "update_plan",
-					plan_filter: { plan_id: pro.id },
-					customize: {
-						add_items: [
-							itemsV2.dashboard(),
-							itemsV2.monthlyWords({ included: 75 }),
-						],
-					},
-				},
+		const { autumnV1, autumnV2_2, ctx, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
 			],
-		},
-	});
-
-	const entity1 = await autumnV2_2.entities.get<ApiEntityV2>(
-		customerId,
-		entities[0].id,
-	);
-	const entity2 = await autumnV2_2.entities.get<ApiEntityV2>(
-		customerId,
-		entities[1].id,
-	);
-
-	for (const entity of [entity1, entity2]) {
-		expectFlagCorrect({
-			customer: entity,
-			featureId: TestFeature.Dashboard,
-			planId: pro.id,
+			actions: [
+				s.billing.attach({ productId: pro.id, entityIndex: 0 }),
+				s.billing.attach({ productId: pro.id, entityIndex: 1 }),
+			],
 		});
-		expectBalanceCorrect({
-			customer: entity,
-			featureId: TestFeature.Words,
-			remaining: 75,
-			usage: 0,
-			planId: pro.id,
+
+		await runUpdatePlanMigration({
+			ctx,
+			migrationClient: autumnV2_2,
+			migrationId: `${customerId}-mig`,
+			customerId,
+			filter: { customer: { plan: { plan_id: pro.id } } },
+			operations: {
+				customer: [
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: pro.id },
+						customize: {
+							add_items: [
+								itemsV2.dashboard(),
+								itemsV2.monthlyWords({ included: 75 }),
+							],
+						},
+					},
+				],
+			},
 		});
-	}
 
-	await expectCustomerInvoiceCorrect({
-		customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
-		count: 2,
-	});
-	await expectNoExpiredCustomerProducts({
-		ctx,
-		customerId,
-		productId: pro.id,
-		entityId: entities[0].id,
-	});
-	await expectNoExpiredCustomerProducts({
-		ctx,
-		customerId,
-		productId: pro.id,
-		entityId: entities[1].id,
-	});
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		const entity1 = await autumnV2_2.entities.get<ApiEntityV2>(
+			customerId,
+			entities[0].id,
+		);
+		const entity2 = await autumnV2_2.entities.get<ApiEntityV2>(
+			customerId,
+			entities[1].id,
+		);
 
-test.concurrent(`${chalk.yellowBright("migrations update_plan: two operations run in order")}`, async () => {
-	const customerId = "migration-update-two-ops";
-	const pro = products.pro({ items: [] });
-	const premium = products.premium({
-		items: [items.monthlyCredits({ includedUsage: 100 })],
-	});
+		for (const entity of [entity1, entity2]) {
+			expectFlagCorrect({
+				customer: entity,
+				featureId: TestFeature.Dashboard,
+				planId: pro.id,
+			});
+			expectBalanceCorrect({
+				customer: entity,
+				featureId: TestFeature.Words,
+				remaining: 75,
+				usage: 0,
+				planId: pro.id,
+			});
+		}
 
-	const { autumnV1, autumnV2_2, ctx, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.billing.attach({ productId: pro.id, entityIndex: 0 }),
-			s.billing.attach({ productId: premium.id, entityIndex: 1 }),
-		],
-	});
-
-	await runUpdatePlanMigration({
-		ctx,
-		migrationClient: autumnV2_2,
-		migrationId: `${customerId}-mig`,
-		customerId,
-		filter: {
-			customer: {
-				plan: { $or: [{ plan_id: pro.id }, { plan_id: premium.id }] },
-			},
-		},
-		operations: {
-			customer: [
-				{
-					type: "update_plan",
-					plan_filter: { plan_id: pro.id },
-					customize: { add_items: [itemsV2.dashboard()] },
-				},
-				{
-					type: "update_plan",
-					plan_filter: { plan_id: premium.id },
-					customize: {
-						remove_items: [{ feature_id: TestFeature.Credits }],
-						add_items: [
-							{
-								feature_id: TestFeature.Credits,
-								included: 250,
-								reset: { interval: ResetInterval.Month },
-							},
-						],
-					},
-				},
-			],
-		},
-	});
-
-	const proEntity = await autumnV2_2.entities.get<ApiEntityV2>(
-		customerId,
-		entities[0].id,
-	);
-	const premiumEntity = await autumnV2_2.entities.get<ApiEntityV2>(
-		customerId,
-		entities[1].id,
-	);
-
-	expectFlagCorrect({
-		customer: proEntity,
-		featureId: TestFeature.Dashboard,
-		planId: pro.id,
-	});
-	expectBalanceCorrect({
-		customer: premiumEntity,
-		featureId: TestFeature.Credits,
-		remaining: 250,
-		usage: 0,
-		planId: premium.id,
-	});
-	await expectCustomerInvoiceCorrect({
-		customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
-		count: 2,
-	});
-	await expectNoExpiredCustomerProducts({
-		ctx,
-		customerId,
-		productId: pro.id,
-		entityId: entities[0].id,
-	});
-	await expectNoExpiredCustomerProducts({
-		ctx,
-		customerId,
-		productId: premium.id,
-		entityId: entities[1].id,
-	});
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
-
-test.concurrent(`${chalk.yellowBright("migrations update_plan: multiple plan price updates run in one customer migration")}`, async () => {
-	const customerId = "migration-update-multi-price";
-	const pro = products.pro({ items: [] });
-	const premium = products.premium({ items: [] });
-
-	const { autumnV1, autumnV2_2, ctx, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.billing.attach({ productId: pro.id, entityIndex: 0 }),
-			s.billing.attach({ productId: premium.id, entityIndex: 1 }),
-		],
-	});
-
-	await runUpdatePlanMigration({
-		ctx,
-		migrationClient: autumnV2_2,
-		migrationId: `${customerId}-mig`,
-		customerId,
-		runOnServer: false,
-		filter: {
-			customer: {
-				plan: { $or: [{ plan_id: pro.id }, { plan_id: premium.id }] },
-			},
-		},
-		operations: {
-			customer: [
-				{
-					type: "update_plan",
-					plan_filter: { plan_id: pro.id },
-					customize: {
-						price: itemsV2.monthlyPrice({ amount: 50 }),
-					},
-				},
-				{
-					type: "update_plan",
-					plan_filter: { plan_id: premium.id },
-					customize: {
-						price: itemsV2.monthlyPrice({ amount: 100 }),
-					},
-				},
-			],
-		},
-	});
-
-	expect(
-		await getCustomerProductPriceAmounts({
+		await expectCustomerInvoiceCorrect({
+			customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
+			count: 2,
+		});
+		await expectNoExpiredCustomerProducts({
 			ctx,
 			customerId,
 			productId: pro.id,
 			entityId: entities[0].id,
-		}),
-	).toEqual([50]);
-	expect(
-		await getCustomerProductPriceAmounts({
+		});
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: pro.id,
+			entityId: entities[1].id,
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
+
+test.concurrent(
+	`${chalk.yellowBright("migrations update_plan: two operations run in order")}`,
+	async () => {
+		const customerId = "migration-update-two-ops";
+		const pro = products.pro({ items: [] });
+		const premium = products.premium({
+			items: [items.monthlyCredits({ includedUsage: 100 })],
+		});
+
+		const { autumnV1, autumnV2_2, ctx, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.billing.attach({ productId: pro.id, entityIndex: 0 }),
+				s.billing.attach({ productId: premium.id, entityIndex: 1 }),
+			],
+		});
+
+		await runUpdatePlanMigration({
+			ctx,
+			migrationClient: autumnV2_2,
+			migrationId: `${customerId}-mig`,
+			customerId,
+			filter: {
+				customer: {
+					plan: { $or: [{ plan_id: pro.id }, { plan_id: premium.id }] },
+				},
+			},
+			operations: {
+				customer: [
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: pro.id },
+						customize: { add_items: [itemsV2.dashboard()] },
+					},
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: premium.id },
+						customize: {
+							remove_items: [{ feature_id: TestFeature.Credits }],
+							add_items: [
+								{
+									feature_id: TestFeature.Credits,
+									included: 250,
+									reset: { interval: ResetInterval.Month },
+								},
+							],
+						},
+					},
+				],
+			},
+		});
+
+		const proEntity = await autumnV2_2.entities.get<ApiEntityV2>(
+			customerId,
+			entities[0].id,
+		);
+		const premiumEntity = await autumnV2_2.entities.get<ApiEntityV2>(
+			customerId,
+			entities[1].id,
+		);
+
+		expectFlagCorrect({
+			customer: proEntity,
+			featureId: TestFeature.Dashboard,
+			planId: pro.id,
+		});
+		expectBalanceCorrect({
+			customer: premiumEntity,
+			featureId: TestFeature.Credits,
+			remaining: 250,
+			usage: 0,
+			planId: premium.id,
+		});
+		await expectCustomerInvoiceCorrect({
+			customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
+			count: 2,
+		});
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: pro.id,
+			entityId: entities[0].id,
+		});
+		await expectNoExpiredCustomerProducts({
 			ctx,
 			customerId,
 			productId: premium.id,
 			entityId: entities[1].id,
-		}),
-	).toEqual([100]);
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
 
-	await expectCustomerInvoiceCorrect({
-		customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
-		count: 2,
-	});
-	await expectNoExpiredCustomerProducts({
-		ctx,
-		customerId,
-		productId: pro.id,
-		entityId: entities[0].id,
-	});
-	await expectNoExpiredCustomerProducts({
-		ctx,
-		customerId,
-		productId: premium.id,
-		entityId: entities[1].id,
-	});
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+test.concurrent(
+	`${chalk.yellowBright("migrations update_plan: multiple plan price updates run in one customer migration")}`,
+	async () => {
+		const customerId = "migration-update-multi-price";
+		const pro = products.pro({ items: [] });
+		const premium = products.premium({ items: [] });
+
+		const { autumnV1, autumnV2_2, ctx, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.billing.attach({ productId: pro.id, entityIndex: 0 }),
+				s.billing.attach({ productId: premium.id, entityIndex: 1 }),
+			],
+		});
+
+		await runUpdatePlanMigration({
+			ctx,
+			migrationClient: autumnV2_2,
+			migrationId: `${customerId}-mig`,
+			customerId,
+			runOnServer: false,
+			filter: {
+				customer: {
+					plan: { $or: [{ plan_id: pro.id }, { plan_id: premium.id }] },
+				},
+			},
+			operations: {
+				customer: [
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: pro.id },
+						customize: {
+							price: itemsV2.monthlyPrice({ amount: 50 }),
+						},
+					},
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: premium.id },
+						customize: {
+							price: itemsV2.monthlyPrice({ amount: 100 }),
+						},
+					},
+				],
+			},
+		});
+
+		expect(
+			await getCustomerProductPriceAmounts({
+				ctx,
+				customerId,
+				productId: pro.id,
+				entityId: entities[0].id,
+			}),
+		).toEqual([50]);
+		expect(
+			await getCustomerProductPriceAmounts({
+				ctx,
+				customerId,
+				productId: premium.id,
+				entityId: entities[1].id,
+			}),
+		).toEqual([100]);
+
+		await expectCustomerInvoiceCorrect({
+			customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
+			count: 2,
+		});
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: pro.id,
+			entityId: entities[0].id,
+		});
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: premium.id,
+			entityId: entities[1].id,
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);

@@ -51,7 +51,8 @@ test(`${chalk.yellowBright("migrations update_plan scheduled patch: customize up
 		],
 	});
 
-	const beforeCustomer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+	const beforeCustomer =
+		await autumnV1.customers.get<ApiCustomerV3>(customerId);
 	const invoiceCountBefore = beforeCustomer.invoices?.length ?? 0;
 	const scheduledBefore = await getScheduledCustomerProductRow({
 		ctx,

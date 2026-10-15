@@ -13,95 +13,98 @@ import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
 
 // Entity 1 Pro cancels, Entity 2 updates Pro's items
-test.concurrent(`${chalk.yellowBright("schedules-p2p: cancel entity 1, update entity 2 items")}`, async () => {
-	const customerId = "sched-p2p-cancel-update";
+test.concurrent(
+	`${chalk.yellowBright("schedules-p2p: cancel entity 1, update entity 2 items")}`,
+	async () => {
+		const customerId = "sched-p2p-cancel-update";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
 
-	const pro = products.pro({
-		id: "pro",
-		items: [messagesItem],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [messagesItem],
+		});
 
-	const { autumnV1, ctx, entities, testClockId } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.attach({ productId: pro.id, entityIndex: 0 }),
-			s.attach({ productId: pro.id, entityIndex: 1 }),
-			s.cancel({ productId: pro.id, entityIndex: 0 }), // Cancel entity 1's pro
-		],
-	});
+		const { autumnV1, ctx, entities, testClockId } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.attach({ productId: pro.id, entityIndex: 0 }),
+				s.attach({ productId: pro.id, entityIndex: 1 }),
+				s.cancel({ productId: pro.id, entityIndex: 0 }), // Cancel entity 1's pro
+			],
+		});
 
-	// Verify entity 1 is scheduled for cancellation
-	const entity1AfterCancel = await autumnV1.entities.get(
-		customerId,
-		entities[0].id,
-	);
-	await expectProductCanceling({
-		customer: entity1AfterCancel,
-		productId: pro.id,
-	});
+		// Verify entity 1 is scheduled for cancellation
+		const entity1AfterCancel = await autumnV1.entities.get(
+			customerId,
+			entities[0].id,
+		);
+		await expectProductCanceling({
+			customer: entity1AfterCancel,
+			productId: pro.id,
+		});
 
-	// Entity 2 updates pro's items (change price)
-	const newPriceItem = items.monthlyPrice({ price: 30 }); // $30/mo instead of $20
+		// Entity 2 updates pro's items (change price)
+		const newPriceItem = items.monthlyPrice({ price: 30 }); // $30/mo instead of $20
 
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		entity_id: entities[1].id,
-		product_id: pro.id,
-		items: [messagesItem, newPriceItem],
-	});
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			entity_id: entities[1].id,
+			product_id: pro.id,
+			items: [messagesItem, newPriceItem],
+		});
 
-	// Verify entity 2 has updated items
-	const entity2Data = await autumnV1.entities.get(customerId, entities[1].id);
-	await expectProductActive({
-		customer: entity2Data,
-		productId: pro.id,
-	});
+		// Verify entity 2 has updated items
+		const entity2Data = await autumnV1.entities.get(customerId, entities[1].id);
+		await expectProductActive({
+			customer: entity2Data,
+			productId: pro.id,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		subCount: 1,
-	});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			subCount: 1,
+		});
 
-	// Advance to next billing cycle
-	await advanceToNextInvoice({
-		stripeCli: ctx.stripeCli,
-		testClockId: testClockId!,
-	});
+		// Advance to next billing cycle
+		await advanceToNextInvoice({
+			stripeCli: ctx.stripeCli,
+			testClockId: testClockId!,
+		});
 
-	// Entity 1 should be fully canceled, entity 2 should still have pro
-	const entity1AfterCycle = await autumnV1.entities.get(
-		customerId,
-		entities[0].id,
-	);
-	const entity2AfterCycle = await autumnV1.entities.get(
-		customerId,
-		entities[1].id,
-	);
+		// Entity 1 should be fully canceled, entity 2 should still have pro
+		const entity1AfterCycle = await autumnV1.entities.get(
+			customerId,
+			entities[0].id,
+		);
+		const entity2AfterCycle = await autumnV1.entities.get(
+			customerId,
+			entities[1].id,
+		);
 
-	await expectProductNotPresent({
-		customer: entity1AfterCycle,
-		productId: pro.id,
-	});
-	await expectProductActive({
-		customer: entity2AfterCycle,
-		productId: pro.id,
-	});
+		await expectProductNotPresent({
+			customer: entity1AfterCycle,
+			productId: pro.id,
+		});
+		await expectProductActive({
+			customer: entity2AfterCycle,
+			productId: pro.id,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		subCount: 1,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			subCount: 1,
+		});
+	},
+);

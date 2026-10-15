@@ -31,55 +31,58 @@ import { addMonths } from "date-fns";
  * - next_cycle.total = $50
  * - next_cycle.starts_at = renewal date
  */
-test.concurrent(`${chalk.yellowBright("plan-schedule-preview 9: preview scheduled upgrade")}`, async () => {
-	const customerId = "plan-sched-preview-upgrade";
+test.concurrent(
+	`${chalk.yellowBright("plan-schedule-preview 9: preview scheduled upgrade")}`,
+	async () => {
+		const customerId = "plan-sched-preview-upgrade";
 
-	const proMessagesItem = items.monthlyMessages({ includedUsage: 500 });
-	const pro = products.pro({
-		id: "pro",
-		items: [proMessagesItem],
-	});
+		const proMessagesItem = items.monthlyMessages({ includedUsage: 500 });
+		const pro = products.pro({
+			id: "pro",
+			items: [proMessagesItem],
+		});
 
-	const premiumMessagesItem = items.monthlyMessages({ includedUsage: 1000 });
-	const premium = products.premium({
-		id: "premium",
-		items: [premiumMessagesItem],
-	});
+		const premiumMessagesItem = items.monthlyMessages({ includedUsage: 1000 });
+		const premium = products.premium({
+			id: "premium",
+			items: [premiumMessagesItem],
+		});
 
-	const { autumnV1, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
+		const { autumnV1, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	// Verify initial subscription
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
+		// Verify initial subscription
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
 
-	// Preview scheduled upgrade
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: premium.id,
-		plan_schedule: "end_of_cycle",
-	});
+		// Preview scheduled upgrade
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: premium.id,
+			plan_schedule: "end_of_cycle",
+		});
 
-	// No immediate charge
-	expect(preview.total).toBe(0);
+		// No immediate charge
+		expect(preview.total).toBe(0);
 
-	// Next cycle should show premium price at renewal
-	expectPreviewNextCycleCorrect({
-		preview,
-		total: 50,
-		startsAt: addMonths(advancedTo, 1).getTime(),
-	});
-});
+		// Next cycle should show premium price at renewal
+		expectPreviewNextCycleCorrect({
+			preview,
+			total: 50,
+			startsAt: addMonths(advancedTo, 1).getTime(),
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 10: Preview immediate downgrade
@@ -94,52 +97,55 @@ test.concurrent(`${chalk.yellowBright("plan-schedule-preview 9: preview schedule
  * - total is negative or low (credit for unused premium minus pro charge)
  * - No next_cycle scheduling (immediate change)
  */
-test.concurrent(`${chalk.yellowBright("plan-schedule-preview 10: preview immediate downgrade")}`, async () => {
-	const customerId = "plan-sched-preview-downgrade";
+test.concurrent(
+	`${chalk.yellowBright("plan-schedule-preview 10: preview immediate downgrade")}`,
+	async () => {
+		const customerId = "plan-sched-preview-downgrade";
 
-	const proMessagesItem = items.monthlyMessages({ includedUsage: 500 });
-	const pro = products.pro({
-		id: "pro",
-		items: [proMessagesItem],
-	});
+		const proMessagesItem = items.monthlyMessages({ includedUsage: 500 });
+		const pro = products.pro({
+			id: "pro",
+			items: [proMessagesItem],
+		});
 
-	const premiumMessagesItem = items.monthlyMessages({ includedUsage: 1000 });
-	const premium = products.premium({
-		id: "premium",
-		items: [premiumMessagesItem],
-	});
+		const premiumMessagesItem = items.monthlyMessages({ includedUsage: 1000 });
+		const premium = products.premium({
+			id: "premium",
+			items: [premiumMessagesItem],
+		});
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [s.billing.attach({ productId: premium.id })],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [s.billing.attach({ productId: premium.id })],
+		});
 
-	// Verify initial subscription
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
+		// Verify initial subscription
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
 
-	// Preview immediate downgrade
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: pro.id,
-		plan_schedule: "immediate",
-	});
+		// Preview immediate downgrade
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: pro.id,
+			plan_schedule: "immediate",
+		});
 
-	// Immediate downgrade: pro charge ($20) minus credit for unused premium (~$50)
-	// Should result in negative or small total
-	expect(preview.total).toBeLessThan(20);
+		// Immediate downgrade: pro charge ($20) minus credit for unused premium (~$50)
+		// Should result in negative or small total
+		expect(preview.total).toBeLessThan(20);
 
-	// For immediate changes, next_cycle should reflect the new product price
-	// (not a scheduled change, but the next regular renewal)
-	if (preview.next_cycle) {
-		expect(preview.next_cycle.total).toBe(20); // Pro price at next renewal
-	}
-});
+		// For immediate changes, next_cycle should reflect the new product price
+		// (not a scheduled change, but the next regular renewal)
+		if (preview.next_cycle) {
+			expect(preview.next_cycle.total).toBe(20); // Pro price at next renewal
+		}
+	},
+);

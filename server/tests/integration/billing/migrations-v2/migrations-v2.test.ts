@@ -66,7 +66,9 @@ test.concurrent(
 
 		expect(deleted.id).toBe(migrationId);
 		expect(deleted.archived).toBe(false);
-		expect(list.list.some((migration) => migration.id === migrationId)).toBe(false);
+		expect(list.list.some((migration) => migration.id === migrationId)).toBe(
+			false,
+		);
 	},
 );
 
@@ -106,7 +108,9 @@ test.concurrent(
 			func: () => autumnV2_2.migrationsV2.delete({ id: migrationId }),
 		});
 		const list = await autumnV2_2.migrationsV2.list();
-		const preserved = list.list.find((candidate) => candidate.id === migrationId);
+		const preserved = list.list.find(
+			(candidate) => candidate.id === migrationId,
+		);
 
 		expect(preserved).toMatchObject({ id: migrationId, archived: false });
 		expect(

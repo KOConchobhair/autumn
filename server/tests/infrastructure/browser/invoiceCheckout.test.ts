@@ -128,7 +128,10 @@ test("an already paid invoice needs no payment frame or second submission", asyn
 test("a submitted payment the page never confirms is left to the caller's Stripe check, not failed", async () => {
 	const fixture = await createInvoicePage({ outcome: "silent" });
 	try {
-		await invoiceCheckout({ page: fixture.page, url: "https://invoice.fixture/" });
+		await invoiceCheckout({
+			page: fixture.page,
+			url: "https://invoice.fixture/",
+		});
 		expect(fixture.getSubmissions()).toBe(1);
 	} finally {
 		await fixture.context.close();

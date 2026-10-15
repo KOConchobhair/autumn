@@ -13,24 +13,28 @@
  */
 
 import { expect, test } from "bun:test";
-import { CusProductStatus, customerProducts, stripeRefToId } from "@autumn/shared";
-import chalk from "chalk";
-import { eq } from "drizzle-orm";
+import {
+	CusProductStatus,
+	customerProducts,
+	stripeRefToId,
+} from "@autumn/shared";
 import { items } from "@tests/utils/fixtures/items";
 import { products } from "@tests/utils/fixtures/products";
 import ctx from "@tests/utils/testInitUtils/createTestContext";
-import { initProductsV0 } from "@/utils/scriptUtils/testUtils/initProductsV0";
+import chalk from "chalk";
+import { eq } from "drizzle-orm";
 import { provisionVercelCusProduct } from "@/external/vercel/misc/vercelProvisioning";
 import { VercelResourceService } from "@/external/vercel/services/VercelResourceService";
-import {
-	expectVercelWebhookSuccess,
-	VercelWebhookClient,
-} from "./utils/vercel-webhook-client";
+import { initProductsV0 } from "@/utils/scriptUtils/testUtils/initProductsV0";
 import {
 	seedVercelCustomer,
 	seedVercelResource,
 	setupVercelOrg,
 } from "./utils/vercel-test-helpers";
+import {
+	expectVercelWebhookSuccess,
+	VercelWebhookClient,
+} from "./utils/vercel-webhook-client";
 
 const TEST_CASE = "vnotpaid";
 const HMAC_SECRET = "test_vercel_client_secret_notpaid";
@@ -93,8 +97,7 @@ const provisionForTest = async ({
 	});
 	if (!subscription) throw new Error("Expected Stripe subscription");
 
-	const latestInvoiceId =
-		stripeRefToId(subscription.latest_invoice);
+	const latestInvoiceId = stripeRefToId(subscription.latest_invoice);
 	if (!latestInvoiceId) throw new Error("Expected latest invoice id");
 
 	return {
@@ -132,17 +135,13 @@ test.concurrent(
 			prefix: `${TEST_CASE}-clean`,
 		});
 
-		const {
-			subscription,
-			cusProduct,
-			internalCustomerId,
-			externalInvoiceId,
-		} = await provisionForTest({
-			customerId,
-			installationId,
-			resourceId,
-			planId: proRaw.id,
-		});
+		const { subscription, cusProduct, internalCustomerId, externalInvoiceId } =
+			await provisionForTest({
+				customerId,
+				installationId,
+				resourceId,
+				planId: proRaw.id,
+			});
 
 		const result = await newClient().invoiceNotPaid(
 			buildPayload({ installationId, externalInvoiceId }),

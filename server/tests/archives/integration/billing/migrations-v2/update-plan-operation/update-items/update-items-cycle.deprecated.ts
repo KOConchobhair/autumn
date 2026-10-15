@@ -16,7 +16,7 @@
  */
 
 import { expect, test } from "bun:test";
-import { type ApiCustomerV5 } from "@autumn/shared";
+import type { ApiCustomerV5 } from "@autumn/shared";
 import { expectBalanceCorrect } from "@tests/integration/utils/expectBalanceCorrect";
 import { TestFeature } from "@tests/setup/v2Features";
 import { items } from "@tests/utils/fixtures/items";
@@ -48,7 +48,10 @@ test(`${chalk.yellowBright("migrations update_items: cycle anchor survives mid-c
 	const before = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
 	const anchorBefore = before.balances[TestFeature.Messages]
 		?.next_reset_at as number;
-	expect(anchorBefore, "monthly entitlement must have a next_reset_at").not.toBeNull();
+	expect(
+		anchorBefore,
+		"monthly entitlement must have a next_reset_at",
+	).not.toBeNull();
 
 	await runUpdatePlanMigration({
 		ctx,
@@ -100,81 +103,25 @@ test(`${chalk.yellowBright("migrations update_items: cycle anchor survives mid-c
 	});
 });
 
-test.concurrent(`${chalk.yellowBright("migrations update_items: tracking new usage on the updated entitlement deducts correctly")}`, async () => {
-	const customerId = "migration-update-items-track-after-update";
-	const base = products.base({
-		id: "migration-update-items-track-after-update-plan",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+test.concurrent(
+	`${chalk.yellowBright("migrations update_items: tracking new usage on the updated entitlement deducts correctly")}`,
+	async () => {
+		const customerId = "migration-update-items-track-after-update";
+		const base = products.base({
+			id: "migration-update-items-track-after-update-plan",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const { autumnV1, autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer(), s.products({ list: [base] })],
-		actions: [s.billing.attach({ productId: base.id })],
-	});
+		const { autumnV1, autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [s.customer(), s.products({ list: [base] })],
+			actions: [s.billing.attach({ productId: base.id })],
+		});
 
-	await runUpdatePlanMigration({
-		ctx,
-		migrationClient: autumnV2_2,
-		migrationId: `${customerId}-mig`,
-		customerId,
-		filter: { customer: { plan: { plan_id: base.id } } },
-		operations: {
-			customer: [
-				{
-					type: "update_plan",
-					plan_filter: { plan_id: base.id },
-					customize: {
-						update_items: [
-							{ filter: { feature_id: TestFeature.Messages }, included: 250 },
-						],
-					},
-				},
-			],
-		},
-	});
-
-	// Track 75 against the (now patched) entitlement.
-	await autumnV1.track(
-		{
-			customer_id: customerId,
-			feature_id: TestFeature.Messages,
-			value: 75,
-		},
-		{ timeout: 2000 },
-	);
-
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 175,
-		usage: 75,
-		planId: base.id,
-	});
-});
-
-test.concurrent(`${chalk.yellowBright("migrations update_items: running the same migration twice is idempotent")}`, async () => {
-	const customerId = "migration-update-items-idempotent";
-	const base = products.base({
-		id: "migration-update-items-idempotent-plan",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
-
-	const { autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer(), s.products({ list: [base] })],
-		actions: [
-			s.billing.attach({ productId: base.id }),
-			s.track({ featureId: TestFeature.Messages, value: 40, timeout: 2000 }),
-		],
-	});
-
-	const runMigration = (migrationSuffix: string) =>
-		runUpdatePlanMigration({
+		await runUpdatePlanMigration({
 			ctx,
 			migrationClient: autumnV2_2,
-			migrationId: `${customerId}-mig-${migrationSuffix}`,
+			migrationId: `${customerId}-mig`,
 			customerId,
 			filter: { customer: { plan: { plan_id: base.id } } },
 			operations: {
@@ -184,10 +131,7 @@ test.concurrent(`${chalk.yellowBright("migrations update_items: running the same
 						plan_filter: { plan_id: base.id },
 						customize: {
 							update_items: [
-								{
-									filter: { feature_id: TestFeature.Messages },
-									included: 250,
-								},
+								{ filter: { feature_id: TestFeature.Messages }, included: 250 },
 							],
 						},
 					},
@@ -195,25 +139,92 @@ test.concurrent(`${chalk.yellowBright("migrations update_items: running the same
 			},
 		});
 
-	await runMigration("first");
+		// Track 75 against the (now patched) entitlement.
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Messages,
+				value: 75,
+			},
+			{ timeout: 2000 },
+		);
 
-	const afterFirst = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer: afterFirst,
-		featureId: TestFeature.Messages,
-		remaining: 210,
-		usage: 40,
-		planId: base.id,
-	});
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 175,
+			usage: 75,
+			planId: base.id,
+		});
+	},
+);
 
-	await runMigration("second");
+test.concurrent(
+	`${chalk.yellowBright("migrations update_items: running the same migration twice is idempotent")}`,
+	async () => {
+		const customerId = "migration-update-items-idempotent";
+		const base = products.base({
+			id: "migration-update-items-idempotent-plan",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const afterSecond = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer: afterSecond,
-		featureId: TestFeature.Messages,
-		remaining: 210,
-		usage: 40,
-		planId: base.id,
-	});
-});
+		const { autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [s.customer(), s.products({ list: [base] })],
+			actions: [
+				s.billing.attach({ productId: base.id }),
+				s.track({ featureId: TestFeature.Messages, value: 40, timeout: 2000 }),
+			],
+		});
+
+		const runMigration = (migrationSuffix: string) =>
+			runUpdatePlanMigration({
+				ctx,
+				migrationClient: autumnV2_2,
+				migrationId: `${customerId}-mig-${migrationSuffix}`,
+				customerId,
+				filter: { customer: { plan: { plan_id: base.id } } },
+				operations: {
+					customer: [
+						{
+							type: "update_plan",
+							plan_filter: { plan_id: base.id },
+							customize: {
+								update_items: [
+									{
+										filter: { feature_id: TestFeature.Messages },
+										included: 250,
+									},
+								],
+							},
+						},
+					],
+				},
+			});
+
+		await runMigration("first");
+
+		const afterFirst =
+			await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer: afterFirst,
+			featureId: TestFeature.Messages,
+			remaining: 210,
+			usage: 40,
+			planId: base.id,
+		});
+
+		await runMigration("second");
+
+		const afterSecond =
+			await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer: afterSecond,
+			featureId: TestFeature.Messages,
+			remaining: 210,
+			usage: 40,
+			planId: base.id,
+		});
+	},
+);

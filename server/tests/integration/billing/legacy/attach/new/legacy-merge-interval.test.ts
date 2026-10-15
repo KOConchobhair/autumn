@@ -39,58 +39,61 @@ import { toMilliseconds } from "@/utils/timeUtils";
 // - Stripe subscription period_end matches next_cycle
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-merge-interval 1: entity attach mid-cycle interval alignment")}`, async () => {
-	const customerId = "legacy-merge-interval-1";
+test.concurrent(
+	`${chalk.yellowBright("legacy-merge-interval 1: entity attach mid-cycle interval alignment")}`,
+	async () => {
+		const customerId = "legacy-merge-interval-1";
 
-	const wordsItem = items.monthlyWords({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [wordsItem] });
+		const wordsItem = items.monthlyWords({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [wordsItem] });
 
-	const { autumnV1, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [pro] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.advanceTestClock({ weeks: 2 }),
-		],
-	});
+		const { autumnV1, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [pro] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.advanceTestClock({ weeks: 2 }),
+			],
+		});
 
-	// Get checkout preview for entity 2
-	const checkoutRes = await autumnV1.checkout({
-		customer_id: customerId,
-		product_id: pro.id,
-		entity_id: entities[1].id,
-	});
+		// Get checkout preview for entity 2
+		const checkoutRes = await autumnV1.checkout({
+			customer_id: customerId,
+			product_id: pro.id,
+			entity_id: entities[1].id,
+		});
 
-	expect(checkoutRes.next_cycle).toBeDefined();
-	expect(checkoutRes.next_cycle?.starts_at).toBeCloseTo(
-		addMonths(new Date(), 1).getTime(),
-		-Math.log10(toMilliseconds.days(1)),
-	);
+		expect(checkoutRes.next_cycle).toBeDefined();
+		expect(checkoutRes.next_cycle?.starts_at).toBeCloseTo(
+			addMonths(new Date(), 1).getTime(),
+			-Math.log10(toMilliseconds.days(1)),
+		);
 
-	// Attach Pro to entity 2
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		entity_id: entities[1].id,
-	});
+		// Attach Pro to entity 2
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			entity_id: entities[1].id,
+		});
 
-	// Verify Stripe subscription period_end matches
-	const sub = await getCusSub({
-		ctx,
-		customerId,
-		productId: pro.id,
-	});
+		// Verify Stripe subscription period_end matches
+		const sub = await getCusSub({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
 
-	const subItem = sub!.items.data[0];
-	expect(subItem.current_period_end * 1000).toBeCloseTo(
-		checkoutRes.next_cycle?.starts_at ?? 0,
-		-Math.log10(toMilliseconds.days(1)),
-	);
-});
+		const subItem = sub!.items.data[0];
+		expect(subItem.current_period_end * 1000).toBeCloseTo(
+			checkoutRes.next_cycle?.starts_at ?? 0,
+			-Math.log10(toMilliseconds.days(1)),
+		);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Entity attach annual after 1 cycle
@@ -108,62 +111,65 @@ test.concurrent(`${chalk.yellowBright("legacy-merge-interval 1: entity attach mi
 // - Stripe subscription period_end matches next_cycle
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-merge-interval 2: entity attach annual after 1 cycle")}`, async () => {
-	const customerId = "legacy-merge-interval-2";
+test.concurrent(
+	`${chalk.yellowBright("legacy-merge-interval 2: entity attach annual after 1 cycle")}`,
+	async () => {
+		const customerId = "legacy-merge-interval-2";
 
-	const wordsItem = items.monthlyWords({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [wordsItem] });
-	const proAnnual = products.proAnnual({
-		id: "pro-annual",
-		items: [wordsItem],
-	});
+		const wordsItem = items.monthlyWords({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [wordsItem] });
+		const proAnnual = products.proAnnual({
+			id: "pro-annual",
+			items: [wordsItem],
+		});
 
-	const { autumnV1, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [pro, proAnnual] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.advanceTestClock({ months: 1 }),
-		],
-	});
+		const { autumnV1, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [pro, proAnnual] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.advanceTestClock({ months: 1 }),
+			],
+		});
 
-	// Get checkout preview for entity 2 with Pro Annual
-	const checkoutRes = await autumnV1.checkout({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-		entity_id: entities[1].id,
-	});
+		// Get checkout preview for entity 2 with Pro Annual
+		const checkoutRes = await autumnV1.checkout({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+			entity_id: entities[1].id,
+		});
 
-	expect(checkoutRes.next_cycle).toBeDefined();
-	const expectedDate = addYears(Date.now(), 1).getTime();
-	const actualDate = checkoutRes.next_cycle?.starts_at ?? 0;
-	const daysDiff = Math.abs(differenceInDays(expectedDate, actualDate));
-	expect(daysDiff).toBeLessThanOrEqual(1);
+		expect(checkoutRes.next_cycle).toBeDefined();
+		const expectedDate = addYears(Date.now(), 1).getTime();
+		const actualDate = checkoutRes.next_cycle?.starts_at ?? 0;
+		const daysDiff = Math.abs(differenceInDays(expectedDate, actualDate));
+		expect(daysDiff).toBeLessThanOrEqual(1);
 
-	// Attach Pro Annual to entity 2
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-		entity_id: entities[1].id,
-	});
+		// Attach Pro Annual to entity 2
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+			entity_id: entities[1].id,
+		});
 
-	// Verify Stripe subscription period_end matches
-	const sub = await getCusSub({
-		ctx,
-		customerId,
-		productId: proAnnual.id,
-	});
+		// Verify Stripe subscription period_end matches
+		const sub = await getCusSub({
+			ctx,
+			customerId,
+			productId: proAnnual.id,
+		});
 
-	const latestPeriodEnd = getLatestPeriodEnd({ sub });
-	expect(latestPeriodEnd * 1000).toBeCloseTo(
-		checkoutRes.next_cycle?.starts_at ?? 0,
-		-Math.log10(toMilliseconds.days(1)),
-	);
-});
+		const latestPeriodEnd = getLatestPeriodEnd({ sub });
+		expect(latestPeriodEnd * 1000).toBeCloseTo(
+			checkoutRes.next_cycle?.starts_at ?? 0,
+			-Math.log10(toMilliseconds.days(1)),
+		);
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: Entity attach annual with monthly usage price
@@ -182,66 +188,69 @@ test.concurrent(`${chalk.yellowBright("legacy-merge-interval 2: entity attach an
 // - At least one Stripe subscription item has matching period_end
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-merge-interval 3: entity attach annual with monthly usage")}`, async () => {
-	const customerId = "legacy-merge-interval-3";
+test.concurrent(
+	`${chalk.yellowBright("legacy-merge-interval 3: entity attach annual with monthly usage")}`,
+	async () => {
+		const customerId = "legacy-merge-interval-3";
 
-	const wordsItem = items.monthlyWords({ includedUsage: 100 });
-	const creditsItem = items.consumable({ featureId: TestFeature.Credits });
-	const pro = products.pro({ id: "pro", items: [wordsItem] });
-	const proAnnual = products.proAnnual({
-		id: "pro-annual",
-		items: [creditsItem, wordsItem],
-	});
+		const wordsItem = items.monthlyWords({ includedUsage: 100 });
+		const creditsItem = items.consumable({ featureId: TestFeature.Credits });
+		const pro = products.pro({ id: "pro", items: [wordsItem] });
+		const proAnnual = products.proAnnual({
+			id: "pro-annual",
+			items: [creditsItem, wordsItem],
+		});
 
-	const { autumnV1, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", testClock: true }),
-			s.products({ list: [pro, proAnnual] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.attach({ productId: pro.id }),
-			s.advanceTestClock({ weeks: 6 }),
-		],
-	});
+		const { autumnV1, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", testClock: true }),
+				s.products({ list: [pro, proAnnual] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.attach({ productId: pro.id }),
+				s.advanceTestClock({ weeks: 6 }),
+			],
+		});
 
-	// Get checkout preview for entity 2 with Pro Annual
-	const checkoutRes = await autumnV1.checkout({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-		entity_id: entities[1].id,
-	});
+		// Get checkout preview for entity 2 with Pro Annual
+		const checkoutRes = await autumnV1.checkout({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+			entity_id: entities[1].id,
+		});
 
-	expect(checkoutRes.next_cycle).toBeDefined();
-	expect(checkoutRes.next_cycle?.starts_at).toBeCloseTo(
-		addYears(new Date(), 1).getTime(),
-		-Math.log10(toMilliseconds.days(1)),
-	);
+		expect(checkoutRes.next_cycle).toBeDefined();
+		expect(checkoutRes.next_cycle?.starts_at).toBeCloseTo(
+			addYears(new Date(), 1).getTime(),
+			-Math.log10(toMilliseconds.days(1)),
+		);
 
-	// Attach Pro Annual to entity 2
-	await autumnV1.attach({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-		entity_id: entities[1].id,
-	});
+		// Attach Pro Annual to entity 2
+		await autumnV1.attach({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+			entity_id: entities[1].id,
+		});
 
-	// Verify at least one subscription item has matching period_end
-	const sub = await getCusSub({
-		ctx,
-		customerId,
-		productId: proAnnual.id,
-	});
+		// Verify at least one subscription item has matching period_end
+		const sub = await getCusSub({
+			ctx,
+			customerId,
+			productId: proAnnual.id,
+		});
 
-	const periodEndExists = sub!.items.data.some(
-		(item) =>
-			Math.abs(
-				differenceInDays(
-					item.current_period_end * 1000,
-					checkoutRes.next_cycle?.starts_at ?? 0,
-				),
-			) < 1,
-	);
+		const periodEndExists = sub!.items.data.some(
+			(item) =>
+				Math.abs(
+					differenceInDays(
+						item.current_period_end * 1000,
+						checkoutRes.next_cycle?.starts_at ?? 0,
+					),
+				) < 1,
+		);
 
-	expect(periodEndExists).toBe(true);
-});
+		expect(periodEndExists).toBe(true);
+	},
+);

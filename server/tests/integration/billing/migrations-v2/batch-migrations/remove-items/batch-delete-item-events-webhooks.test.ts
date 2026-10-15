@@ -68,19 +68,13 @@ test.concurrent(
 
 		const plan = products.base({
 			id: `batch-delete-live-plan-${suffix}`,
-			items: [
-				items.monthlyMessages({ includedUsage: 100 }),
-				items.dashboard(),
-			],
+			items: [items.monthlyMessages({ includedUsage: 100 }), items.dashboard()],
 		});
 		const { autumnV2_3, ctx: scenarioCtx } = await initScenario({
 			customerId: customerA,
 			setup: [
 				s.customer({ testClock: false, skipWebhooks: true }),
-				s.otherCustomers([
-					{ id: customerB },
-					{ id: skippedCustomerId },
-				]),
+				s.otherCustomers([{ id: customerB }, { id: skippedCustomerId }]),
 				s.products({ list: [plan] }),
 			],
 			actions: [
@@ -169,10 +163,7 @@ test.concurrent(
 						customerId: row.customerId,
 						scenario: "new",
 						entityId: null,
-						absentFeatureIds: [
-							TestFeature.Messages,
-							TestFeature.Dashboard,
-						],
+						absentFeatureIds: [TestFeature.Messages, TestFeature.Dashboard],
 					}),
 				]);
 				return { ...row, billingUpdated, productsUpdated };
@@ -212,9 +203,7 @@ test.concurrent(
 					{ action: "deleted", featureId: TestFeature.Dashboard },
 				],
 				absentFeatureIds: [TestFeature.Messages, TestFeature.Dashboard],
-				flagChanges: [
-					{ action: "deleted", featureId: TestFeature.Dashboard },
-				],
+				flagChanges: [{ action: "deleted", featureId: TestFeature.Dashboard }],
 			});
 		}
 	},

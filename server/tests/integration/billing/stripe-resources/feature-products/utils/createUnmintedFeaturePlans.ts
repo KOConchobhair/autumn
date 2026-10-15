@@ -2,8 +2,8 @@ import type { UsagePriceConfig } from "@autumn/shared";
 import { TestFeature } from "@tests/setup/v2Features.js";
 import type { AutumnContext } from "@/honoUtils/HonoEnv.js";
 import { FeatureService } from "@/internal/features/FeatureService.js";
-import { PriceService } from "@/internal/products/prices/PriceService.js";
 import { ProductService } from "@/internal/products/ProductService.js";
+import { PriceService } from "@/internal/products/prices/PriceService.js";
 
 export const uniqueSuffix = () =>
 	`${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

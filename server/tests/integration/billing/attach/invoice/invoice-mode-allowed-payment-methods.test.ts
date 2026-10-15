@@ -334,8 +334,8 @@ test.concurrent(
 			customer: customer!.processor!.id!,
 			limit: 1,
 		});
-		expect(subscriptions.data[0]?.payment_settings?.payment_method_types).toEqual(
-			["card"],
-		);
+		expect(
+			subscriptions.data[0]?.payment_settings?.payment_method_types,
+		).toEqual(["card"]);
 	},
 );

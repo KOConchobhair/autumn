@@ -45,7 +45,9 @@ export const expectFeaturePreviewCorrect = ({
 	blockerCodes?: string[];
 }) => {
 	const result = preview.feature_changes.find((feature: any) => {
-		return feature.feature_id === featureId || feature.feature?.id === featureId;
+		return (
+			feature.feature_id === featureId || feature.feature?.id === featureId
+		);
 	});
 	expect(result, `No feature preview for ${featureId}`).toBeDefined();
 	const featureChanges = result as any;
@@ -76,14 +78,15 @@ export const expectFeaturePreviewCorrect = ({
 	}
 
 	if (typeof blockedReason !== "undefined") {
-		expect(featureChanges.blocked_reason, `blocked_reason for ${featureId}`).toBe(
-			blockedReason,
-		);
+		expect(
+			featureChanges.blocked_reason,
+			`blocked_reason for ${featureId}`,
+		).toBe(blockedReason);
 	}
 
 	if (typeof featureExpanded !== "undefined") {
 		expect(
-			Object.prototype.hasOwnProperty.call(featureChanges, "feature"),
+			Object.hasOwn(featureChanges, "feature"),
 			`feature expanded for ${featureId}`,
 		).toBe(featureExpanded);
 	}
@@ -93,9 +96,10 @@ export const expectFeaturePreviewCorrect = ({
 			false,
 		);
 		expect(featureChanges.blocked, `blocked for ${featureId}`).toBe(false);
-		expect(featureChanges.blocked_reason, `blocked_reason for ${featureId}`).toBe(
-			null,
-		);
+		expect(
+			featureChanges.blocked_reason,
+			`blocked_reason for ${featureId}`,
+		).toBe(null);
 	}
 
 	if (blockerCodes) {

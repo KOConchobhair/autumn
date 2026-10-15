@@ -2,9 +2,6 @@
  * Adding add-ons should link them without mutating existing variant usage. */
 
 import { test } from "bun:test";
-import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
-import { TestFeature } from "@tests/setup/v2Features";
-import chalk from "chalk";
 import {
 	createCustomBasePriceForProduct,
 	createExternalStripeSubscription,
@@ -15,6 +12,9 @@ import {
 	updateBaseSubscriptionItemToVariant,
 	waitForCustomerProducts,
 } from "@tests/integration/billing/stripe-webhooks/utils/sharedStripeProductAutoSyncUtils";
+import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
+import { TestFeature } from "@tests/setup/v2Features";
+import chalk from "chalk";
 
 test(`${chalk.yellowBright("customer.subscription.updated auto-sync: base shape switch selects another variant")}`, async () => {
 	const customerId = "sub-updated-shared-variant-switch";

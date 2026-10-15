@@ -17,11 +17,11 @@ import {
 	CusProductStatus,
 	FreeTrialDuration,
 } from "@autumn/shared";
-import { CusService } from "@/internal/customers/CusService";
 import { items } from "@tests/utils/fixtures/items";
 import { products } from "@tests/utils/fixtures/products";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
+import { CusService } from "@/internal/customers/CusService";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 1: No existing plan → error
@@ -87,10 +87,7 @@ test.concurrent(
 
 		const { autumnV2 } = await initScenario({
 			customerId,
-			setup: [
-				s.customer({}),
-				s.products({ list: [free, enterprise] }),
-			],
+			setup: [s.customer({}), s.products({ list: [free, enterprise] })],
 			actions: [s.billing.attach({ productId: free.id })],
 		});
 

@@ -1,13 +1,13 @@
 import { expect } from "bun:test";
 import type { Migration } from "@autumn/shared";
+import type { AutumnContext } from "@/honoUtils/HonoEnv.js";
 import {
+	type EnsurePricesAndEntitlementsResult,
 	EnsurePricesAndEntitlementsResultSchema,
 	type PreparedArtifactRef,
-	type EnsurePricesAndEntitlementsResult,
 } from "@/internal/migrations/v2/prepare/modules/ensurePricesAndEntitlements/index.js";
 import { prepare } from "@/internal/migrations/v2/prepare/prepare.js";
 import type { PreparedState } from "@/internal/migrations/v2/prepare/types/index.js";
-import type { AutumnContext } from "@/honoUtils/HonoEnv.js";
 
 const prepareKey = "ensure_prices_and_entitlements:update_plan";
 

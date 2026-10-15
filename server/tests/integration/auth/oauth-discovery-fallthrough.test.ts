@@ -50,7 +50,9 @@ test.concurrent(
 		expect(status).toBe(200);
 		expect(typeof body?.resource).toBe("string");
 		expect(Array.isArray(body?.authorization_servers)).toBe(true);
-		expect((body?.authorization_servers as string[])[0]).toMatch(/\/api\/auth$/);
+		expect((body?.authorization_servers as string[])[0]).toMatch(
+			/\/api\/auth$/,
+		);
 		expect(Array.isArray(body?.scopes_supported)).toBe(true);
 	},
 );

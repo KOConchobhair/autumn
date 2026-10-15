@@ -10,7 +10,8 @@ import {
 } from "@/internal/misc/rateLimiter/rateLimitConfigs.js";
 
 const testCase = "rate-limit-entities-get";
-const ENTITIES_GET_LIMIT = RATE_LIMIT_CONFIGS[RateLimitType.CustomerEntitiesGet].limit;
+const ENTITIES_GET_LIMIT =
+	RATE_LIMIT_CONFIGS[RateLimitType.CustomerEntitiesGet].limit;
 
 const countRateLimited = (results: PromiseSettledResult<unknown>[]): number =>
 	results.filter(

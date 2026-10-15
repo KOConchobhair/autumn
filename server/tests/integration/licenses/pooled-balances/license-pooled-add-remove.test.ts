@@ -18,10 +18,10 @@ import { advanceToNextInvoice } from "@tests/utils/testAttachUtils/testAttachUti
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
 import {
-	LICENSE_POOLED_ADDED_GRANT,
-	LICENSE_POOLED_LOW_GRANT,
 	expectLicensePooledBalanceExpired,
 	expectLicensePooledGrant,
+	LICENSE_POOLED_ADDED_GRANT,
+	LICENSE_POOLED_LOW_GRANT,
 	pooledMonthlyMessages,
 	pooledMonthlyWords,
 	pooledSeatPlan,
@@ -66,8 +66,9 @@ const addRemovePlans = ({ prefix }: { prefix: string }) => {
 test.concurrent(
 	`${chalk.yellowBright("license pooled: immediate parent upgrade mints a pool for the added item")}`,
 	async () => {
-		const { pro, premium, seatMessages, seatMessagesAndWords } =
-			addRemovePlans({ prefix: "lic-pool-add" });
+		const { pro, premium, seatMessages, seatMessagesAndWords } = addRemovePlans(
+			{ prefix: "lic-pool-add" },
+		);
 		const customerId = "lic-pool-add-item";
 		const { autumnV2_3, ctx } = await initScenario({
 			customerId,
@@ -117,10 +118,9 @@ test.concurrent(
 			redirect_mode: "if_required",
 		});
 
-		const customer = await autumnV2_3.customers.get<ApiCustomerV5>(
-			customerId,
-			{ skip_cache: "true" },
-		);
+		const customer = await autumnV2_3.customers.get<ApiCustomerV5>(customerId, {
+			skip_cache: "true",
+		});
 		await expectCustomerProducts({ customer, active: [premium.id] });
 		await expectLicensePooledGrant({
 			autumn: autumnV2_3,
@@ -145,8 +145,9 @@ test.concurrent(
 test.concurrent(
 	`${chalk.yellowBright("license pooled: spare seats take the added pooled item")}`,
 	async () => {
-		const { pro, premium, seatMessages, seatMessagesAndWords } =
-			addRemovePlans({ prefix: "lic-pool-add-spare" });
+		const { pro, premium, seatMessages, seatMessagesAndWords } = addRemovePlans(
+			{ prefix: "lic-pool-add-spare" },
+		);
 		const customerId = "lic-pool-add-spare";
 		const { entities, autumnV2_3, ctx } = await initScenario({
 			customerId,
@@ -208,8 +209,9 @@ test.concurrent(
 test.concurrent(
 	`${chalk.yellowBright("license pooled: scheduled parent downgrade expires the removed item's pool at activation")}`,
 	async () => {
-		const { pro, premium, seatMessages, seatMessagesAndWords } =
-			addRemovePlans({ prefix: "lic-pool-rm-sched" });
+		const { pro, premium, seatMessages, seatMessagesAndWords } = addRemovePlans(
+			{ prefix: "lic-pool-rm-sched" },
+		);
 		const customerId = "lic-pool-remove-scheduled";
 		const { autumnV2_3, ctx, testClockId, advancedTo } = await initScenario({
 			customerId,

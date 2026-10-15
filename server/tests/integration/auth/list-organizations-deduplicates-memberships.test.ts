@@ -34,9 +34,9 @@ test("organization list deduplicates multiple memberships for the same organizat
 		);
 
 		expect(response.status).toBe(200);
-		expect(response.data.filter((org) => org.id === defaultCtx.org.id)).toHaveLength(
-			1,
-		);
+		expect(
+			response.data.filter((org) => org.id === defaultCtx.org.id),
+		).toHaveLength(1);
 	} finally {
 		await session.cleanup();
 	}

@@ -11,12 +11,12 @@
  * "Failed to register Stripe Tax" warnings (factory swallows them).
  */
 
-import { stripeRefToId } from "@autumn/shared";
 import { expect, test } from "bun:test";
-import chalk from "chalk";
-import type Stripe from "stripe";
+import { stripeRefToId } from "@autumn/shared";
 import { products } from "@tests/utils/fixtures/products.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
+import chalk from "chalk";
+import type Stripe from "stripe";
 import { initCustomerV3 } from "@/utils/scriptUtils/testUtils/initCustomerV3.js";
 
 type Jurisdiction = {
@@ -111,70 +111,65 @@ const jurisdictions: Jurisdiction[] = [
 	},
 ];
 
-test(
-	`${chalk.yellowBright("automatic-tax-spray: ONE sub-org with 8 tax registrations, customer per jurisdiction, every sub has automatic_tax.enabled=true")}`,
-	async () => {
-		const proProd = products.pro({ id: "pro", items: [] });
+test(`${chalk.yellowBright("automatic-tax-spray: ONE sub-org with 8 tax registrations, customer per jurisdiction, every sub has automatic_tax.enabled=true")}`, async () => {
+	const proProd = products.pro({ id: "pro", items: [] });
 
-		// ONE sub-org with all 8 tax registrations. No primary customer —
-		// we provision per-jurisdiction customers in the test body so they
-		// share the same Connect account.
-		const { ctx, autumnV1 } = await initScenario({
-			setup: [
-				s.platform.create({
-					configOverrides: { automatic_tax: true },
-					taxRegistrations: jurisdictions.map((j) => j.country),
-				}),
-				s.products({ list: [proProd], prefix: "spray" }),
-			],
-			actions: [],
-		});
-
-		// Per-jurisdiction customer + attach + fetch sub, in parallel.
-		const results = await Promise.all(
-			jurisdictions.map(async (j) => {
-				const customerId = `tax-spray-${j.country.toLowerCase()}`;
-
-				const { customer } = await initCustomerV3({
-					ctx,
-					customerId,
-					attachPm: "success",
-					withTestClock: false,
-					withDefault: false,
-					stripeCustomerOverrides: { address: j.address },
-				});
-
-				await autumnV1.attach({
-					customer_id: customerId,
-					product_id: "pro_spray",
-				});
-
-				const stripeCusId = customer!.processor!.id!;
-				const subs = await ctx.stripeCli.subscriptions.list({
-					customer: stripeCusId,
-					limit: 1,
-				});
-
-				return { jurisdiction: j, sub: subs.data[0] };
+	// ONE sub-org with all 8 tax registrations. No primary customer —
+	// we provision per-jurisdiction customers in the test body so they
+	// share the same Connect account.
+	const { ctx, autumnV1 } = await initScenario({
+		setup: [
+			s.platform.create({
+				configOverrides: { automatic_tax: true },
+				taxRegistrations: jurisdictions.map((j) => j.country),
 			}),
-		);
+			s.products({ list: [proProd], prefix: "spray" }),
+		],
+		actions: [],
+	});
 
-		// Every jurisdiction's sub has auto_tax enabled. Log computed tax
-		// for visibility (SaaS is sometimes $0).
-		for (const { jurisdiction, sub } of results) {
-			expect(sub).toBeDefined();
-			expect(sub.automatic_tax.enabled).toBe(true);
+	// Per-jurisdiction customer + attach + fetch sub, in parallel.
+	const results = await Promise.all(
+		jurisdictions.map(async (j) => {
+			const customerId = `tax-spray-${j.country.toLowerCase()}`;
 
-			const latestInvoiceId =
-				stripeRefToId(sub.latest_invoice);
-			if (latestInvoiceId) {
-				const invoice = await ctx.stripeCli.invoices.retrieve(latestInvoiceId);
-				const taxAmount = invoice.total - invoice.subtotal;
-				console.log(
-					`[spray ${jurisdiction.country} ${jurisdiction.label}] subtotal=${invoice.subtotal} total=${invoice.total} tax=${taxAmount}`,
-				);
-			}
+			const { customer } = await initCustomerV3({
+				ctx,
+				customerId,
+				attachPm: "success",
+				withTestClock: false,
+				withDefault: false,
+				stripeCustomerOverrides: { address: j.address },
+			});
+
+			await autumnV1.attach({
+				customer_id: customerId,
+				product_id: "pro_spray",
+			});
+
+			const stripeCusId = customer!.processor!.id!;
+			const subs = await ctx.stripeCli.subscriptions.list({
+				customer: stripeCusId,
+				limit: 1,
+			});
+
+			return { jurisdiction: j, sub: subs.data[0] };
+		}),
+	);
+
+	// Every jurisdiction's sub has auto_tax enabled. Log computed tax
+	// for visibility (SaaS is sometimes $0).
+	for (const { jurisdiction, sub } of results) {
+		expect(sub).toBeDefined();
+		expect(sub.automatic_tax.enabled).toBe(true);
+
+		const latestInvoiceId = stripeRefToId(sub.latest_invoice);
+		if (latestInvoiceId) {
+			const invoice = await ctx.stripeCli.invoices.retrieve(latestInvoiceId);
+			const taxAmount = invoice.total - invoice.subtotal;
+			console.log(
+				`[spray ${jurisdiction.country} ${jurisdiction.label}] subtotal=${invoice.subtotal} total=${invoice.total} tax=${taxAmount}`,
+			);
 		}
-	},
-	600_000,
-);
+	}
+}, 600_000);

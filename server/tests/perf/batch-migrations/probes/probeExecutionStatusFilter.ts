@@ -66,9 +66,7 @@ const main = async () => {
 		const [{ count }] = (await tx.execute(
 			buildProcessedPreviewCount(args),
 		)) as unknown as Array<{ count: bigint }>;
-		console.log(
-			`count(succeeded): ${count} in ${Date.now() - countStarted}ms`,
-		);
+		console.log(`count(succeeded): ${count} in ${Date.now() - countStarted}ms`);
 
 		// Proposed shape: drive from the mir index, join customers only for the page.
 		const proposedSelect = sql`
@@ -86,7 +84,9 @@ const main = async () => {
 			ORDER BY c.internal_id DESC
 		`;
 		const proposedStarted = Date.now();
-		const proposedRows = (await tx.execute(proposedSelect)) as unknown as Array<{
+		const proposedRows = (await tx.execute(
+			proposedSelect,
+		)) as unknown as Array<{
 			internal_id: string;
 		}>;
 		console.log(

@@ -60,60 +60,63 @@ afterAll(async () => {
 // UPDATE SUBSCRIPTION TESTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("webhook update-sub: increase included usage - scenario: upgrade")}`, async () => {
-	const customerId = "webhook-update-usage";
+test.concurrent(
+	`${chalk.yellowBright("webhook update-sub: increase included usage - scenario: upgrade")}`,
+	async () => {
+		const customerId = "webhook-update-usage";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const priceItem = items.monthlyPrice({ price: 20 });
-	const pro = products.base({
-		id: "pro",
-		items: [messagesItem, priceItem],
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const priceItem = items.monthlyPrice({ price: 20 });
+		const pro = products.base({
+			id: "pro",
+			items: [messagesItem, priceItem],
+		});
 
-	// Setup: customer with Pro ($20/month, 100 messages) attached
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success", skipWebhooks: true }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.attach({ productId: pro.id })],
-	});
+		// Setup: customer with Pro ($20/month, 100 messages) attached
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success", skipWebhooks: true }),
+				s.products({ list: [pro] }),
+			],
+			actions: [s.attach({ productId: pro.id })],
+		});
 
-	// Action: update subscription to increase included usage from 100 to 200 (same price)
-	const newMessagesItem = items.monthlyMessages({ includedUsage: 200 });
+		// Action: update subscription to increase included usage from 100 to 200 (same price)
+		const newMessagesItem = items.monthlyMessages({ includedUsage: 200 });
 
-	await autumnV1.subscriptions.update({
-		customer_id: customerId,
-		product_id: pro.id,
-		items: [newMessagesItem, priceItem],
-	});
+		await autumnV1.subscriptions.update({
+			customer_id: customerId,
+			product_id: pro.id,
+			items: [newMessagesItem, priceItem],
+		});
 
-	// Assert: webhook received with scenario "upgrade"
-	const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
-		token: playToken,
-		predicate: (payload) =>
-			payload.type === "customer.products.updated" &&
-			payload.data?.customer?.id === customerId &&
-			payload.data?.scenario === "upgrade" &&
-			payload.data?.updated_product?.id === pro.id,
-		timeoutMs: 15000,
-	});
+		// Assert: webhook received with scenario "upgrade"
+		const result = await waitForWebhook<CustomerProductsUpdatedPayload>({
+			token: playToken,
+			predicate: (payload) =>
+				payload.type === "customer.products.updated" &&
+				payload.data?.customer?.id === customerId &&
+				payload.data?.scenario === "upgrade" &&
+				payload.data?.updated_product?.id === pro.id,
+			timeoutMs: 15000,
+		});
 
-	expect(result).not.toBeNull();
-	expect(result?.payload.type).toBe("customer.products.updated");
+		expect(result).not.toBeNull();
+		expect(result?.payload.type).toBe("customer.products.updated");
 
-	const { data } = result!.payload;
-	expect(data.scenario).toBe("upgrade");
-	expect(data.updated_product.id).toBe(pro.id);
-	expect(data.customer.id).toBe(customerId);
+		const { data } = result!.payload;
+		expect(data.scenario).toBe("upgrade");
+		expect(data.updated_product.id).toBe(pro.id);
+		expect(data.customer.id).toBe(customerId);
 
-	// Verify customer state: Pro is active with new features
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({ customer, productId: pro.id });
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: 200,
-	});
-});
+		// Verify customer state: Pro is active with new features
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({ customer, productId: pro.id });
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: 200,
+		});
+	},
+);

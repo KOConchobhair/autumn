@@ -1,7 +1,6 @@
-import { type ApiPlanV1 } from "@autumn/shared";
-import { findById } from "./utils/findById.js";
-
+import type { ApiPlanV1 } from "@autumn/shared";
 import revisiondojoDump from "./revisiondojo-plans.json" with { type: "json" };
+import { findById } from "./utils/findById.js";
 
 const items = revisiondojoDump.items as ApiPlanV1[];
 

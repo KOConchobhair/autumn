@@ -1,6 +1,9 @@
 import { expect, test } from "bun:test";
 import { Hono } from "hono";
-import { forceJsonBodyField, replaceJsonBody } from "@/honoUtils/forceJsonBody.js";
+import {
+	forceJsonBodyField,
+	replaceJsonBody,
+} from "@/honoUtils/forceJsonBody.js";
 
 /**
  * Guards the one Hono-internal coupling in forceJsonBodyField. If a Hono upgrade

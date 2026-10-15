@@ -35,9 +35,7 @@ test.concurrent(
 					s.products({ list: [pro, premium] }),
 					s.entities({ count: 1, featureId: TestFeature.Users }),
 				],
-				actions: [
-					s.billing.attach({ productId: pro.id, entityIndex: 0 }),
-				],
+				actions: [s.billing.attach({ productId: pro.id, entityIndex: 0 })],
 			});
 
 		const renewalTime = await advanceTestClock({
@@ -156,18 +154,15 @@ test.concurrent(
 			items: [items.monthlyMessages({ includedUsage: 500 })],
 		});
 
-		const { autumnV1, entities, testClockId, advancedTo } =
-			await initScenario({
-				customerId,
-				setup: [
-					s.customer({ testClock: true, paymentMethod: "success" }),
-					s.products({ list: [pro] }),
-					s.entities({ count: 2, featureId: TestFeature.Users }),
-				],
-				actions: [
-					s.billing.attach({ productId: pro.id, entityIndex: 0 }),
-				],
-			});
+		const { autumnV1, entities, testClockId, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [s.billing.attach({ productId: pro.id, entityIndex: 0 })],
+		});
 
 		const renewalTime = await advanceTestClock({
 			stripeCli: ctx.stripeCli,

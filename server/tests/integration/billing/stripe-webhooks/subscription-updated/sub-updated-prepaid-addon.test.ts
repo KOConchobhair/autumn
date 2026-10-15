@@ -24,7 +24,6 @@
 
 import { expect, test } from "bun:test";
 import type { ApiCustomerV3 } from "@autumn/shared";
-import { getBaseStripePriceId } from "@tests/integration/billing/sync/utils/syncProductHelpers";
 import {
 	createExternalStripeSubscription,
 	expectActiveLinkedCustomerProducts,
@@ -32,6 +31,7 @@ import {
 	trackCustomerUsage,
 	waitForCustomerProducts,
 } from "@tests/integration/billing/stripe-webhooks/utils/sharedStripeProductAutoSyncUtils";
+import { getBaseStripePriceId } from "@tests/integration/billing/sync/utils/syncProductHelpers";
 import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
 import { TestFeature } from "@tests/setup/v2Features";
 import { items } from "@tests/utils/fixtures/items";

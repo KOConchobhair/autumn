@@ -16,506 +16,527 @@ import { addMonths } from "date-fns";
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // 1. Adding a monthly base price to free product
-test.concurrent(`${chalk.yellowBright("free-to-paid: add monthly base price")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 300 });
-	const free = products.base({ items: [messagesItem] });
+test.concurrent(
+	`${chalk.yellowBright("free-to-paid: add monthly base price")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 300 });
+		const free = products.base({ items: [messagesItem] });
 
-	const { customerId, autumnV1, ctx } = await initScenario({
-		customerId: "f2p-add-base",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [free] }),
-		],
-		actions: [s.attach({ productId: "base" })],
-	});
+		const { customerId, autumnV1, ctx } = await initScenario({
+			customerId: "f2p-add-base",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [free] }),
+			],
+			actions: [s.attach({ productId: "base" })],
+		});
 
-	await autumnV1.track(
-		{
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Messages,
+				value: 100,
+			},
+			{ timeout: 2000 },
+		);
+
+		const priceItem = items.monthlyPrice();
+
+		const updateParams = {
 			customer_id: customerId,
-			feature_id: TestFeature.Messages,
-			value: 100,
-		},
-		{ timeout: 2000 },
-	);
+			product_id: free.id,
+			items: [messagesItem, priceItem],
+		};
 
-	const priceItem = items.monthlyPrice();
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: free.id,
-		items: [messagesItem, priceItem],
-	};
+		// Should charge $20 for monthly base price
+		expect(preview.total).toEqual(20);
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		await autumnV1.subscriptions.update(updateParams);
 
-	// Should charge $20 for monthly base price
-	expect(preview.total).toEqual(20);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await autumnV1.subscriptions.update(updateParams);
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: messagesItem.included_usage,
+			balance: messagesItem.included_usage - 100,
+			usage: 100,
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 20,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: messagesItem.included_usage,
-		balance: messagesItem.included_usage - 100,
-		usage: 100,
-	});
-
-	expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 20,
-	});
-
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // 2. Adding monthly base price + consumable to free product
-test.concurrent(`${chalk.yellowBright("free-to-paid: add monthly base + consumable")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const monthlyBasePrice = 20;
-	const free = products.base({ items: [messagesItem] });
+test.concurrent(
+	`${chalk.yellowBright("free-to-paid: add monthly base + consumable")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const monthlyBasePrice = 20;
+		const free = products.base({ items: [messagesItem] });
 
-	const { customerId, autumnV1, ctx, advancedTo } = await initScenario({
-		customerId: "f2p-add-base-cons",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [free] }),
-		],
-		actions: [
-			s.attach({ productId: "base" }),
-			s.advanceTestClock({ weeks: 2 }),
-		],
-	});
+		const { customerId, autumnV1, ctx, advancedTo } = await initScenario({
+			customerId: "f2p-add-base-cons",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [free] }),
+			],
+			actions: [
+				s.attach({ productId: "base" }),
+				s.advanceTestClock({ weeks: 2 }),
+			],
+		});
 
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	const originalResetAt =
-		customerBefore.features[TestFeature.Messages].next_reset_at;
-	expect(originalResetAt).toBeDefined();
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const originalResetAt =
+			customerBefore.features[TestFeature.Messages].next_reset_at;
+		expect(originalResetAt).toBeDefined();
 
-	// Track some usage before update
-	const messagesUsage = 30;
-	await autumnV1.track(
-		{
+		// Track some usage before update
+		const messagesUsage = 30;
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Messages,
+				value: messagesUsage,
+			},
+			{ timeout: 2000 },
+		);
+
+		const priceItem = items.monthlyPrice({ price: monthlyBasePrice });
+		const consumableItem = items.consumableMessages({ includedUsage: 50 });
+
+		const updateParams = {
 			customer_id: customerId,
-			feature_id: TestFeature.Messages,
-			value: messagesUsage,
-		},
-		{ timeout: 2000 },
-	);
+			product_id: free.id,
+			items: [consumableItem, priceItem],
+		};
 
-	const priceItem = items.monthlyPrice({ price: monthlyBasePrice });
-	const consumableItem = items.consumableMessages({ includedUsage: 50 });
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		const expectedPreviewTotal = calculateProrationFromPeriod({
+			billingPeriod: {
+				start: advancedTo,
+				end: addMonths(advancedTo, 1).getTime(),
+			},
+			advancedTo,
+			amount: monthlyBasePrice,
+		});
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: free.id,
-		items: [consumableItem, priceItem],
-	};
+		// Free -> paid starts a fresh paid cycle, so the full monthly base price is charged.
+		expect(preview.total).toEqual(expectedPreviewTotal);
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
-	const expectedPreviewTotal = calculateProrationFromPeriod({
-		billingPeriod: {
-			start: advancedTo,
-			end: addMonths(advancedTo, 1).getTime(),
-		},
-		advancedTo,
-		amount: monthlyBasePrice,
-	});
+		await autumnV1.subscriptions.update(updateParams);
 
-	// Free -> paid starts a fresh paid cycle, so the full monthly base price is charged.
-	expect(preview.total).toEqual(expectedPreviewTotal);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await autumnV1.subscriptions.update(updateParams);
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: consumableItem.included_usage,
+			balance: consumableItem.included_usage - messagesUsage,
+			usage: messagesUsage,
+			resetsAt: addMonths(advancedTo, 1).getTime(),
+		});
+		expect(customer.features[TestFeature.Messages].next_reset_at).not.toEqual(
+			originalResetAt,
+		);
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: expectedPreviewTotal,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: consumableItem.included_usage,
-		balance: consumableItem.included_usage - messagesUsage,
-		usage: messagesUsage,
-		resetsAt: addMonths(advancedTo, 1).getTime(),
-	});
-	expect(customer.features[TestFeature.Messages].next_reset_at).not.toEqual(
-		originalResetAt,
-	);
-
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: expectedPreviewTotal,
-	});
-
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // 3. Adding annual base price + monthly consumable to free product
-test.concurrent(`${chalk.yellowBright("free-to-paid: add annual base + monthly consumable")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const free = products.base({ items: [messagesItem] });
+test.concurrent(
+	`${chalk.yellowBright("free-to-paid: add annual base + monthly consumable")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const free = products.base({ items: [messagesItem] });
 
-	const { customerId, autumnV1, ctx } = await initScenario({
-		customerId: "f2p-add-annual-cons",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [free] }),
-		],
-		actions: [s.attach({ productId: "base" })],
-	});
+		const { customerId, autumnV1, ctx } = await initScenario({
+			customerId: "f2p-add-annual-cons",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [free] }),
+			],
+			actions: [s.attach({ productId: "base" })],
+		});
 
-	const priceItem = items.annualPrice();
-	const consumableItem = items.consumableMessages({ includedUsage: 50 });
+		const priceItem = items.annualPrice();
+		const consumableItem = items.consumableMessages({ includedUsage: 50 });
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: free.id,
-		items: [consumableItem, priceItem],
-	};
+		const updateParams = {
+			customer_id: customerId,
+			product_id: free.id,
+			items: [consumableItem, priceItem],
+		};
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
 
-	// Should charge $200 for annual base price
-	expect(preview.total).toEqual(200);
+		// Should charge $200 for annual base price
+		expect(preview.total).toEqual(200);
 
-	await autumnV1.subscriptions.update(updateParams, { timeout: 2000 });
+		await autumnV1.subscriptions.update(updateParams, { timeout: 2000 });
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: consumableItem.included_usage,
-		balance: consumableItem.included_usage,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: consumableItem.included_usage,
+			balance: consumableItem.included_usage,
+			usage: 0,
+		});
 
-	expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 200,
-	});
+		expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 200,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // 4. Updating free feature item to consumable
-test.concurrent(`${chalk.yellowBright("free-to-paid: update free item to consumable")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const free = products.base({ items: [messagesItem] });
+test.concurrent(
+	`${chalk.yellowBright("free-to-paid: update free item to consumable")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const free = products.base({ items: [messagesItem] });
 
-	const { customerId, autumnV1, ctx } = await initScenario({
-		customerId: "f2p-update-to-cons",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [free] }),
-		],
-		actions: [s.attach({ productId: "base" })],
-	});
+		const { customerId, autumnV1, ctx } = await initScenario({
+			customerId: "f2p-update-to-cons",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [free] }),
+			],
+			actions: [s.attach({ productId: "base" })],
+		});
 
-	// Track some usage first
-	const messagesUsage = 50;
-	await autumnV1.track(
-		{
+		// Track some usage first
+		const messagesUsage = 50;
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Messages,
+				value: messagesUsage,
+			},
+			{ timeout: 2000 },
+		);
+
+		// Update to consumable (pay-per-use after included usage)
+		const consumableItem = items.consumableMessages({ includedUsage: 100 });
+
+		const updateParams = {
 			customer_id: customerId,
-			feature_id: TestFeature.Messages,
-			value: messagesUsage,
-		},
-		{ timeout: 2000 },
-	);
+			product_id: free.id,
+			items: [consumableItem],
+		};
 
-	// Update to consumable (pay-per-use after included usage)
-	const consumableItem = items.consumableMessages({ includedUsage: 100 });
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: free.id,
-		items: [consumableItem],
-	};
+		// No immediate charge - consumable bills in arrears
+		expect(preview.total).toEqual(0);
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		await autumnV1.subscriptions.update(updateParams);
 
-	// No immediate charge - consumable bills in arrears
-	expect(preview.total).toEqual(0);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await autumnV1.subscriptions.update(updateParams);
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: consumableItem.included_usage,
+			balance: consumableItem.included_usage - messagesUsage,
+			usage: messagesUsage,
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// No invoice - consumable bills in arrears, no immediate charge
+		expectCustomerInvoiceCorrect({
+			customer,
+			count: 0,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: consumableItem.included_usage,
-		balance: consumableItem.included_usage - messagesUsage,
-		usage: messagesUsage,
-	});
-
-	// No invoice - consumable bills in arrears, no immediate charge
-	expectCustomerInvoiceCorrect({
-		customer,
-		count: 0,
-	});
-
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // 5. Updating free feature item to prepaid
-test.concurrent(`${chalk.yellowBright("free-to-paid: update free item to prepaid")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const free = products.base({ items: [messagesItem] });
+test.concurrent(
+	`${chalk.yellowBright("free-to-paid: update free item to prepaid")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const free = products.base({ items: [messagesItem] });
 
-	const { customerId, autumnV1, ctx } = await initScenario({
-		customerId: "f2p-update-to-prepaid",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [free] }),
-		],
-		actions: [s.attach({ productId: "base" })],
-	});
+		const { customerId, autumnV1, ctx } = await initScenario({
+			customerId: "f2p-update-to-prepaid",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [free] }),
+			],
+			actions: [s.attach({ productId: "base" })],
+		});
 
-	// Track some usage first
-	const messagesUsage = 30;
-	await autumnV1.track(
-		{
+		// Track some usage first
+		const messagesUsage = 30;
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Messages,
+				value: messagesUsage,
+			},
+			{ timeout: 2000 },
+		);
+
+		// Update to prepaid (purchase units upfront)
+		const prepaidItem = items.prepaidMessages();
+
+		const updateParams = {
 			customer_id: customerId,
-			feature_id: TestFeature.Messages,
-			value: messagesUsage,
-		},
-		{ timeout: 2000 },
-	);
+			product_id: free.id,
+			items: [prepaidItem],
+			options: [{ feature_id: TestFeature.Messages, quantity: 100 }],
+		};
 
-	// Update to prepaid (purchase units upfront)
-	const prepaidItem = items.prepaidMessages();
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: free.id,
-		items: [prepaidItem],
-		options: [{ feature_id: TestFeature.Messages, quantity: 100 }],
-	};
+		// Prepaid charges upfront - $10 for 100 units
+		expect(preview.total).toEqual(10);
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		await autumnV1.subscriptions.update(updateParams);
 
-	// Prepaid charges upfront - $10 for 100 units
-	expect(preview.total).toEqual(10);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await autumnV1.subscriptions.update(updateParams);
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 100,
+			balance: 100 - messagesUsage,
+			usage: messagesUsage,
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Verify invoice matches preview
+		expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: preview.total,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 100,
-		balance: 100 - messagesUsage,
-		usage: messagesUsage,
-	});
-
-	// Verify invoice matches preview
-	expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: preview.total,
-	});
-
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // 6. Updating free users to allocated users
-test.concurrent(`${chalk.yellowBright("free-to-paid: update free users to allocated")}`, async () => {
-	const usersItem = items.monthlyUsers({ includedUsage: 5 });
-	const free = products.base({ items: [usersItem] });
+test.concurrent(
+	`${chalk.yellowBright("free-to-paid: update free users to allocated")}`,
+	async () => {
+		const usersItem = items.monthlyUsers({ includedUsage: 5 });
+		const free = products.base({ items: [usersItem] });
 
-	const { customerId, autumnV1, ctx } = await initScenario({
-		customerId: "f2p-free-to-allocated",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [free] }),
-		],
-		actions: [s.attach({ productId: "base" })],
-	});
+		const { customerId, autumnV1, ctx } = await initScenario({
+			customerId: "f2p-free-to-allocated",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [free] }),
+			],
+			actions: [s.attach({ productId: "base" })],
+		});
 
-	// Use some users (continuous use feature)
-	const usersUsed = 3;
-	await autumnV1.track(
-		{
+		// Use some users (continuous use feature)
+		const usersUsed = 3;
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Users,
+				value: usersUsed,
+			},
+			{ timeout: 2000 },
+		);
+
+		// Verify initial state
+		const initialCustomer =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expect(initialCustomer.features[TestFeature.Users].balance).toEqual(
+			usersItem.included_usage - usersUsed,
+		);
+
+		// Update to allocated users ($10/seat prorated billing)
+		const allocatedUsersItem = items.allocatedUsers({ includedUsage: 2 });
+
+		const updateParams = {
 			customer_id: customerId,
-			feature_id: TestFeature.Users,
-			value: usersUsed,
-		},
-		{ timeout: 2000 },
-	);
+			product_id: free.id,
+			items: [allocatedUsersItem],
+		};
 
-	// Verify initial state
-	const initialCustomer =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expect(initialCustomer.features[TestFeature.Users].balance).toEqual(
-		usersItem.included_usage - usersUsed,
-	);
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
 
-	// Update to allocated users ($10/seat prorated billing)
-	const allocatedUsersItem = items.allocatedUsers({ includedUsage: 2 });
+		// Should charge for (usersUsed - includedUsage) extra seats = (3 - 2) = 1 seat @ $10
+		expect(preview.total).toEqual(10);
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: free.id,
-		items: [allocatedUsersItem],
-	};
+		await autumnV1.subscriptions.update(updateParams);
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Should charge for (usersUsed - includedUsage) extra seats = (3 - 2) = 1 seat @ $10
-	expect(preview.total).toEqual(10);
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Users,
+			includedUsage: allocatedUsersItem.included_usage,
+			balance: allocatedUsersItem.included_usage - usersUsed,
+			usage: usersUsed,
+		});
 
-	await autumnV1.subscriptions.update(updateParams);
+		// Invoice for the extra seat
+		expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 10,
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Users,
-		includedUsage: allocatedUsersItem.included_usage,
-		balance: allocatedUsersItem.included_usage - usersUsed,
-		usage: usersUsed,
-	});
-
-	// Invoice for the extra seat
-	expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 10,
-	});
-
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // 7. Converting free messages to unlimited with monthly price
-test.concurrent(`${chalk.yellowBright("free-to-paid: convert to unlimited with monthly price")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const free = products.base({ items: [messagesItem] });
+test.concurrent(
+	`${chalk.yellowBright("free-to-paid: convert to unlimited with monthly price")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const free = products.base({ items: [messagesItem] });
 
-	const { customerId, autumnV1, ctx } = await initScenario({
-		customerId: "f2p-unlimited-price",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [free] }),
-		],
-		actions: [s.attach({ productId: "base" })],
-	});
+		const { customerId, autumnV1, ctx } = await initScenario({
+			customerId: "f2p-unlimited-price",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [free] }),
+			],
+			actions: [s.attach({ productId: "base" })],
+		});
 
-	// Track some usage before update
-	const messagesUsage = 50;
-	await autumnV1.track(
-		{
+		// Track some usage before update
+		const messagesUsage = 50;
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Messages,
+				value: messagesUsage,
+			},
+			{ timeout: 2000 },
+		);
+
+		// Step 2: Add monthly price item (converting to paid)
+		const priceItem = items.monthlyPrice();
+
+		const updateParams1 = {
 			customer_id: customerId,
-			feature_id: TestFeature.Messages,
-			value: messagesUsage,
-		},
-		{ timeout: 2000 },
-	);
+			product_id: free.id,
+			items: [messagesItem, priceItem],
+		};
 
-	// Step 2: Add monthly price item (converting to paid)
-	const priceItem = items.monthlyPrice();
+		const preview1 = await autumnV1.subscriptions.previewUpdate(updateParams1);
 
-	const updateParams1 = {
-		customer_id: customerId,
-		product_id: free.id,
-		items: [messagesItem, priceItem],
-	};
+		// Should charge $20 for monthly base price
+		expect(preview1.total).toEqual(20);
 
-	const preview1 = await autumnV1.subscriptions.previewUpdate(updateParams1);
+		await autumnV1.subscriptions.update(updateParams1);
 
-	// Should charge $20 for monthly base price
-	expect(preview1.total).toEqual(20);
+		// Verify first update
+		const customer1 = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await autumnV1.subscriptions.update(updateParams1);
+		expectCustomerFeatureCorrect({
+			customer: customer1,
+			featureId: TestFeature.Messages,
+			includedUsage: messagesItem.included_usage,
+			balance: messagesItem.included_usage - messagesUsage,
+			usage: messagesUsage,
+		});
 
-	// Verify first update
-	const customer1 = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerInvoiceCorrect({
+			customer: customer1,
+			count: 1,
+			latestTotal: 20,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer: customer1,
-		featureId: TestFeature.Messages,
-		includedUsage: messagesItem.included_usage,
-		balance: messagesItem.included_usage - messagesUsage,
-		usage: messagesUsage,
-	});
+		// Step 3: Convert messages to unlimited
+		const unlimitedMessagesItem = items.unlimitedMessages();
 
-	expectCustomerInvoiceCorrect({
-		customer: customer1,
-		count: 1,
-		latestTotal: 20,
-	});
+		const updateParams2 = {
+			customer_id: customerId,
+			product_id: free.id,
+			items: [unlimitedMessagesItem, priceItem],
+		};
 
-	// Step 3: Convert messages to unlimited
-	const unlimitedMessagesItem = items.unlimitedMessages();
+		const preview2 = await autumnV1.subscriptions.previewUpdate(updateParams2);
 
-	const updateParams2 = {
-		customer_id: customerId,
-		product_id: free.id,
-		items: [unlimitedMessagesItem, priceItem],
-	};
+		// No additional charge for unlimited upgrade
+		expect(preview2.total).toEqual(0);
 
-	const preview2 = await autumnV1.subscriptions.previewUpdate(updateParams2);
+		await autumnV1.subscriptions.update(updateParams2);
 
-	// No additional charge for unlimited upgrade
-	expect(preview2.total).toEqual(0);
+		// Verify final state
+		const customer2 = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await autumnV1.subscriptions.update(updateParams2);
+		// Messages should now be unlimited
+		expect(customer2.features[TestFeature.Messages].unlimited).toBe(true);
 
-	// Verify final state
-	const customer2 = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// Still only 1 invoice (no additional charge for unlimited)
+		expectCustomerInvoiceCorrect({
+			customer: customer2,
+			count: 2,
+			latestTotal: 0, // unlimited
+		});
 
-	// Messages should now be unlimited
-	expect(customer2.features[TestFeature.Messages].unlimited).toBe(true);
-
-	// Still only 1 invoice (no additional charge for unlimited)
-	expectCustomerInvoiceCorrect({
-		customer: customer2,
-		count: 2,
-		latestTotal: 0, // unlimited
-	});
-
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // 1. Update free -> paid -> add feature

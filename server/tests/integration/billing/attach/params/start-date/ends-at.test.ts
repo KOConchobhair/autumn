@@ -16,135 +16,144 @@ import { addDays, subDays } from "date-fns";
 import type Stripe from "stripe";
 import { getCustomerProduct } from "./utils";
 
-test.concurrent(`${chalk.yellowBright("ends-at: immediate attach sets subscription cancel_at")}`, async () => {
-	const customerId = "attach-ends-at-immediate";
-	const pro = products.pro({
-		id: "pro",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+test.concurrent(
+	`${chalk.yellowBright("ends-at: immediate attach sets subscription cancel_at")}`,
+	async () => {
+		const customerId = "attach-ends-at-immediate";
+		const pro = products.pro({
+			id: "pro",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const { autumnV2_2, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV2_2, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	const endsAt = addDays(advancedTo, 7).getTime();
-	await autumnV2_2.billing.attach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: pro.id,
-		ends_at: endsAt,
-	});
+		const endsAt = addDays(advancedTo, 7).getTime();
+		await autumnV2_2.billing.attach<AttachParamsV1Input>({
+			customer_id: customerId,
+			plan_id: pro.id,
+			ends_at: endsAt,
+		});
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectProductActive({ customer, productId: pro.id });
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectProductActive({ customer, productId: pro.id });
 
-	const cusProduct = await getCustomerProduct({
-		ctx,
-		customerId,
-		productId: pro.id,
-	});
-	expect(cusProduct.ended_at).toBe(endsAt);
-	expect(cusProduct.subscription_ids).toHaveLength(1);
+		const cusProduct = await getCustomerProduct({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		expect(cusProduct.ended_at).toBe(endsAt);
+		expect(cusProduct.subscription_ids).toHaveLength(1);
 
-	const stripeSubscription = await ctx.stripeCli.subscriptions.retrieve(
-		cusProduct.subscription_ids![0]!,
-	);
-	expect(stripeSubscription.cancel_at).toBe(Math.floor(endsAt / 1000));
-});
+		const stripeSubscription = await ctx.stripeCli.subscriptions.retrieve(
+			cusProduct.subscription_ids![0]!,
+		);
+		expect(stripeSubscription.cancel_at).toBe(Math.floor(endsAt / 1000));
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("ends-at: one-off attach sets access expiry")}`, async () => {
-	const customerId = "attach-ends-at-one-off";
-	const oneOff = products.oneOff({
-		id: "one-off",
-		items: [
-			items.oneOffMessages({
-				includedUsage: 0,
-				billingUnits: 100,
-				price: 10,
-			}),
-		],
-	});
+test.concurrent(
+	`${chalk.yellowBright("ends-at: one-off attach sets access expiry")}`,
+	async () => {
+		const customerId = "attach-ends-at-one-off";
+		const oneOff = products.oneOff({
+			id: "one-off",
+			items: [
+				items.oneOffMessages({
+					includedUsage: 0,
+					billingUnits: 100,
+					price: 10,
+				}),
+			],
+		});
 
-	const { autumnV2_2, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [oneOff] }),
-		],
-		actions: [],
-	});
+		const { autumnV2_2, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [oneOff] }),
+			],
+			actions: [],
+		});
 
-	const endsAt = addDays(advancedTo, 7).getTime();
-	await autumnV2_2.billing.attach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: oneOff.id,
-		feature_quantities: [{ feature_id: TestFeature.Messages, quantity: 100 }],
-		ends_at: endsAt,
-	});
+		const endsAt = addDays(advancedTo, 7).getTime();
+		await autumnV2_2.billing.attach<AttachParamsV1Input>({
+			customer_id: customerId,
+			plan_id: oneOff.id,
+			feature_quantities: [{ feature_id: TestFeature.Messages, quantity: 100 }],
+			ends_at: endsAt,
+		});
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	const purchase = customer.purchases.find((p) => p.plan_id === oneOff.id);
-	expect(purchase).toBeDefined();
-	expect(purchase?.expires_at).toBe(endsAt);
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		const purchase = customer.purchases.find((p) => p.plan_id === oneOff.id);
+		expect(purchase).toBeDefined();
+		expect(purchase?.expires_at).toBe(endsAt);
 
-	const cusProduct = await getCustomerProduct({
-		ctx,
-		customerId,
-		productId: oneOff.id,
-	});
-	expect(cusProduct.ended_at).toBe(endsAt);
-	expect(cusProduct.subscription_ids ?? []).toHaveLength(0);
-	expect(cusProduct.scheduled_ids ?? []).toHaveLength(0);
-});
+		const cusProduct = await getCustomerProduct({
+			ctx,
+			customerId,
+			productId: oneOff.id,
+		});
+		expect(cusProduct.ended_at).toBe(endsAt);
+		expect(cusProduct.subscription_ids ?? []).toHaveLength(0);
+		expect(cusProduct.scheduled_ids ?? []).toHaveLength(0);
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("ends-at: future attach creates bounded schedule phase")}`, async () => {
-	const customerId = "attach-starts-ends-at-future";
-	const pro = products.pro({
-		id: "pro",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+test.concurrent(
+	`${chalk.yellowBright("ends-at: future attach creates bounded schedule phase")}`,
+	async () => {
+		const customerId = "attach-starts-ends-at-future";
+		const pro = products.pro({
+			id: "pro",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const { autumnV2_2, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV2_2, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	const startsAt = addDays(advancedTo, 1).getTime();
-	const endsAt = addDays(advancedTo, 7).getTime();
-	await autumnV2_2.billing.attach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: pro.id,
-		starts_at: startsAt,
-		ends_at: endsAt,
-	});
+		const startsAt = addDays(advancedTo, 1).getTime();
+		const endsAt = addDays(advancedTo, 7).getTime();
+		await autumnV2_2.billing.attach<AttachParamsV1Input>({
+			customer_id: customerId,
+			plan_id: pro.id,
+			starts_at: startsAt,
+			ends_at: endsAt,
+		});
 
-	const cusProduct = await getCustomerProduct({
-		ctx,
-		customerId,
-		productId: pro.id,
-	});
-	expect(cusProduct.status).toBe(CusProductStatus.Scheduled);
-	expect(cusProduct.starts_at).toBe(startsAt);
-	expect(cusProduct.ended_at).toBe(endsAt);
-	expect(cusProduct.scheduled_ids).toHaveLength(1);
+		const cusProduct = await getCustomerProduct({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		expect(cusProduct.status).toBe(CusProductStatus.Scheduled);
+		expect(cusProduct.starts_at).toBe(startsAt);
+		expect(cusProduct.ended_at).toBe(endsAt);
+		expect(cusProduct.scheduled_ids).toHaveLength(1);
 
-	const stripeSchedule = (await ctx.stripeCli.subscriptionSchedules.retrieve(
-		cusProduct.scheduled_ids![0]!,
-	)) as Stripe.SubscriptionSchedule;
-	expect(stripeSchedule.phases[0]?.start_date).toBe(
-		Math.floor(startsAt / 1000),
-	);
-	expect(stripeSchedule.phases[0]?.end_date).toBe(Math.floor(endsAt / 1000));
-	expect(stripeSchedule.end_behavior).toBe("cancel");
-});
+		const stripeSchedule = (await ctx.stripeCli.subscriptionSchedules.retrieve(
+			cusProduct.scheduled_ids![0]!,
+		)) as Stripe.SubscriptionSchedule;
+		expect(stripeSchedule.phases[0]?.start_date).toBe(
+			Math.floor(startsAt / 1000),
+		);
+		expect(stripeSchedule.phases[0]?.end_date).toBe(Math.floor(endsAt / 1000));
+		expect(stripeSchedule.end_behavior).toBe("cancel");
+	},
+);
 
 test.concurrent(
 	`${chalk.yellowBright("ends-at: past dates are rejected")}`,

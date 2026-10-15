@@ -4,10 +4,10 @@
  */
 
 import { expect, test } from "bun:test";
-import { type ApiCustomerV5 } from "@autumn/shared";
+import type { ApiCustomerV5 } from "@autumn/shared";
 import {
-	type FlashClient,
 	callFlash,
+	type FlashClient,
 } from "@tests/integration/billing/dfu/billing-import/utils/flashTestUtils.js";
 import { expectCustomerProducts } from "@tests/integration/billing/utils/expectCustomerProductCorrect.js";
 import { TestFeature } from "@tests/setup/v2Features.js";
@@ -52,7 +52,9 @@ test.concurrent(
 		const flashRes = await callFlash(autumnV2_2 as FlashClient, payload);
 		expect(flashRes.errorCode).not.toBe("invalid_inputs");
 		expect(flashRes.errorCode).not.toBe("invalid_request");
-		const flashed = flashRes.result?.flashed?.find((f) => f.plan_id === free.id);
+		const flashed = flashRes.result?.flashed?.find(
+			(f) => f.plan_id === free.id,
+		);
 		expect(flashed?.customer_product_id).toBeTruthy();
 		expect(flashed?.status).toBe("active");
 

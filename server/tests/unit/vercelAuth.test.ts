@@ -1,5 +1,5 @@
-import { AppEnv } from "@autumn/shared";
 import { describe, expect, test } from "bun:test";
+import { AppEnv } from "@autumn/shared";
 import { verifyToken } from "@/external/vercel/misc/vercelAuth.js";
 
 const org = {

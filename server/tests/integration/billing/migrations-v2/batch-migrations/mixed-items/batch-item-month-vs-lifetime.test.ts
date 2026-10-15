@@ -26,7 +26,10 @@ import { products } from "@tests/utils/fixtures/products";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
 import { and, eq } from "drizzle-orm";
-import { expectCustomerEntitlementRowCount, type ScenarioCtx } from "../batchTestUtils";
+import {
+	expectCustomerEntitlementRowCount,
+	type ScenarioCtx,
+} from "../batchTestUtils";
 import { expectBatchLane } from "../version-repoint/utils/versionRepointTestUtils";
 
 const MONTHLY_INCLUDED = 100;
@@ -73,9 +76,7 @@ const readMessageRows = async ({
 const isLifetimeInterval = (interval: string | null) =>
 	interval === null || interval === EntInterval.Lifetime;
 
-const splitCadence = (
-	rows: Awaited<ReturnType<typeof readMessageRows>>,
-) => ({
+const splitCadence = (rows: Awaited<ReturnType<typeof readMessageRows>>) => ({
 	monthly: rows.find((row) => row.interval === EntInterval.Month),
 	lifetime: rows.find((row) => isLifetimeInterval(row.interval)),
 });
@@ -232,9 +233,7 @@ test.concurrent(
 						type: "update_plan",
 						plan_filter: { plan_id: plan.id, custom: false },
 						customize: {
-							add_items: [
-								itemsV2.monthlyMessages({ included: ADDED_MONTHLY }),
-							],
+							add_items: [itemsV2.monthlyMessages({ included: ADDED_MONTHLY })],
 						},
 					},
 				],

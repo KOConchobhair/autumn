@@ -4,8 +4,8 @@ import {
 	BillingVersion,
 	CollectionMethod,
 	CusProductStatus,
-	findPriceByFeatureId,
 	type FullProduct,
+	findPriceByFeatureId,
 	type Price,
 } from "@autumn/shared";
 import { TestFeature } from "@tests/setup/v2Features";
@@ -75,12 +75,12 @@ const seedPaidMessagesStripeResources = async ({
 		db: ctx.db,
 		id: price.id,
 		update: {
-			config: ({
+			config: {
 				...price.config,
 				stripe_product_id: stripeProductId,
 				stripe_price_id: stripePriceId,
 				stripe_prepaid_price_v2_id: stripePrepaidPriceId,
-			}) as Price["config"],
+			} as Price["config"],
 		},
 	});
 };
@@ -285,8 +285,9 @@ test.concurrent(
 	`${chalk.yellowBright("plans.update: all_versions carries each paid item stripe_product_id")}`,
 	async () => {
 		const id = "plan-paid-stripe-all-versions";
-		const { customer, ctx, plan, product, rpc } =
-			await setupCatalogUpdateCase({ id });
+		const { customer, ctx, plan, product, rpc } = await setupCatalogUpdateCase({
+			id,
+		});
 		const versionOneStripeProductId = stripeProductId({ label: `${id}_v1` });
 		await seedPaidMessagesStripeResources({
 			ctx,
@@ -297,7 +298,11 @@ test.concurrent(
 		await rpc.plans.update(plan.id, {
 			items: [itemsV2.prepaidMessages({ amount: 6 })],
 		});
-		const versionTwoProduct = await getPlan({ ctx, planId: plan.id, version: 2 });
+		const versionTwoProduct = await getPlan({
+			ctx,
+			planId: plan.id,
+			version: 2,
+		});
 		const versionTwoStripeProductId = stripeProductId({ label: `${id}_v2` });
 		await seedPaidMessagesStripeResources({
 			ctx,

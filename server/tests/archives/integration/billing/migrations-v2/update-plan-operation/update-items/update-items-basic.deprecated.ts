@@ -61,161 +61,170 @@ const expectActiveProductIsCustom = async ({
 	expect(cusProduct?.is_custom).toBe(isCustom);
 };
 
-test.concurrent(`${chalk.yellowBright("migrations update_items: bump included carries usage forward")}`, async () => {
-	const customerId = "migration-update-items-basic-bump";
-	const base = products.base({
-		id: "migration-update-items-basic-bump-plan",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+test.concurrent(
+	`${chalk.yellowBright("migrations update_items: bump included carries usage forward")}`,
+	async () => {
+		const customerId = "migration-update-items-basic-bump";
+		const base = products.base({
+			id: "migration-update-items-basic-bump-plan",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const { autumnV1, autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer(), s.products({ list: [base] })],
-		actions: [
-			s.billing.attach({ productId: base.id }),
-			s.track({ featureId: TestFeature.Messages, value: 30, timeout: 2000 }),
-		],
-	});
-
-	await runUpdatePlanMigration({
-		ctx,
-		migrationClient: autumnV2_2,
-		migrationId: `${customerId}-mig`,
-		customerId,
-		filter: { customer: { plan: { plan_id: base.id } } },
-		operations: {
-			customer: [
-				{
-					type: "update_plan",
-					plan_filter: { plan_id: base.id },
-					customize: {
-						update_items: [
-							{ filter: { feature_id: TestFeature.Messages }, included: 200 },
-						],
-					},
-				},
+		const { autumnV1, autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [s.customer(), s.products({ list: [base] })],
+			actions: [
+				s.billing.attach({ productId: base.id }),
+				s.track({ featureId: TestFeature.Messages, value: 30, timeout: 2000 }),
 			],
-		},
-	});
+		});
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectCustomerProducts({ customer, active: [base.id] });
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 170,
-		usage: 30,
-		planId: base.id,
-	});
-
-	await expectActiveProductIsCustom({
-		ctx,
-		customerId,
-		productId: base.id,
-		isCustom: true,
-	});
-
-	await expectCustomerInvoiceCorrect({
-		customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
-		count: 0,
-	});
-});
-
-test.concurrent(`${chalk.yellowBright("migrations update_items: lower included below current usage clamps balance to zero")}`, async () => {
-	const customerId = "migration-update-items-basic-lower";
-	const base = products.base({
-		id: "migration-update-items-basic-lower-plan",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
-
-	const { autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer(), s.products({ list: [base] })],
-		actions: [
-			s.billing.attach({ productId: base.id }),
-			s.track({ featureId: TestFeature.Messages, value: 30, timeout: 2000 }),
-		],
-	});
-
-	await runUpdatePlanMigration({
-		ctx,
-		migrationClient: autumnV2_2,
-		migrationId: `${customerId}-mig`,
-		customerId,
-		filter: { customer: { plan: { plan_id: base.id } } },
-		operations: {
-			customer: [
-				{
-					type: "update_plan",
-					plan_filter: { plan_id: base.id },
-					customize: {
-						update_items: [
-							{ filter: { feature_id: TestFeature.Messages }, included: 50 },
-						],
+		await runUpdatePlanMigration({
+			ctx,
+			migrationClient: autumnV2_2,
+			migrationId: `${customerId}-mig`,
+			customerId,
+			filter: { customer: { plan: { plan_id: base.id } } },
+			operations: {
+				customer: [
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: base.id },
+						customize: {
+							update_items: [
+								{ filter: { feature_id: TestFeature.Messages }, included: 200 },
+							],
+						},
 					},
-				},
+				],
+			},
+		});
+
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectCustomerProducts({ customer, active: [base.id] });
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 170,
+			usage: 30,
+			planId: base.id,
+		});
+
+		await expectActiveProductIsCustom({
+			ctx,
+			customerId,
+			productId: base.id,
+			isCustom: true,
+		});
+
+		await expectCustomerInvoiceCorrect({
+			customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
+			count: 0,
+		});
+	},
+);
+
+test.concurrent(
+	`${chalk.yellowBright("migrations update_items: lower included below current usage clamps balance to zero")}`,
+	async () => {
+		const customerId = "migration-update-items-basic-lower";
+		const base = products.base({
+			id: "migration-update-items-basic-lower-plan",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
+
+		const { autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [s.customer(), s.products({ list: [base] })],
+			actions: [
+				s.billing.attach({ productId: base.id }),
+				s.track({ featureId: TestFeature.Messages, value: 30, timeout: 2000 }),
 			],
-		},
-	});
+		});
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 20,
-		usage: 30,
-		planId: base.id,
-	});
-});
-
-test.concurrent(`${chalk.yellowBright("migrations update_items: preserves next_reset_at on the updated entitlement")}`, async () => {
-	const customerId = "migration-update-items-reset-preserved";
-	const base = products.base({
-		id: "migration-update-items-reset-preserved-plan",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
-
-	const { autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer(), s.products({ list: [base] })],
-		actions: [s.billing.attach({ productId: base.id })],
-	});
-
-	const before = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	const beforeResetAt = before.balances[TestFeature.Messages]?.next_reset_at;
-	expect(
-		beforeResetAt,
-		"pre-update next_reset_at should be set on monthly entitlement",
-	).not.toBeNull();
-
-	await runUpdatePlanMigration({
-		ctx,
-		migrationClient: autumnV2_2,
-		migrationId: `${customerId}-mig`,
-		customerId,
-		filter: { customer: { plan: { plan_id: base.id } } },
-		operations: {
-			customer: [
-				{
-					type: "update_plan",
-					plan_filter: { plan_id: base.id },
-					customize: {
-						update_items: [
-							{ filter: { feature_id: TestFeature.Messages }, included: 300 },
-						],
+		await runUpdatePlanMigration({
+			ctx,
+			migrationClient: autumnV2_2,
+			migrationId: `${customerId}-mig`,
+			customerId,
+			filter: { customer: { plan: { plan_id: base.id } } },
+			operations: {
+				customer: [
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: base.id },
+						customize: {
+							update_items: [
+								{ filter: { feature_id: TestFeature.Messages }, included: 50 },
+							],
+						},
 					},
-				},
-			],
-		},
-	});
+				],
+			},
+		});
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 300,
-		usage: 0,
-		nextResetAt: beforeResetAt as number,
-		planId: base.id,
-	});
-});
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 20,
+			usage: 30,
+			planId: base.id,
+		});
+	},
+);
+
+test.concurrent(
+	`${chalk.yellowBright("migrations update_items: preserves next_reset_at on the updated entitlement")}`,
+	async () => {
+		const customerId = "migration-update-items-reset-preserved";
+		const base = products.base({
+			id: "migration-update-items-reset-preserved-plan",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
+
+		const { autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [s.customer(), s.products({ list: [base] })],
+			actions: [s.billing.attach({ productId: base.id })],
+		});
+
+		const before = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		const beforeResetAt = before.balances[TestFeature.Messages]?.next_reset_at;
+		expect(
+			beforeResetAt,
+			"pre-update next_reset_at should be set on monthly entitlement",
+		).not.toBeNull();
+
+		await runUpdatePlanMigration({
+			ctx,
+			migrationClient: autumnV2_2,
+			migrationId: `${customerId}-mig`,
+			customerId,
+			filter: { customer: { plan: { plan_id: base.id } } },
+			operations: {
+				customer: [
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: base.id },
+						customize: {
+							update_items: [
+								{ filter: { feature_id: TestFeature.Messages }, included: 300 },
+							],
+						},
+					},
+				],
+			},
+		});
+
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 300,
+			usage: 0,
+			nextResetAt: beforeResetAt as number,
+			planId: base.id,
+		});
+	},
+);

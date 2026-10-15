@@ -153,7 +153,10 @@ test.concurrent(
 		});
 
 		// Downgrade to Free via native V2 billing.attach.
-		await autumnV2_2.billing.attach({ customer_id: customerId, plan_id: free.id });
+		await autumnV2_2.billing.attach({
+			customer_id: customerId,
+			plan_id: free.id,
+		});
 
 		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 		await expectProductScheduled({ customer, productId: free.id });

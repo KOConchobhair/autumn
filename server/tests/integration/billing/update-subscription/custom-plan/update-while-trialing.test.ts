@@ -20,282 +20,291 @@ import chalk from "chalk";
  */
 
 // 1. Pro with trial -> add consumable messages mid-trial
-test.concurrent(`${chalk.yellowBright("trial-update: add consumable messages while trialing")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+test.concurrent(
+	`${chalk.yellowBright("trial-update: add consumable messages while trialing")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
 
-	const proTrial = products.proWithTrial({
-		items: [messagesItem],
-		id: "pro-trial",
-		trialDays: 14,
-	});
+		const proTrial = products.proWithTrial({
+			items: [messagesItem],
+			id: "pro-trial",
+			trialDays: 14,
+		});
 
-	const { customerId, autumnV1, ctx, advancedTo } = await initScenario({
-		customerId: "trial-update-consumable",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [proTrial] }),
-		],
-		actions: [s.attach({ productId: proTrial.id })],
-	});
+		const { customerId, autumnV1, ctx, advancedTo } = await initScenario({
+			customerId: "trial-update-consumable",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [proTrial] }),
+			],
+			actions: [s.attach({ productId: proTrial.id })],
+		});
 
-	// Verify initially trialing
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductTrialing({
-		customer: customerBefore,
-		productId: proTrial.id,
-	});
+		// Verify initially trialing
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductTrialing({
+			customer: customerBefore,
+			productId: proTrial.id,
+		});
 
-	// Add consumable messages to the plan while trialing
-	const consumableMessagesItem = items.consumableMessages({
-		includedUsage: 50,
-	});
-	const priceItem = items.monthlyPrice();
+		// Add consumable messages to the plan while trialing
+		const consumableMessagesItem = items.consumableMessages({
+			includedUsage: 50,
+		});
+		const priceItem = items.monthlyPrice();
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: proTrial.id,
-		items: [consumableMessagesItem, priceItem],
-	};
+		const updateParams = {
+			customer_id: customerId,
+			product_id: proTrial.id,
+			items: [consumableMessagesItem, priceItem],
+		};
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
 
-	// Should be 0 during trial (consumable doesn't charge upfront)
-	expect(preview.total).toEqual(0);
+		// Should be 0 during trial (consumable doesn't charge upfront)
+		expect(preview.total).toEqual(0);
 
-	// next_cycle should align with existing trial (~9 days remaining from 14-day trial after 5 days advanced)
-	expectPreviewNextCycleCorrect({
-		preview,
-		startsAt: advancedTo + ms.days(14),
-		total: priceItem.price!,
-	});
+		// next_cycle should align with existing trial (~9 days remaining from 14-day trial after 5 days advanced)
+		expectPreviewNextCycleCorrect({
+			preview,
+			startsAt: advancedTo + ms.days(14),
+			total: priceItem.price!,
+		});
 
-	await autumnV1.subscriptions.update(updateParams);
+		await autumnV1.subscriptions.update(updateParams);
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Trial should be preserved
-	await expectProductTrialing({
-		customer,
-		productId: proTrial.id,
-	});
+		// Trial should be preserved
+		await expectProductTrialing({
+			customer,
+			productId: proTrial.id,
+		});
 
-	// Original messages feature should be unchanged
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: consumableMessagesItem.included_usage,
-		balance: consumableMessagesItem.included_usage,
-		usage: 0,
-	});
+		// Original messages feature should be unchanged
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: consumableMessagesItem.included_usage,
+			balance: consumableMessagesItem.included_usage,
+			usage: 0,
+		});
 
-	// No charge during trial
-	expectCustomerInvoiceCorrect({
-		customer,
-		count: 1, // Just the $0 trial invoice
-		latestTotal: 0,
-	});
+		// No charge during trial
+		expectCustomerInvoiceCorrect({
+			customer,
+			count: 1, // Just the $0 trial invoice
+			latestTotal: 0,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // 2. Free -> add allocated users while trialing
-test.concurrent(`${chalk.yellowBright("trial-update: free to allocated users while trialing")}`, async () => {
-	const usersItem = items.monthlyUsers({ includedUsage: 5 });
-	const monthlyPriceItem = items.monthlyPrice();
+test.concurrent(
+	`${chalk.yellowBright("trial-update: free to allocated users while trialing")}`,
+	async () => {
+		const usersItem = items.monthlyUsers({ includedUsage: 5 });
+		const monthlyPriceItem = items.monthlyPrice();
 
-	const proTrial = products.base({
-		items: [usersItem, monthlyPriceItem],
-		id: "free-trial",
-		trialDays: 14,
-	});
+		const proTrial = products.base({
+			items: [usersItem, monthlyPriceItem],
+			id: "free-trial",
+			trialDays: 14,
+		});
 
-	const { customerId, autumnV1, ctx, advancedTo } = await initScenario({
-		customerId: "trial-update-allocated",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [proTrial] }),
-		],
-		actions: [
-			s.attach({ productId: proTrial.id }),
-			s.advanceTestClock({ days: 3 }),
-		],
-	});
+		const { customerId, autumnV1, ctx, advancedTo } = await initScenario({
+			customerId: "trial-update-allocated",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [proTrial] }),
+			],
+			actions: [
+				s.attach({ productId: proTrial.id }),
+				s.advanceTestClock({ days: 3 }),
+			],
+		});
 
-	// Track some users before update
-	const usersUsage = 3;
-	await autumnV1.track(
-		{
+		// Track some users before update
+		const usersUsage = 3;
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Users,
+				value: usersUsage,
+			},
+			{ timeout: 2000 },
+		);
+
+		// Verify initially trialing
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductTrialing({
+			customer: customerBefore,
+			productId: proTrial.id,
+		});
+
+		// Update to add allocated users (prorated seats) and a price
+		const allocatedUsersItem = items.allocatedUsers({ includedUsage: 0 });
+
+		const updateParams = {
 			customer_id: customerId,
-			feature_id: TestFeature.Users,
-			value: usersUsage,
-		},
-		{ timeout: 2000 },
-	);
+			product_id: proTrial.id,
+			items: [allocatedUsersItem, monthlyPriceItem],
+		};
 
-	// Verify initially trialing
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductTrialing({
-		customer: customerBefore,
-		productId: proTrial.id,
-	});
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
 
-	// Update to add allocated users (prorated seats) and a price
-	const allocatedUsersItem = items.allocatedUsers({ includedUsage: 0 });
+		// Should be 0 during trial
+		expect(preview.total).toEqual(0);
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: proTrial.id,
-		items: [allocatedUsersItem, monthlyPriceItem],
-	};
+		// next_cycle should align with existing trial (~11 days remaining)
+		expectPreviewNextCycleCorrect({
+			preview,
+			startsAt: advancedTo + ms.days(11),
+			total: monthlyPriceItem.price! + 30, // base price + 3 allocated users * $10
+		});
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		await autumnV1.subscriptions.update(updateParams, {
+			timeout: 2000,
+		});
 
-	// Should be 0 during trial
-	expect(preview.total).toEqual(0);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// next_cycle should align with existing trial (~11 days remaining)
-	expectPreviewNextCycleCorrect({
-		preview,
-		startsAt: advancedTo + ms.days(11),
-		total: monthlyPriceItem.price! + 30, // base price + 3 allocated users * $10
-	});
+		// Trial should be preserved
+		await expectProductTrialing({
+			customer,
+			productId: proTrial.id,
+		});
 
-	await autumnV1.subscriptions.update(updateParams, {
-		timeout: 2000,
-	});
+		// Users feature should reflect the allocated seats
+		// Balance = included (2) + quantity (5) - usage (3) = 4
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Users,
+			includedUsage: allocatedUsersItem.included_usage,
+			balance: -usersUsage,
+			usage: usersUsage,
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// $0 invoice from the trial update arrives by Stripe webhook only
+		await expectCustomerInvoiceCorrect({
+			customerId,
+			autumn: autumnV1,
+			count: 2,
+			latestTotal: 0,
+			settleTimeoutMs: WEBHOOK_SETTLE_TIMEOUT_MS,
+		});
 
-	// Trial should be preserved
-	await expectProductTrialing({
-		customer,
-		productId: proTrial.id,
-	});
-
-	// Users feature should reflect the allocated seats
-	// Balance = included (2) + quantity (5) - usage (3) = 4
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Users,
-		includedUsage: allocatedUsersItem.included_usage,
-		balance: -usersUsage,
-		usage: usersUsage,
-	});
-
-	// $0 invoice from the trial update arrives by Stripe webhook only
-	await expectCustomerInvoiceCorrect({
-		customerId,
-		autumn: autumnV1,
-		count: 2,
-		latestTotal: 0,
-		settleTimeoutMs: WEBHOOK_SETTLE_TIMEOUT_MS,
-	});
-
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // 3. Pro with trial -> add prepaid messages mid-trial
-test.concurrent(`${chalk.yellowBright("trial-update: add prepaid messages while trialing")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+test.concurrent(
+	`${chalk.yellowBright("trial-update: add prepaid messages while trialing")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
 
-	const proTrial = products.proWithTrial({
-		items: [messagesItem],
-		id: "pro-trial",
-		trialDays: 14,
-	});
+		const proTrial = products.proWithTrial({
+			items: [messagesItem],
+			id: "pro-trial",
+			trialDays: 14,
+		});
 
-	const { customerId, autumnV1, ctx, advancedTo } = await initScenario({
-		customerId: "trial-update-prepaid",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [proTrial] }),
-		],
-		actions: [
-			s.attach({ productId: proTrial.id }),
-			s.advanceTestClock({ days: 7 }),
-		],
-	});
+		const { customerId, autumnV1, ctx, advancedTo } = await initScenario({
+			customerId: "trial-update-prepaid",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [proTrial] }),
+			],
+			actions: [
+				s.attach({ productId: proTrial.id }),
+				s.advanceTestClock({ days: 7 }),
+			],
+		});
 
-	// Verify initially trialing
-	const customerBefore =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductTrialing({
-		customer: customerBefore,
-		productId: proTrial.id,
-	});
+		// Verify initially trialing
+		const customerBefore =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductTrialing({
+			customer: customerBefore,
+			productId: proTrial.id,
+		});
 
-	// Add prepaid messages (purchase units upfront)
-	const prepaidMessagesItem = items.prepaidMessages({
-		includedUsage: 0,
-		billingUnits: 100,
-		price: 10,
-	});
-	const priceItem = items.monthlyPrice();
+		// Add prepaid messages (purchase units upfront)
+		const prepaidMessagesItem = items.prepaidMessages({
+			includedUsage: 0,
+			billingUnits: 100,
+			price: 10,
+		});
+		const priceItem = items.monthlyPrice();
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: proTrial.id,
-		items: [prepaidMessagesItem, priceItem],
-		options: [{ feature_id: TestFeature.Messages, quantity: 200 }], // Purchase 200 units (2 packs)
-	};
+		const updateParams = {
+			customer_id: customerId,
+			product_id: proTrial.id,
+			items: [prepaidMessagesItem, priceItem],
+			options: [{ feature_id: TestFeature.Messages, quantity: 200 }], // Purchase 200 units (2 packs)
+		};
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
 
-	// Prepaid should charge upfront even during trial: 2 packs * $10 = $20
-	expect(preview.total).toEqual(0);
+		// Prepaid should charge upfront even during trial: 2 packs * $10 = $20
+		expect(preview.total).toEqual(0);
 
-	// next_cycle should align with existing trial (~7 days remaining)
-	expectPreviewNextCycleCorrect({
-		preview,
-		startsAt: advancedTo + ms.days(7),
-		total: priceItem.price! + 20, // base price + prepaid renewal
-	});
+		// next_cycle should align with existing trial (~7 days remaining)
+		expectPreviewNextCycleCorrect({
+			preview,
+			startsAt: advancedTo + ms.days(7),
+			total: priceItem.price! + 20, // base price + prepaid renewal
+		});
 
-	await autumnV1.subscriptions.update(updateParams, { timeout: 2000 });
+		await autumnV1.subscriptions.update(updateParams, { timeout: 2000 });
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Trial should be preserved
-	await expectProductTrialing({
-		customer,
-		productId: proTrial.id,
-	});
+		// Trial should be preserved
+		await expectProductTrialing({
+			customer,
+			productId: proTrial.id,
+		});
 
-	// Messages feature should have original included usage + prepaid quantity
-	// Balance = included (100) + prepaid (200) = 300
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 200,
-		balance: 200,
-		usage: 0,
-	});
+		// Messages feature should have original included usage + prepaid quantity
+		// Balance = included (100) + prepaid (200) = 300
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 200,
+			balance: 200,
+			usage: 0,
+		});
 
-	// $0 invoice from the trial update arrives by Stripe webhook only
-	await expectCustomerInvoiceCorrect({
-		customerId,
-		autumn: autumnV1,
-		count: 2,
-		latestTotal: 0,
-		settleTimeoutMs: WEBHOOK_SETTLE_TIMEOUT_MS,
-	});
+		// $0 invoice from the trial update arrives by Stripe webhook only
+		await expectCustomerInvoiceCorrect({
+			customerId,
+			autumn: autumnV1,
+			count: 2,
+			latestTotal: 0,
+			settleTimeoutMs: WEBHOOK_SETTLE_TIMEOUT_MS,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);

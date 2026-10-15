@@ -47,109 +47,116 @@ import { CusService } from "@/internal/customers/CusService";
 // - After upgrade, subs are still separate
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-separate 1: separate subs via invoice checkout")}`, async () => {
-	const customerId = "legacy-separate-1";
+test.concurrent(
+	`${chalk.yellowBright("legacy-separate 1: separate subs via invoice checkout")}`,
+	async () => {
+		const customerId = "legacy-separate-1";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const proPrice = items.monthlyPrice({ price: 20 });
-	const premiumPrice = items.monthlyPrice({ price: 50 });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const proPrice = items.monthlyPrice({ price: 20 });
+		const premiumPrice = items.monthlyPrice({ price: 50 });
 
-	const pro = products.base({
-		id: "pro",
-		items: [messagesItem, proPrice],
-	});
-	const premium = products.base({
-		id: "premium",
-		items: [messagesItem, premiumPrice],
-	});
+		const pro = products.base({
+			id: "pro",
+			items: [messagesItem, proPrice],
+		});
+		const premium = products.base({
+			id: "premium",
+			items: [messagesItem, premiumPrice],
+		});
 
-	// Use v1.2 client (matches original test)
-	const autumnV1_2 = new AutumnInt({ version: LegacyVersion.v1_2 });
+		// Use v1.2 client (matches original test)
+		const autumnV1_2 = new AutumnInt({ version: LegacyVersion.v1_2 });
 
-	const { entities, ctx } = await initScenario({
-		customerId,
-		setup: [
-			// No payment method — invoice checkout will provide the payment page
-			s.customer({ testClock: true }),
-			s.products({ list: [pro, premium] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [],
-	});
+		const { entities, ctx } = await initScenario({
+			customerId,
+			setup: [
+				// No payment method — invoice checkout will provide the payment page
+				s.customer({ testClock: true }),
+				s.products({ list: [pro, premium] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [],
+		});
 
-	// Note: initScenario mutates product.id in-place, so pro.id/premium.id are already prefixed
+		// Note: initScenario mutates product.id in-place, so pro.id/premium.id are already prefixed
 
-	// Attach Pro to entity 1 with invoice: true
-	const res1 = await autumnV1_2.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		invoice: true,
-		entity_id: entities[0].id,
-	});
-	await completeInvoiceCheckout({ url: res1.checkout_url, ctx, customerId });
+		// Attach Pro to entity 1 with invoice: true
+		const res1 = await autumnV1_2.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			invoice: true,
+			entity_id: entities[0].id,
+		});
+		await completeInvoiceCheckout({ url: res1.checkout_url, ctx, customerId });
 
-	// Attach Pro to entity 2 with invoice: true
-	const res2 = await autumnV1_2.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		invoice: true,
-		entity_id: entities[1].id,
-	});
-	await completeInvoiceCheckout({ url: res2.checkout_url, ctx, customerId });
+		// Attach Pro to entity 2 with invoice: true
+		const res2 = await autumnV1_2.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			invoice: true,
+			entity_id: entities[1].id,
+		});
+		await completeInvoiceCheckout({ url: res2.checkout_url, ctx, customerId });
 
-	// Verify different subscription IDs per entity
-	const fullCus = await CusService.getFull({
-		ctx,
-		idOrInternalId: customerId,
-	});
-	const cusProducts = fullCus.customer_products;
-	const entity1Prod = cusProducts.find((cp) => cp.entity_id === entities[0].id);
-	const entity2Prod = cusProducts.find((cp) => cp.entity_id === entities[1].id);
+		// Verify different subscription IDs per entity
+		const fullCus = await CusService.getFull({
+			ctx,
+			idOrInternalId: customerId,
+		});
+		const cusProducts = fullCus.customer_products;
+		const entity1Prod = cusProducts.find(
+			(cp) => cp.entity_id === entities[0].id,
+		);
+		const entity2Prod = cusProducts.find(
+			(cp) => cp.entity_id === entities[1].id,
+		);
 
-	const entity1SubId = entity1Prod?.subscription_ids?.[0];
-	const entity2SubId = entity2Prod?.subscription_ids?.[0];
+		const entity1SubId = entity1Prod?.subscription_ids?.[0];
+		const entity2SubId = entity2Prod?.subscription_ids?.[0];
 
-	expect(entity1SubId).toBeDefined();
-	expect(entity2SubId).toBeDefined();
-	expect(entity1SubId).not.toBe(entity2SubId);
+		expect(entity1SubId).toBeDefined();
+		expect(entity2SubId).toBeDefined();
+		expect(entity1SubId).not.toBe(entity2SubId);
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		subId: entity1SubId,
-	});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			subId: entity1SubId,
+		});
 
-	// Upgrade both entities to Premium (normal attach, not invoice mode)
-	await autumnV1_2.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-		entity_id: entities[0].id,
-	});
+		// Upgrade both entities to Premium (normal attach, not invoice mode)
+		await autumnV1_2.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+			entity_id: entities[0].id,
+		});
 
-	await autumnV1_2.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-		entity_id: entities[1].id,
-	});
+		await autumnV1_2.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+			entity_id: entities[1].id,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		subId: entity1SubId,
-	});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			subId: entity1SubId,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		subId: entity2SubId,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			subId: entity2SubId,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Separate subscriptions via force_checkout + add-on
@@ -171,151 +178,158 @@ test.concurrent(`${chalk.yellowBright("legacy-separate 1: separate subs via invo
 // - Add-on merges into the correct entity's subscription
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("legacy-separate 2: separate subs via force_checkout + add-on")}`, async () => {
-	const customerId = "legacy-separate-2";
+test.concurrent(
+	`${chalk.yellowBright("legacy-separate 2: separate subs via force_checkout + add-on")}`,
+	async () => {
+		const customerId = "legacy-separate-2";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const proPrice = items.monthlyPrice({ price: 20 });
-	const premiumPrice = items.monthlyPrice({ price: 50 });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const proPrice = items.monthlyPrice({ price: 20 });
+		const premiumPrice = items.monthlyPrice({ price: 50 });
 
-	const pro = products.base({
-		id: "pro",
-		items: [messagesItem, proPrice],
-	});
-	const premium = products.base({
-		id: "premium",
-		items: [messagesItem, premiumPrice],
-	});
+		const pro = products.base({
+			id: "pro",
+			items: [messagesItem, proPrice],
+		});
+		const premium = products.base({
+			id: "premium",
+			items: [messagesItem, premiumPrice],
+		});
 
-	const addOnBillingUnits = 100;
-	const addOn = products.base({
-		id: "credits-addon",
-		items: [
-			items.prepaid({
-				featureId: TestFeature.Credits,
-				billingUnits: addOnBillingUnits,
-				includedUsage: 0,
-				price: 10,
-			}),
-		],
-		isAddOn: true,
-	});
+		const addOnBillingUnits = 100;
+		const addOn = products.base({
+			id: "credits-addon",
+			items: [
+				items.prepaid({
+					featureId: TestFeature.Credits,
+					billingUnits: addOnBillingUnits,
+					includedUsage: 0,
+					price: 10,
+				}),
+			],
+			isAddOn: true,
+		});
 
-	// Use v1.2 client (matches original test)
-	const autumnV1_2 = new AutumnInt({ version: LegacyVersion.v1_2 });
+		// Use v1.2 client (matches original test)
+		const autumnV1_2 = new AutumnInt({ version: LegacyVersion.v1_2 });
 
-	const { entities } = await initScenario({
-		customerId,
-		setup: [
-			// No payment method — force_checkout will provide the payment page
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [pro, premium, addOn] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [],
-	});
+		const { entities } = await initScenario({
+			customerId,
+			setup: [
+				// No payment method — force_checkout will provide the payment page
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [pro, premium, addOn] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [],
+		});
 
-	// Note: initScenario mutates product.id in-place, so pro.id/premium.id/addOn.id are already prefixed
+		// Note: initScenario mutates product.id in-place, so pro.id/premium.id/addOn.id are already prefixed
 
-	// Attach Pro to entity 1 with force_checkout
-	const res1 = await autumnV1_2.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		force_checkout: true,
-		entity_id: entities[0].id,
-	});
-	expect(res1.checkout_url).toBeDefined();
-	await completeStripeCheckoutForm({ url: res1.checkout_url });
+		// Attach Pro to entity 1 with force_checkout
+		const res1 = await autumnV1_2.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			force_checkout: true,
+			entity_id: entities[0].id,
+		});
+		expect(res1.checkout_url).toBeDefined();
+		await completeStripeCheckoutForm({ url: res1.checkout_url });
 
-	// Attach Pro to entity 2 with force_checkout
-	const res2 = await autumnV1_2.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-		force_checkout: true,
-		entity_id: entities[1].id,
-	});
-	expect(res2.checkout_url).toBeDefined();
-	await completeStripeCheckoutForm({ url: res2.checkout_url });
+		// Attach Pro to entity 2 with force_checkout
+		const res2 = await autumnV1_2.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+			force_checkout: true,
+			entity_id: entities[1].id,
+		});
+		expect(res2.checkout_url).toBeDefined();
+		await completeStripeCheckoutForm({ url: res2.checkout_url });
 
-	// Verify different subscription IDs per entity
-	let fullCus = await CusService.getFull({
-		ctx,
-		idOrInternalId: customerId,
-	});
-	let cusProducts = fullCus.customer_products;
-	const entity1Prod = cusProducts.find((cp) => cp.entity_id === entities[0].id);
-	const entity2Prod = cusProducts.find((cp) => cp.entity_id === entities[1].id);
+		// Verify different subscription IDs per entity
+		let fullCus = await CusService.getFull({
+			ctx,
+			idOrInternalId: customerId,
+		});
+		let cusProducts = fullCus.customer_products;
+		const entity1Prod = cusProducts.find(
+			(cp) => cp.entity_id === entities[0].id,
+		);
+		const entity2Prod = cusProducts.find(
+			(cp) => cp.entity_id === entities[1].id,
+		);
 
-	const entity1SubId = entity1Prod?.subscription_ids?.[0];
-	const entity2SubId = entity2Prod?.subscription_ids?.[0];
+		const entity1SubId = entity1Prod?.subscription_ids?.[0];
+		const entity2SubId = entity2Prod?.subscription_ids?.[0];
 
-	expect(entity1SubId).toBeDefined();
-	expect(entity2SubId).toBeDefined();
-	expect(entity1SubId).not.toBe(entity2SubId);
+		expect(entity1SubId).toBeDefined();
+		expect(entity2SubId).toBeDefined();
+		expect(entity1SubId).not.toBe(entity2SubId);
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		subId: entity1SubId,
-	});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			subId: entity1SubId,
+		});
 
-	// Upgrade both entities to Premium
-	for (const entity of entities) {
+		// Upgrade both entities to Premium
+		for (const entity of entities) {
+			await autumnV1_2.attach({
+				customer_id: customerId,
+				product_id: premium.id,
+				entity_id: entity.id,
+			});
+
+			await expectSubToBeCorrect({
+				db: ctx.db,
+				customerId,
+				org: ctx.org,
+				env: ctx.env,
+				subId: entity1SubId!,
+			});
+
+			await expectSubToBeCorrect({
+				db: ctx.db,
+				customerId,
+				org: ctx.org,
+				env: ctx.env,
+				subId: entity2SubId!,
+			});
+		}
+
+		// Attach add-on to entity 2 (should merge into entity 2's sub)
 		await autumnV1_2.attach({
 			customer_id: customerId,
-			product_id: premium.id,
-			entity_id: entity.id,
+			product_id: addOn.id,
+			entity_id: entities[1].id,
+			options: [
+				{
+					feature_id: TestFeature.Credits,
+					quantity: addOnBillingUnits * 2,
+				},
+			],
 		});
+
+		// Verify add-on's sub ID matches entity 2's sub ID
+		fullCus = await CusService.getFull({
+			ctx,
+			idOrInternalId: customerId,
+		});
+		cusProducts = fullCus.customer_products;
+		const addOnProd = cusProducts.find((cp) => cp.product.id === addOn.id);
+
+		expect(addOnProd).toBeDefined();
+		const addOnSubId = addOnProd?.subscription_ids?.[0];
+		expect(addOnSubId).toBe(entity2SubId);
 
 		await expectSubToBeCorrect({
 			db: ctx.db,
 			customerId,
 			org: ctx.org,
 			env: ctx.env,
-			subId: entity1SubId!,
+			subId: entity2SubId,
 		});
-
-		await expectSubToBeCorrect({
-			db: ctx.db,
-			customerId,
-			org: ctx.org,
-			env: ctx.env,
-			subId: entity2SubId!,
-		});
-	}
-
-	// Attach add-on to entity 2 (should merge into entity 2's sub)
-	await autumnV1_2.attach({
-		customer_id: customerId,
-		product_id: addOn.id,
-		entity_id: entities[1].id,
-		options: [
-			{
-				feature_id: TestFeature.Credits,
-				quantity: addOnBillingUnits * 2,
-			},
-		],
-	});
-
-	// Verify add-on's sub ID matches entity 2's sub ID
-	fullCus = await CusService.getFull({
-		ctx,
-		idOrInternalId: customerId,
-	});
-	cusProducts = fullCus.customer_products;
-	const addOnProd = cusProducts.find((cp) => cp.product.id === addOn.id);
-
-	expect(addOnProd).toBeDefined();
-	const addOnSubId = addOnProd?.subscription_ids?.[0];
-	expect(addOnSubId).toBe(entity2SubId);
-
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		subId: entity2SubId,
-	});
-});
+	},
+);

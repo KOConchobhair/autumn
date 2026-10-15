@@ -217,152 +217,146 @@ test.concurrent(
 );
 
 // version-only is per-customer until definition execute is restored
-test.skip(
-	`${chalk.yellowBright("batch version repoint webhooks: sendWebhooks false suppresses both deliveries")}`,
-	async () => {
-		const stem = uniqueStem("bvr-webhooks-disabled");
-		const customerId = `${stem}-customer`;
-		const plan = products.base({
-			id: `${stem}-plan`,
-			items: [items.monthlyMessages({ includedUsage: 100 })],
-		});
-		const { autumnV2_3, ctx: scenarioCtx } = await initScenario({
-			customerId,
-			setup: [
-				s.customer({ testClock: false, skipWebhooks: true }),
-				s.products({ list: [plan] }),
+test.skip(`${chalk.yellowBright("batch version repoint webhooks: sendWebhooks false suppresses both deliveries")}`, async () => {
+	const stem = uniqueStem("bvr-webhooks-disabled");
+	const customerId = `${stem}-customer`;
+	const plan = products.base({
+		id: `${stem}-plan`,
+		items: [items.monthlyMessages({ includedUsage: 100 })],
+	});
+	const { autumnV2_3, ctx: scenarioCtx } = await initScenario({
+		customerId,
+		setup: [
+			s.customer({ testClock: false, skipWebhooks: true }),
+			s.products({ list: [plan] }),
+		],
+		actions: [],
+	});
+	await autumnV2_3.billing.attach({
+		customer_id: customerId,
+		plan_id: plan.id,
+	});
+	await autumnV2_3.post("/plans.update", {
+		plan_id: plan.id,
+		force_version: true,
+		items: [itemsV2.monthlyMessages({ included: 200 })],
+	});
+	const before = await readRepointableCustomerPlanRow({
+		ctx: scenarioCtx,
+		customerId,
+		planId: plan.id,
+	});
+
+	const { result } = await runChunkedMigration({
+		ctx: scenarioCtx,
+		migrationClient: autumnV2_3,
+		migrationId: `${stem}-migration`,
+		filter: {
+			customer: { plan: { plan_id: plan.id, version: 1, custom: false } },
+		},
+		operations: {
+			customer: [
+				{
+					type: "update_plan",
+					plan_filter: {
+						plan_id: plan.id,
+						version: 1,
+						custom: false,
+					},
+					version: 2,
+				},
 			],
-			actions: [],
-		});
-		await autumnV2_3.billing.attach({
-			customer_id: customerId,
-			plan_id: plan.id,
-		});
-		await autumnV2_3.post("/plans.update", {
-			plan_id: plan.id,
-			force_version: true,
-			items: [itemsV2.monthlyMessages({ included: 200 })],
-		});
-		const before = await readRepointableCustomerPlanRow({
-			ctx: scenarioCtx,
+		},
+		noBillingChanges: true,
+		controls: { webhooks: { sendWebhooks: false } },
+	});
+	expectBatchLane({ result });
+
+	const after = await readRepointableCustomerPlanRow({
+		ctx: scenarioCtx,
+		customerId,
+		planId: plan.id,
+	});
+	expectCustomerPlanRepointedInPlace({
+		before,
+		after,
+		targetVersion: 2,
+	});
+	const [billingUpdated, productsUpdated] = await Promise.all([
+		waitForBillingUpdatedWebhook({
+			playToken: webhook.playToken,
+			customerId,
+			timeoutMs: 4_000,
+		}),
+		waitForProductsUpdatedWebhook({
+			playToken: webhook.playToken,
 			customerId,
 			planId: plan.id,
-		});
+			planVersion: 2,
+			timeoutMs: 4_000,
+		}),
+	]);
+	expect(billingUpdated).toBeNull();
+	expect(productsUpdated).toBeNull();
+});
 
-		const { result } = await runChunkedMigration({
-			ctx: scenarioCtx,
-			migrationClient: autumnV2_3,
-			migrationId: `${stem}-migration`,
-			filter: {
-				customer: { plan: { plan_id: plan.id, version: 1, custom: false } },
-			},
-			operations: {
-				customer: [
-					{
-						type: "update_plan",
-						plan_filter: {
-							plan_id: plan.id,
-							version: 1,
-							custom: false,
-						},
-						version: 2,
+test.skip(`${chalk.yellowBright("batch version repoint cache: repoint-only changes invalidate primed customer state")}`, async () => {
+	const stem = uniqueStem("bvr-cache-repoint-only");
+	const customerId = `${stem}-customer`;
+	const plan = products.base({
+		id: `${stem}-plan`,
+		items: [items.monthlyMessages({ includedUsage: 100 })],
+	});
+	const { autumnV2_3, ctx: scenarioCtx } = await initScenario({
+		customerId,
+		setup: [s.customer({ testClock: false }), s.products({ list: [plan] })],
+		actions: [],
+	});
+	await autumnV2_3.billing.attach({
+		customer_id: customerId,
+		plan_id: plan.id,
+	});
+	await autumnV2_3.post("/plans.update", {
+		plan_id: plan.id,
+		force_version: true,
+		items: [itemsV2.monthlyMessages({ included: 100 }), itemsV2.dashboard()],
+	});
+
+	const before = await autumnV2_3.check<CheckResponseV3>({
+		customer_id: customerId,
+		feature_id: TestFeature.Dashboard,
+	});
+	expect(before.allowed).toBe(false);
+	await autumnV2_3.customers.get<ApiCustomerV5>(customerId);
+
+	const { result } = await runVersionRepointMigration({
+		ctx: scenarioCtx,
+		migrationClient: autumnV2_3,
+		migrationId: `${stem}-migration`,
+		filter: {
+			customer: { plan: { plan_id: plan.id, version: 1, custom: false } },
+		},
+		operations: {
+			customer: [
+				{
+					type: "update_plan",
+					plan_filter: {
+						plan_id: plan.id,
+						version: 1,
+						custom: false,
 					},
-				],
-			},
-			noBillingChanges: true,
-			controls: { webhooks: { sendWebhooks: false } },
-		});
-		expectBatchLane({ result });
+					version: 2,
+				},
+			],
+		},
+	});
+	expectBatchLane({ result });
 
-		const after = await readRepointableCustomerPlanRow({
-			ctx: scenarioCtx,
-			customerId,
-			planId: plan.id,
-		});
-		expectCustomerPlanRepointedInPlace({
-			before,
-			after,
-			targetVersion: 2,
-		});
-		const [billingUpdated, productsUpdated] = await Promise.all([
-			waitForBillingUpdatedWebhook({
-				playToken: webhook.playToken,
-				customerId,
-				timeoutMs: 4_000,
-			}),
-			waitForProductsUpdatedWebhook({
-				playToken: webhook.playToken,
-				customerId,
-				planId: plan.id,
-				planVersion: 2,
-				timeoutMs: 4_000,
-			}),
-		]);
-		expect(billingUpdated).toBeNull();
-		expect(productsUpdated).toBeNull();
-	},
-);
-
-test.skip(
-	`${chalk.yellowBright("batch version repoint cache: repoint-only changes invalidate primed customer state")}`,
-	async () => {
-		const stem = uniqueStem("bvr-cache-repoint-only");
-		const customerId = `${stem}-customer`;
-		const plan = products.base({
-			id: `${stem}-plan`,
-			items: [items.monthlyMessages({ includedUsage: 100 })],
-		});
-		const { autumnV2_3, ctx: scenarioCtx } = await initScenario({
-			customerId,
-			setup: [s.customer({ testClock: false }), s.products({ list: [plan] })],
-			actions: [],
-		});
-		await autumnV2_3.billing.attach({
-			customer_id: customerId,
-			plan_id: plan.id,
-		});
-		await autumnV2_3.post("/plans.update", {
-			plan_id: plan.id,
-			force_version: true,
-			items: [itemsV2.monthlyMessages({ included: 100 }), itemsV2.dashboard()],
-		});
-
-		const before = await autumnV2_3.check<CheckResponseV3>({
-			customer_id: customerId,
-			feature_id: TestFeature.Dashboard,
-		});
-		expect(before.allowed).toBe(false);
-		await autumnV2_3.customers.get<ApiCustomerV5>(customerId);
-
-		const { result } = await runVersionRepointMigration({
-			ctx: scenarioCtx,
-			migrationClient: autumnV2_3,
-			migrationId: `${stem}-migration`,
-			filter: {
-				customer: { plan: { plan_id: plan.id, version: 1, custom: false } },
-			},
-			operations: {
-				customer: [
-					{
-						type: "update_plan",
-						plan_filter: {
-							plan_id: plan.id,
-							version: 1,
-							custom: false,
-						},
-						version: 2,
-					},
-				],
-			},
-		});
-		expectBatchLane({ result });
-
-		const after = await autumnV2_3.check<CheckResponseV3>({
-			customer_id: customerId,
-			feature_id: TestFeature.Dashboard,
-		});
-		expect(after.allowed).toBe(true);
-		const customer = await autumnV2_3.customers.get<ApiCustomerV5>(customerId);
-		expect(customer.flags[TestFeature.Dashboard]).toBeDefined();
-	},
-);
+	const after = await autumnV2_3.check<CheckResponseV3>({
+		customer_id: customerId,
+		feature_id: TestFeature.Dashboard,
+	});
+	expect(after.allowed).toBe(true);
+	const customer = await autumnV2_3.customers.get<ApiCustomerV5>(customerId);
+	expect(customer.flags[TestFeature.Dashboard]).toBeDefined();
+});

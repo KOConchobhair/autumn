@@ -16,12 +16,12 @@ import defaultCtx, {
 } from "@tests/utils/testInitUtils/createTestContext.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import { AutumnRpcCli } from "@/external/autumn/autumnRpcCli.js";
+import { FeatureService } from "@/internal/features/FeatureService";
 import {
 	constructBooleanFeature,
 	constructCreditSystem,
 	constructMeteredFeature,
 } from "@/internal/features/utils/constructFeatureUtils";
-import { FeatureService } from "@/internal/features/FeatureService";
 import { constructFeatureItem } from "@/utils/scriptUtils/constructItem";
 
 const EMAIL_MINI_GROUP = "email-mini";

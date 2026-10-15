@@ -12,8 +12,8 @@
 
 import {
 	AllowanceType,
-	BillWhen,
 	BillingInterval,
+	BillWhen,
 	EntInterval,
 	entitlements,
 	FeatureType,
@@ -203,7 +203,10 @@ const main = async () => {
 		const chunk = 200;
 		for (let offset = 0; offset < toInsert; offset += chunk) {
 			const n = Math.min(chunk, toInsert - offset);
-			const indexes = Array.from({ length: n }, (_, i) => existingGranting + offset + i);
+			const indexes = Array.from(
+				{ length: n },
+				(_, i) => existingGranting + offset + i,
+			);
 
 			await db.insert(entitlements).values(
 				indexes.flatMap((index) => [

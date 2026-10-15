@@ -5,9 +5,9 @@
  * (see carry-over-item-transitions.test.ts). */
 import { expect, test } from "bun:test";
 import type { ApiEntityV2 } from "@autumn/shared";
+import { getStripeSubscription } from "@tests/integration/billing/utils/stripeSubscriptionUtils";
 import { expectBalanceCorrect } from "@tests/integration/utils/expectBalanceCorrect";
 import { expectFlagCorrect } from "@tests/integration/utils/expectFlagCorrect";
-import { getStripeSubscription } from "@tests/integration/billing/utils/stripeSubscriptionUtils";
 import { TestFeature } from "@tests/setup/v2Features";
 import { items } from "@tests/utils/fixtures/items";
 import { advanceTestClock } from "@tests/utils/stripeUtils";
@@ -196,9 +196,7 @@ test.concurrent(
 	async () => {
 		const scenario = await setupItemTransitionScenario({
 			idPrefix: "license-item-anchor-add",
-			fromItems: [
-				items.monthlyMessages({ includedUsage: FROM_MESSAGES }),
-			],
+			fromItems: [items.monthlyMessages({ includedUsage: FROM_MESSAGES })],
 			toItems: [
 				items.monthlyMessages({ includedUsage: TO_MESSAGES }),
 				items.monthlyWords({ includedUsage: WORDS }),

@@ -1,8 +1,5 @@
 import { test } from "bun:test";
-import type {
-	ApiCustomerV3,
-	UsagePriceConfig,
-} from "@autumn/shared";
+import type { ApiCustomerV3, UsagePriceConfig } from "@autumn/shared";
 import { expectCustomerInvoiceCorrect } from "@tests/integration/billing/utils/expectCustomerInvoiceCorrect";
 import { expectStripeSubscriptionCorrect } from "@tests/integration/billing/utils/expectStripeSubCorrect";
 import { TestFeature } from "@tests/setup/v2Features";
@@ -10,8 +7,8 @@ import { items } from "@tests/utils/fixtures/items";
 import { products } from "@tests/utils/fixtures/products";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
-import { PriceService } from "@/internal/products/prices/PriceService";
 import { ProductService } from "@/internal/products/ProductService";
+import { PriceService } from "@/internal/products/prices/PriceService";
 
 test.concurrent(
 	`${chalk.yellowBright("custom plan allocated legacy: PUT items keeps prorated billing")}`,

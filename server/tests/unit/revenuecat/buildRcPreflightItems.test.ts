@@ -5,6 +5,7 @@
  * mismatch. No network/DB: listPrices is injected.
  */
 
+import { expect, test } from "bun:test";
 import {
 	AppEnv,
 	BillingInterval,
@@ -13,7 +14,6 @@ import {
 	type Price,
 	PriceType,
 } from "@autumn/shared";
-import { expect, test } from "bun:test";
 import chalk from "chalk";
 import { buildRcPreflightItems } from "@/external/revenueCat/handlers/handlePreflightRevenueCatSync.js";
 import type { RevenueCatProduct } from "@/external/revenueCat/revenuecatTypes.js";
@@ -32,15 +32,22 @@ const fixed = (amount: number): Price =>
 		},
 	}) as unknown as Price;
 
-const product = (id: string, name: string, prices: Price[] = [fixed(4.99)]): FullProduct =>
-	({ id, name, prices }) as unknown as FullProduct;
+const product = (
+	id: string,
+	name: string,
+	prices: Price[] = [fixed(4.99)],
+): FullProduct => ({ id, name, prices }) as unknown as FullProduct;
 
 const rcProduct = (
 	storeIdentifier: string,
 	display_name: string,
 	id = "prod_x",
 ): RevenueCatProduct =>
-	({ id, store_identifier: storeIdentifier, display_name }) as RevenueCatProduct;
+	({
+		id,
+		store_identifier: storeIdentifier,
+		display_name,
+	}) as RevenueCatProduct;
 
 test(`${chalk.yellowBright("preflight: plan with no RC product -> Create (rc_exists false)")}`, async () => {
 	const [item] = await buildRcPreflightItems({
@@ -53,7 +60,10 @@ test(`${chalk.yellowBright("preflight: plan with no RC product -> Create (rc_exi
 
 	expect(item.rc_exists).toBe(false);
 	expect(item.rc_name).toBeNull();
-	expect(item.autumn_price).toEqual({ amount_micros: 4_990_000, currency: "USD" });
+	expect(item.autumn_price).toEqual({
+		amount_micros: 4_990_000,
+		currency: "USD",
+	});
 });
 
 test(`${chalk.yellowBright("preflight: matching RC product surfaces name + price for rename/mismatch checks")}`, async () => {
@@ -64,12 +74,17 @@ test(`${chalk.yellowBright("preflight: matching RC product surfaces name + price
 		env,
 		// RC price differs from Autumn's 4.99 -> a mismatch the sheet flags
 		listPrices: async (id) =>
-			id === "prod_1" ? [{ id: "prc1", amount_micros: 5_990_000, currency: "USD" }] : [],
+			id === "prod_1"
+				? [{ id: "prc1", amount_micros: 5_990_000, currency: "USD" }]
+				: [],
 	});
 
 	expect(item.rc_exists).toBe(true);
 	expect(item.rc_name).toBe("Old Name");
-	expect(item.autumn_price).toEqual({ amount_micros: 4_990_000, currency: "USD" });
+	expect(item.autumn_price).toEqual({
+		amount_micros: 4_990_000,
+		currency: "USD",
+	});
 	expect(item.rc_price).toEqual({ amount_micros: 5_990_000, currency: "USD" });
 });
 

@@ -68,10 +68,7 @@ test.concurrent(
 
 		const plan = products.base({
 			id: `batch-replace-live-plan-${suffix}`,
-			items: [
-				items.monthlyMessages({ includedUsage: 10 }),
-				items.dashboard(),
-			],
+			items: [items.monthlyMessages({ includedUsage: 10 }), items.dashboard()],
 		});
 		const { autumnV2_3, ctx: scenarioCtx } = await initScenario({
 			customerId: customerA,

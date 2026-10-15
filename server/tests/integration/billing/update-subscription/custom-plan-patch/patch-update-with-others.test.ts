@@ -88,347 +88,381 @@ const expectExpiredCustomerProductCount = async ({
 	expect(expiredCustomerProducts.length).toBe(count);
 };
 
-test.concurrent(`${chalk.yellowBright("patch with others: add trial and patch item")}`, async () => {
-	const customerId = "patch-with-others-add-trial";
-	const pro = products.pro({
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+test.concurrent(
+	`${chalk.yellowBright("patch with others: add trial and patch item")}`,
+	async () => {
+		const customerId = "patch-with-others-add-trial";
+		const pro = products.pro({
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const { autumnV1, autumnV2_2, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
+		const { autumnV1, autumnV2_2, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	const updateParams: UpdateSubscriptionV1ParamsInput = {
-		customer_id: customerId,
-		plan_id: pro.id,
-		customize: {
-			free_trial: {
-				duration_length: 14,
-				duration_type: FreeTrialDuration.Day,
-				card_required: true,
+		const updateParams: UpdateSubscriptionV1ParamsInput = {
+			customer_id: customerId,
+			plan_id: pro.id,
+			customize: {
+				free_trial: {
+					duration_length: 14,
+					duration_type: FreeTrialDuration.Day,
+					card_required: true,
+				},
+				add_items: [itemsV2.dashboard()],
 			},
-			add_items: [itemsV2.dashboard()],
-		},
-	};
+		};
 
-	const preview =
-		await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+		const preview =
+			await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+				updateParams,
+			);
+		expect(preview.total).toBe(-20);
+		expectPreviewNextCycleCorrect({
+			preview,
+			startsAt: advancedTo + ms.days(14),
+			total: 20,
+		});
+
+		await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
 			updateParams,
 		);
-	expect(preview.total).toBe(-20);
-	expectPreviewNextCycleCorrect({
-		preview,
-		startsAt: advancedTo + ms.days(14),
-		total: 20,
-	});
 
-	await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
-		updateParams,
-	);
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectCustomerProducts({ customer, active: [pro.id] });
+		await expectProductTrialing({
+			customer,
+			productId: pro.id,
+			trialEndsAt: advancedTo + ms.days(14),
+		});
+		expectFlagCorrect({
+			customer,
+			featureId: TestFeature.Dashboard,
+			planId: pro.id,
+		});
+		await expectCustomerInvoiceCorrect({
+			customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
+			count: 2,
+			latestTotal: preview.total,
+		});
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectCustomerProducts({ customer, active: [pro.id] });
-	await expectProductTrialing({
-		customer,
-		productId: pro.id,
-		trialEndsAt: advancedTo + ms.days(14),
-	});
-	expectFlagCorrect({
-		customer,
-		featureId: TestFeature.Dashboard,
-		planId: pro.id,
-	});
-	await expectCustomerInvoiceCorrect({
-		customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
-		count: 2,
-		latestTotal: preview.total,
-	});
-	await expectNoExpiredCustomerProducts({ ctx, customerId, productId: pro.id });
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+test.concurrent(
+	`${chalk.yellowBright("patch with others: remove trial and patch item")}`,
+	async () => {
+		const customerId = "patch-with-others-remove-trial";
+		const pro = products.proWithTrial({
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+			trialDays: 7,
+		});
 
-test.concurrent(`${chalk.yellowBright("patch with others: remove trial and patch item")}`, async () => {
-	const customerId = "patch-with-others-remove-trial";
-	const pro = products.proWithTrial({
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-		trialDays: 7,
-	});
+		const { autumnV1, autumnV2_2, ctx, advancedTo } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	const { autumnV1, autumnV2_2, ctx, advancedTo } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
+		const updateParams: UpdateSubscriptionV1ParamsInput = {
+			customer_id: customerId,
+			plan_id: pro.id,
+			customize: {
+				free_trial: null,
+				add_items: [itemsV2.dashboard()],
+			},
+		};
 
-	const updateParams: UpdateSubscriptionV1ParamsInput = {
-		customer_id: customerId,
-		plan_id: pro.id,
-		customize: {
-			free_trial: null,
-			add_items: [itemsV2.dashboard()],
-		},
-	};
+		const preview =
+			await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+				updateParams,
+			);
+		expect(preview.total).toBe(20);
+		expectPreviewNextCycleCorrect({
+			preview,
+			startsAt: addMonths(advancedTo, 1).getTime(),
+			total: 20,
+		});
 
-	const preview =
-		await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+		await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
 			updateParams,
 		);
-	expect(preview.total).toBe(20);
-	expectPreviewNextCycleCorrect({
-		preview,
-		startsAt: addMonths(advancedTo, 1).getTime(),
-		total: 20,
-	});
 
-	await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
-		updateParams,
-	);
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectCustomerProducts({ customer, active: [pro.id] });
+		await expectProductNotTrialing({ customer, productId: pro.id });
+		expectFlagCorrect({
+			customer,
+			featureId: TestFeature.Dashboard,
+			planId: pro.id,
+		});
+		await expectCustomerInvoiceCorrect({
+			customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
+			count: 2,
+			latestTotal: preview.total,
+		});
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectCustomerProducts({ customer, active: [pro.id] });
-	await expectProductNotTrialing({ customer, productId: pro.id });
-	expectFlagCorrect({
-		customer,
-		featureId: TestFeature.Dashboard,
-		planId: pro.id,
-	});
-	await expectCustomerInvoiceCorrect({
-		customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
-		count: 2,
-		latestTotal: preview.total,
-	});
-	await expectNoExpiredCustomerProducts({ ctx, customerId, productId: pro.id });
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+test.concurrent(
+	`${chalk.yellowBright("patch with others: version update creates new patched customer product")}`,
+	async () => {
+		const customerId = "patch-with-others-version";
+		const pro = products.base({
+			id: "pro",
+			items: [
+				items.monthlyMessages({ includedUsage: 100 }),
+				items.monthlyPrice({ price: 20 }),
+			],
+		});
 
-test.concurrent(`${chalk.yellowBright("patch with others: version update creates new patched customer product")}`, async () => {
-	const customerId = "patch-with-others-version";
-	const pro = products.base({
-		id: "pro",
-		items: [
-			items.monthlyMessages({ includedUsage: 100 }),
-			items.monthlyPrice({ price: 20 }),
-		],
-	});
+		const { autumnV1, autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	const { autumnV1, autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
+		await autumnV1.products.update(pro.id, {
+			items: [
+				items.monthlyMessages({ includedUsage: 100 }),
+				items.monthlyPrice({ price: 30 }),
+			],
+		});
 
-	await autumnV1.products.update(pro.id, {
-		items: [
-			items.monthlyMessages({ includedUsage: 100 }),
-			items.monthlyPrice({ price: 30 }),
-		],
-	});
+		const updateParams: UpdateSubscriptionV1ParamsInput = {
+			customer_id: customerId,
+			plan_id: pro.id,
+			version: 2,
+			customize: {
+				remove_items: [{ feature_id: TestFeature.Messages }],
+				add_items: [
+					itemsV2.dashboard(),
+					itemsV2.monthlyWords({ included: 150 }),
+				],
+			},
+		};
 
-	const updateParams: UpdateSubscriptionV1ParamsInput = {
-		customer_id: customerId,
-		plan_id: pro.id,
-		version: 2,
-		customize: {
-			remove_items: [{ feature_id: TestFeature.Messages }],
-			add_items: [itemsV2.dashboard(), itemsV2.monthlyWords({ included: 150 })],
-		},
-	};
+		const preview =
+			await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+				updateParams,
+			);
+		expect(preview.total).toBe(10);
 
-	const preview =
-		await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+		await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
 			updateParams,
 		);
-	expect(preview.total).toBe(10);
 
-	await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
-		updateParams,
-	);
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectCustomerProducts({ customer, active: [pro.id] });
+		expect(customer.balances[TestFeature.Messages]).toBeUndefined();
+		expectFlagCorrect({
+			customer,
+			featureId: TestFeature.Dashboard,
+			planId: pro.id,
+		});
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Words,
+			remaining: 150,
+			usage: 0,
+			planId: pro.id,
+		});
+		await expectCustomerInvoiceCorrect({
+			customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
+			count: 2,
+			latestTotal: preview.total,
+		});
+		await expectExpiredCustomerProductCount({
+			ctx,
+			customerId,
+			productId: pro.id,
+			count: 1,
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectCustomerProducts({ customer, active: [pro.id] });
-	expect(customer.balances[TestFeature.Messages]).toBeUndefined();
-	expectFlagCorrect({
-		customer,
-		featureId: TestFeature.Dashboard,
-		planId: pro.id,
-	});
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Words,
-		remaining: 150,
-		usage: 0,
-		planId: pro.id,
-	});
-	await expectCustomerInvoiceCorrect({
-		customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
-		count: 2,
-		latestTotal: preview.total,
-	});
-	await expectExpiredCustomerProductCount({
-		ctx,
-		customerId,
-		productId: pro.id,
-		count: 1,
-	});
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+test.concurrent(
+	`${chalk.yellowBright("patch with others: patch while canceling then uncancel")}`,
+	async () => {
+		const customerId = "patch-with-others-canceling";
+		const free = products.base({
+			id: "free",
+			items: [],
+			isDefault: true,
+		});
+		const pro = products.pro({
+			id: "pro",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-test.concurrent(`${chalk.yellowBright("patch with others: patch while canceling then uncancel")}`, async () => {
-	const customerId = "patch-with-others-canceling";
-	const free = products.base({
-		id: "free",
-		items: [],
-		isDefault: true,
-	});
-	const pro = products.pro({
-		id: "pro",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+		const { autumnV1, autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [free, pro] }),
+			],
+			actions: [
+				s.billing.attach({ productId: pro.id }),
+				s.cancel({ productId: pro.id }),
+			],
+		});
 
-	const { autumnV1, autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [free, pro] }),
-		],
-		actions: [
-			s.billing.attach({ productId: pro.id }),
-			s.cancel({ productId: pro.id }),
-		],
-	});
+		const patchParams: UpdateSubscriptionV1ParamsInput = {
+			customer_id: customerId,
+			plan_id: pro.id,
+			customize: {
+				add_items: [itemsV2.dashboard()],
+			},
+		};
 
-	const patchParams: UpdateSubscriptionV1ParamsInput = {
-		customer_id: customerId,
-		plan_id: pro.id,
-		customize: {
-			add_items: [itemsV2.dashboard()],
-		},
-	};
+		const preview =
+			await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+				patchParams,
+			);
+		expect(preview.total).toBe(0);
 
-	const preview =
-		await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+		await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
 			patchParams,
 		);
-	expect(preview.total).toBe(0);
 
-	await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
-		patchParams,
-	);
+		const customerAfterPatch =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductCanceling({
+			customer: customerAfterPatch,
+			productId: pro.id,
+		});
+		await expectProductScheduled({
+			customer: customerAfterPatch,
+			productId: free.id,
+		});
 
-	const customerAfterPatch =
-		await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductCanceling({
-		customer: customerAfterPatch,
-		productId: pro.id,
-	});
-	await expectProductScheduled({
-		customer: customerAfterPatch,
-		productId: free.id,
-	});
+		await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
+			customer_id: customerId,
+			plan_id: pro.id,
+			cancel_action: "uncancel",
+		});
 
-	await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>({
-		customer_id: customerId,
-		plan_id: pro.id,
-		cancel_action: "uncancel",
-	});
+		const customerAfterUncancel =
+			await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		await expectProductActive({
+			customer: customerAfterUncancel,
+			productId: pro.id,
+		});
+		expectFlagCorrect({
+			customer: customerAfterUncancel,
+			featureId: TestFeature.Dashboard,
+			planId: pro.id,
+		});
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
 
-	const customerAfterUncancel =
-		await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	await expectProductActive({
-		customer: customerAfterUncancel,
-		productId: pro.id,
-	});
-	expectFlagCorrect({
-		customer: customerAfterUncancel,
-		featureId: TestFeature.Dashboard,
-		planId: pro.id,
-	});
-	await expectNoExpiredCustomerProducts({ ctx, customerId, productId: pro.id });
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+test.concurrent(
+	`${chalk.yellowBright("patch with others: put update then patch update")}`,
+	async () => {
+		const customerId = "patch-with-others-put-then-patch";
+		const pro = products.pro({
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-test.concurrent(`${chalk.yellowBright("patch with others: put update then patch update")}`, async () => {
-	const customerId = "patch-with-others-put-then-patch";
-	const pro = products.pro({
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+		const { autumnV1, autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	const { autumnV1, autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
-
-	const putParams: UpdateSubscriptionV1ParamsInput = {
-		customer_id: customerId,
-		plan_id: pro.id,
-		customize: {
-			price: itemsV2.monthlyPrice({ amount: 25 }),
-			items: [itemsV2.monthlyWords({ included: 120 })],
-		},
-	};
-	const putPreview =
-		await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+		const putParams: UpdateSubscriptionV1ParamsInput = {
+			customer_id: customerId,
+			plan_id: pro.id,
+			customize: {
+				price: itemsV2.monthlyPrice({ amount: 25 }),
+				items: [itemsV2.monthlyWords({ included: 120 })],
+			},
+		};
+		const putPreview =
+			await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+				putParams,
+			);
+		expect(putPreview.total).toBe(5);
+		await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
 			putParams,
 		);
-	expect(putPreview.total).toBe(5);
-	await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
-		putParams,
-	);
 
-	const patchParams: UpdateSubscriptionV1ParamsInput = {
-		customer_id: customerId,
-		plan_id: pro.id,
-		customize: {
-			remove_items: [{ feature_id: TestFeature.Words }],
-			add_items: [
-				itemsV2.dashboard(),
-				itemsV2.monthlyMessages({ included: 200 }),
-			],
-		},
-	};
-	const patchPreview =
-		await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+		const patchParams: UpdateSubscriptionV1ParamsInput = {
+			customer_id: customerId,
+			plan_id: pro.id,
+			customize: {
+				remove_items: [{ feature_id: TestFeature.Words }],
+				add_items: [
+					itemsV2.dashboard(),
+					itemsV2.monthlyMessages({ included: 200 }),
+				],
+			},
+		};
+		const patchPreview =
+			await autumnV2_2.subscriptions.previewUpdate<UpdateSubscriptionV1ParamsInput>(
+				patchParams,
+			);
+		expect(patchPreview.total).toBe(0);
+		await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
 			patchParams,
 		);
-	expect(patchPreview.total).toBe(0);
-	await autumnV2_2.subscriptions.update<UpdateSubscriptionV1ParamsInput>(
-		patchParams,
-	);
 
-	const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-	expect(customer.balances[TestFeature.Words]).toBeUndefined();
-	expectFlagCorrect({
-		customer,
-		featureId: TestFeature.Dashboard,
-		planId: pro.id,
-	});
-	expectBalanceCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		remaining: 200,
-		usage: 0,
-		planId: pro.id,
-	});
-	await expectCustomerInvoiceCorrect({
-		customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
-		count: 2,
-		latestTotal: putPreview.total,
-	});
-	await expectNoExpiredCustomerProducts({ ctx, customerId, productId: pro.id });
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+		expect(customer.balances[TestFeature.Words]).toBeUndefined();
+		expectFlagCorrect({
+			customer,
+			featureId: TestFeature.Dashboard,
+			planId: pro.id,
+		});
+		expectBalanceCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			remaining: 200,
+			usage: 0,
+			planId: pro.id,
+		});
+		await expectCustomerInvoiceCorrect({
+			customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
+			count: 2,
+			latestTotal: putPreview.total,
+		});
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);

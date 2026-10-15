@@ -24,6 +24,9 @@
 import { expect, test } from "bun:test";
 import {
 	type ApiCustomerV5,
+	customerEntitlements,
+	events,
+	products as productsTable,
 	type TrackResponseV3,
 } from "@autumn/shared";
 import { TestFeature } from "@tests/setup/v2Features.js";
@@ -38,11 +41,6 @@ import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db/initDrizzle.js";
-import {
-	customerEntitlements,
-	events,
-	products as productsTable,
-} from "@autumn/shared";
 
 const TINYBIRD_INGEST_WAIT_MS = 3000;
 
@@ -155,9 +153,7 @@ test(
 			const latestEvent = eventRows[0];
 
 			// The fix: the event is attributed to the unlimited plan.
-			expect(latestEvent.internal_product_id).toBe(
-				expectedUnlimitedInternalId,
-			);
+			expect(latestEvent.internal_product_id).toBe(expectedUnlimitedInternalId);
 
 			// The deductions array on the persisted event mirrors the synthetic
 			// mutation log: one entry with the unlimited plan's id and the

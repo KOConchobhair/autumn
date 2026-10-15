@@ -155,12 +155,12 @@ test(`${chalk.yellowBright("plans.update disable_version: respects requested ver
 		items: [items.monthlyMessages({ includedUsage: 200 })],
 	});
 
-	expect((await messagesEnt({ ctx, planId: pro.id, version: 1 }))?.allowance).toBe(
-		100,
-	);
-	expect((await messagesEnt({ ctx, planId: pro.id, version: 2 }))?.allowance).toBe(
-		200,
-	);
+	expect(
+		(await messagesEnt({ ctx, planId: pro.id, version: 1 }))?.allowance,
+	).toBe(100);
+	expect(
+		(await messagesEnt({ ctx, planId: pro.id, version: 2 }))?.allowance,
+	).toBe(200);
 
 	await autumnRpc.plans.update<
 		ApiPlanV1,
@@ -179,12 +179,12 @@ test(`${chalk.yellowBright("plans.update disable_version: respects requested ver
 		],
 	});
 
-	expect((await messagesEnt({ ctx, planId: pro.id, version: 1 }))?.allowance).toBe(
-		150,
-	);
-	expect((await messagesEnt({ ctx, planId: pro.id, version: 2 }))?.allowance).toBe(
-		200,
-	);
+	expect(
+		(await messagesEnt({ ctx, planId: pro.id, version: 1 }))?.allowance,
+	).toBe(150);
+	expect(
+		(await messagesEnt({ ctx, planId: pro.id, version: 2 }))?.allowance,
+	).toBe(200);
 });
 
 test(`${chalk.yellowBright("plans.update disable_version: UPDATE price-linked item keeps FK order valid")}`, async () => {

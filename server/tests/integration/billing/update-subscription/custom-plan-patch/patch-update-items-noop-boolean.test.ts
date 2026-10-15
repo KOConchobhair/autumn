@@ -24,8 +24,8 @@
 import { expect, test } from "bun:test";
 import {
 	type ApiCustomerV5,
-	customers,
 	CusProductStatus,
+	customers,
 	type UpdateSubscriptionV1ParamsInput,
 } from "@autumn/shared";
 import { expectCustomerProducts } from "@tests/integration/billing/utils/expectCustomerProductCorrect";
@@ -34,8 +34,8 @@ import { TestFeature } from "@tests/setup/v2Features";
 import { items } from "@tests/utils/fixtures/items";
 import { itemsV2 } from "@tests/utils/fixtures/itemsV2";
 import { products } from "@tests/utils/fixtures/products";
-import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import type { TestContext } from "@tests/utils/testInitUtils/createTestContext";
+import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
 import chalk from "chalk";
 import { eq } from "drizzle-orm";
 import { CusProductService } from "@/internal/customers/cusProducts/CusProductService.js";
@@ -61,7 +61,8 @@ const countDashboardCusEnts = async ({
 	});
 
 	const cusProduct = cusProducts.find(
-		(cp) => cp.product?.id === productId && cp.status === CusProductStatus.Active,
+		(cp) =>
+			cp.product?.id === productId && cp.status === CusProductStatus.Active,
 	);
 	expect(cusProduct).toBeDefined();
 

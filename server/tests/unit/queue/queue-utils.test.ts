@@ -9,8 +9,8 @@ const mockState = {
 const overrideQueueUrl =
 	"https://sqs.eu-west-1.amazonaws.com/123456789012/track-dev.fifo";
 
-import { JobName } from "@/queue/JobName.js";
 import { getSqsClient } from "@/queue/initSqs.js";
+import { JobName } from "@/queue/JobName.js";
 import { addTaskToQueue } from "@/queue/queueUtils.js";
 
 describe("addTaskToQueue queue override", () => {

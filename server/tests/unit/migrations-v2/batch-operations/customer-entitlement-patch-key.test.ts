@@ -169,7 +169,9 @@ describe("groupFilterReplaceRows", () => {
 		expect(groups).toHaveLength(2);
 		expect(
 			new Set(
-				groups.map((group) => customerEntitlementPatchKey({ patch: group.patch })),
+				groups.map((group) =>
+					customerEntitlementPatchKey({ patch: group.patch }),
+				),
 			).size,
 		).toBe(2);
 	});

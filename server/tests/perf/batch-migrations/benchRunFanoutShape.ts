@@ -29,9 +29,7 @@ const parseArgs = () => {
 };
 
 const args = parseArgs();
-process.env.BATCH_MIGRATION_FEATURE_OP_CONCURRENCY = String(
-	args.opConcurrency,
-);
+process.env.BATCH_MIGRATION_FEATURE_OP_CONCURRENCY = String(args.opConcurrency);
 
 const REPORT_PHASES = [
 	"claim_select",
@@ -245,9 +243,7 @@ const main = async () => {
 	const replaceOps = executionPlan.patches.flatMap(
 		(patch) => patch.replaceEntitlementOps,
 	);
-	const replaceFeatureIds = replaceOps.map(
-		(op) => op.entitlement.feature.id,
-	);
+	const replaceFeatureIds = replaceOps.map((op) => op.entitlement.feature.id);
 	if (replaceOps.length !== features.length) {
 		console.error(
 			`bench: expected ${features.length} replace ops, got ${replaceOps.length}`,
@@ -422,7 +418,9 @@ const main = async () => {
 			(row) => row.internal_customer_id === sampleId,
 		);
 		for (const feature of features) {
-			const row = rows.find((candidate) => candidate.feature_id === feature.featureId);
+			const row = rows.find(
+				(candidate) => candidate.feature_id === feature.featureId,
+			);
 			const balance = Number(row?.balance);
 			const rowCount = Number(row?.row_count ?? 0);
 			const expected = expectedByFeature.get(feature.featureId);

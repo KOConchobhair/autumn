@@ -146,7 +146,10 @@ test(`${chalk.yellowBright("batch migration: five concurrent replaces carry each
 });
 
 test(`${chalk.yellowBright("batch migration: concurrent ops keep succeeded and skipped marks honest")}`, async () => {
-	const plainIds = ["batch-parallel-marks-first", "batch-parallel-marks-second"];
+	const plainIds = [
+		"batch-parallel-marks-first",
+		"batch-parallel-marks-second",
+	];
 	const customId = "batch-parallel-marks-custom";
 	const [firstId, secondId] = plainIds;
 	const customMessages = 999;

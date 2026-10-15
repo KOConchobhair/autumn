@@ -21,10 +21,9 @@ afterEach(() => {
 
 describe("revenueCatCatalogMapper", () => {
 	test("resolves RC-internal product_id -> store_identifier -> autumn product", async () => {
-		const spy = spyOn(
-			RCMappingService,
-			"getAutumnProductId",
-		).mockResolvedValue("autumn_pro");
+		const spy = spyOn(RCMappingService, "getAutumnProductId").mockResolvedValue(
+			"autumn_pro",
+		);
 
 		const result = await mapRevenueCatProductToAutumn({
 			db: fakeDb,
@@ -46,10 +45,9 @@ describe("revenueCatCatalogMapper", () => {
 	});
 
 	test("returns null when the RC-internal id is not in the catalog", async () => {
-		const spy = spyOn(
-			RCMappingService,
-			"getAutumnProductId",
-		).mockResolvedValue("autumn_pro");
+		const spy = spyOn(RCMappingService, "getAutumnProductId").mockResolvedValue(
+			"autumn_pro",
+		);
 
 		const result = await mapRevenueCatProductToAutumn({
 			db: fakeDb,

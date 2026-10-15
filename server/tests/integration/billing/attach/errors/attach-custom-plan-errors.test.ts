@@ -32,34 +32,37 @@ import { constructFeatureItem } from "@/utils/scriptUtils/constructItem";
  * Expected:
  * - Error: No changes to apply / already has product
  */
-test.concurrent(`${chalk.yellowBright("error: attach custom plan same config as existing")}`, async () => {
-	const customerId = "err-custom-plan-same-config";
+test.concurrent(
+	`${chalk.yellowBright("error: attach custom plan same config as existing")}`,
+	async () => {
+		const customerId = "err-custom-plan-same-config";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const priceItem = items.monthlyPrice({ price: 20 });
-	const pro = products.base({ id: "pro", items: [messagesItem, priceItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const priceItem = items.monthlyPrice({ price: 20 });
+		const pro = products.base({ id: "pro", items: [messagesItem, priceItem] });
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	// Try to attach same product with same items
-	await expectAutumnError({
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: pro.id,
-				items: [messagesItem, priceItem], // Same as product
-				redirect_mode: "if_required",
-			});
-		},
-	});
-});
+		// Try to attach same product with same items
+		await expectAutumnError({
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: pro.id,
+					items: [messagesItem, priceItem], // Same as product
+					redirect_mode: "if_required",
+				});
+			},
+		});
+	},
+);
 
 /**
  * Test 3: Invalid feature ID is rejected
@@ -70,35 +73,38 @@ test.concurrent(`${chalk.yellowBright("error: attach custom plan same config as 
  * Expected:
  * - Error: Feature not found
  */
-test.concurrent(`${chalk.yellowBright("error: attach custom plan invalid feature id")}`, async () => {
-	const customerId = "err-custom-plan-invalid-feature";
+test.concurrent(
+	`${chalk.yellowBright("error: attach custom plan invalid feature id")}`,
+	async () => {
+		const customerId = "err-custom-plan-invalid-feature";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.base({ id: "pro", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.base({ id: "pro", items: [messagesItem] });
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	// Create item with invalid feature ID
-	const invalidFeatureItem = constructFeatureItem({
-		featureId: "non_existent_feature_12345",
-		includedUsage: 100,
-	});
+		// Create item with invalid feature ID
+		const invalidFeatureItem = constructFeatureItem({
+			featureId: "non_existent_feature_12345",
+			includedUsage: 100,
+		});
 
-	await expectAutumnError({
-		func: async () => {
-			await autumnV1.billing.attach({
-				customer_id: customerId,
-				product_id: pro.id,
-				items: [invalidFeatureItem],
-				redirect_mode: "if_required",
-			});
-		},
-	});
-});
+		await expectAutumnError({
+			func: async () => {
+				await autumnV1.billing.attach({
+					customer_id: customerId,
+					product_id: pro.id,
+					items: [invalidFeatureItem],
+					redirect_mode: "if_required",
+				});
+			},
+		});
+	},
+);

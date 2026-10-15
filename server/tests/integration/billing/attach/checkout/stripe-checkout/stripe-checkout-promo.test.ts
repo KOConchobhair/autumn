@@ -39,66 +39,69 @@ import chalk from "chalk";
  * Note: This test verifies the checkout flow works. Actual promo code
  * entry is manual in the Stripe UI and not automated here.
  */
-test.concurrent(`${chalk.yellowBright("stripe-checkout: allow_promotion_codes")}`, async () => {
-	const customerId = "stripe-checkout-promo-codes";
+test.concurrent(
+	`${chalk.yellowBright("stripe-checkout: allow_promotion_codes")}`,
+	async () => {
+		const customerId = "stripe-checkout-promo-codes";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({
-		id: "pro-promo",
-		items: [messagesItem],
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({
+			id: "pro-promo",
+			items: [messagesItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }), // No payment method!
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }), // No payment method!
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	// 1. Preview attach - should show $20
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
-	expect(preview.total).toBe(20);
+		// 1. Preview attach - should show $20
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
+		expect(preview.total).toBe(20);
 
-	// 2. Attempt attach - should return payment_url
-	const result = await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		// 2. Attempt attach - should return payment_url
+		const result = await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
 
-	expect(result.payment_url).toBeDefined();
-	expect(result.payment_url).toContain("checkout.stripe.com");
+		expect(result.payment_url).toBeDefined();
+		expect(result.payment_url).toContain("checkout.stripe.com");
 
-	// 3. Complete checkout (without promo code for this test)
-	await completeStripeCheckoutForm({ url: result.payment_url });
+		// 3. Complete checkout (without promo code for this test)
+		await completeStripeCheckoutForm({ url: result.payment_url });
 
-	// 4. Verify product attached
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// 4. Verify product attached
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: pro.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: pro.id,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 100,
-		balance: 100,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 100,
+			balance: 100,
+			usage: 0,
+		});
 
-	// Verify invoice (full price, no promo applied)
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 20,
-	});
-});
+		// Verify invoice (full price, no promo applied)
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 20,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Checkout with pre-applied discount
@@ -118,65 +121,68 @@ test.concurrent(`${chalk.yellowBright("stripe-checkout: allow_promotion_codes")}
  * discount behavior. Actual coupon/reward integration would need
  * reward setup which is out of scope for basic checkout tests.
  */
-test.concurrent(`${chalk.yellowBright("stripe-checkout: discounted checkout")}`, async () => {
-	const customerId = "stripe-checkout-discount";
+test.concurrent(
+	`${chalk.yellowBright("stripe-checkout: discounted checkout")}`,
+	async () => {
+		const customerId = "stripe-checkout-discount";
 
-	// Use a lower-priced product to simulate "discounted" pricing
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const priceItem = items.monthlyPrice({ price: 15 }); // "Discounted" from $20
+		// Use a lower-priced product to simulate "discounted" pricing
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const priceItem = items.monthlyPrice({ price: 15 }); // "Discounted" from $20
 
-	const discountedPro = products.base({
-		id: "discounted-pro",
-		items: [messagesItem, priceItem],
-	});
+		const discountedPro = products.base({
+			id: "discounted-pro",
+			items: [messagesItem, priceItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }), // No payment method!
-			s.products({ list: [discountedPro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }), // No payment method!
+				s.products({ list: [discountedPro] }),
+			],
+			actions: [],
+		});
 
-	// 1. Preview attach - should show $15 (discounted price)
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: discountedPro.id,
-	});
-	expect(preview.total).toBe(15);
+		// 1. Preview attach - should show $15 (discounted price)
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: discountedPro.id,
+		});
+		expect(preview.total).toBe(15);
 
-	// 2. Attempt attach - should return payment_url
-	const result = await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: discountedPro.id,
-	});
+		// 2. Attempt attach - should return payment_url
+		const result = await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: discountedPro.id,
+		});
 
-	expect(result.payment_url).toBeDefined();
+		expect(result.payment_url).toBeDefined();
 
-	// 3. Complete checkout
-	await completeStripeCheckoutForm({ url: result.payment_url });
+		// 3. Complete checkout
+		await completeStripeCheckoutForm({ url: result.payment_url });
 
-	// 4. Verify product attached
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// 4. Verify product attached
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: discountedPro.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: discountedPro.id,
+		});
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 100,
-		balance: 100,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 100,
+			balance: 100,
+			usage: 0,
+		});
 
-	// Verify invoice shows discounted amount
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 15,
-	});
-});
+		// Verify invoice shows discounted amount
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 15,
+		});
+	},
+);

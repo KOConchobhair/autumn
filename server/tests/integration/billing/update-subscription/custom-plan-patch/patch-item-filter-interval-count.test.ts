@@ -43,9 +43,7 @@ test.concurrent(
 		await autumnV2_2.billing.attach({
 			customer_id: customerId,
 			plan_id: plan.id,
-			feature_quantities: [
-				{ feature_id: TestFeature.Messages, quantity: 300 },
-			],
+			feature_quantities: [{ feature_id: TestFeature.Messages, quantity: 300 }],
 			redirect_mode: "if_required",
 		});
 
@@ -68,10 +66,9 @@ test.concurrent(
 
 		await autumnV2_2.subscriptions.update(updateParams);
 
-		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(
-			customerId,
-			{ skip_cache: "true" },
-		);
+		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId, {
+			skip_cache: "true",
+		});
 		expectBalanceCorrect({
 			customer,
 			featureId: TestFeature.Messages,

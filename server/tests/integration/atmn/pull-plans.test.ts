@@ -41,10 +41,7 @@ import {
 } from "../../../../packages/atmn/src/generated/client";
 import { uniqueTestId } from "../catalog-v2/utils/uniqueTestId.js";
 
-const CLI_PACKAGE_DIR = join(
-	import.meta.dir,
-	"../../../../packages/atmn",
-);
+const CLI_PACKAGE_DIR = join(import.meta.dir, "../../../../packages/atmn");
 
 /**
  * initAtmnScenario's default source only imports `feature` — these tests also
@@ -63,10 +60,7 @@ export default atmn(${body});
  * A second config dir for the same org — initAtmnScenario mints one org per
  * call, so a second scenario would be a different catalog, not a second dir.
  */
-const TMP_ROOT = join(
-	import.meta.dir,
-	"../../../../packages/atmn/test/.tmp",
-);
+const TMP_ROOT = join(import.meta.dir, "../../../../packages/atmn/test/.tmp");
 
 const openConfigDir = (): {
 	cwd: string;

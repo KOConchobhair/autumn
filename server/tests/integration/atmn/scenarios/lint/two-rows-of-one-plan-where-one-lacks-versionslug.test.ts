@@ -32,9 +32,7 @@ test.concurrent(
 		try {
 			const error = await scenario.push().catch((thrown) => thrown as Error);
 			expect(error).toBeInstanceOf(Error);
-			expect((error as Error).message).toContain(
-				"versionSlug is required.",
-			);
+			expect((error as Error).message).toContain("versionSlug is required.");
 			expect((error as Error).message).not.toContain("catalogV2");
 
 			const catalog = (await scenario.client.get({})) as unknown as {
@@ -76,9 +74,7 @@ test.concurrent(
 		try {
 			const error = await scenario.push().catch((thrown) => thrown as Error);
 			expect(error).toBeInstanceOf(Error);
-			expect((error as Error).message).toContain(
-				"versionSlug is required.",
-			);
+			expect((error as Error).message).toContain("versionSlug is required.");
 
 			const catalog = (await scenario.client.get({})) as unknown as {
 				plans: Array<{ id: string }>;

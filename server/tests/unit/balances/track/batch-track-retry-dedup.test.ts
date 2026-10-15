@@ -43,7 +43,6 @@
  *   Fix layer: declined — no-key fallback behavior is intentional
  */
 
-import { toBatchTrackEntries } from "@/internal/balances/track/batchTrackEntries.js";
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
 	ApiVersion,
@@ -53,6 +52,7 @@ import {
 } from "@autumn/shared";
 import type { SendMessageBatchCommand, SQSClient } from "@aws-sdk/client-sqs";
 import type { AutumnContext } from "@/honoUtils/HonoEnv.js";
+import { toBatchTrackEntries } from "@/internal/balances/track/batchTrackEntries.js";
 import { runBatchTrack } from "@/internal/balances/track/runBatchTrack.js";
 import { getSqsClient } from "@/queue/initSqs.js";
 import { pinTrackProducerQueueToFifo } from "./trackAsyncQueueTestEnv.js";

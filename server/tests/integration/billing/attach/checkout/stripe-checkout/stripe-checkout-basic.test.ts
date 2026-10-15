@@ -38,77 +38,80 @@ import chalk from "chalk";
  * - Returns payment_url (Stripe Checkout session)
  * - After completing checkout: product is attached, invoice paid
  */
-test.concurrent(`${chalk.yellowBright("stripe-checkout: no product → pro")}`, async () => {
-	const customerId = "stripe-checkout-no-pm-pro";
+test.concurrent(
+	`${chalk.yellowBright("stripe-checkout: no product → pro")}`,
+	async () => {
+		const customerId = "stripe-checkout-no-pm-pro";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({
-		id: "pro-checkout",
-		items: [messagesItem],
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({
+			id: "pro-checkout",
+			items: [messagesItem],
+		});
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }), // No payment method!
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }), // No payment method!
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	// 1. Preview attach - should show $20
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
-	expect(preview.total).toBe(20);
+		// 1. Preview attach - should show $20
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
+		expect(preview.total).toBe(20);
 
-	// 2. Attempt attach - should return payment_url (not charge directly)
-	const result = await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		// 2. Attempt attach - should return payment_url (not charge directly)
+		const result = await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
 
-	// Verify payment_url is returned
-	expect(result.payment_url).toBeDefined();
-	expect(result.payment_url).toContain("checkout.stripe.com");
+		// Verify payment_url is returned
+		expect(result.payment_url).toBeDefined();
+		expect(result.payment_url).toContain("checkout.stripe.com");
 
-	// 3. Complete checkout form
-	await completeStripeCheckoutForm({ url: result.payment_url });
-	await timeout(12000); // Wait for webhook processing
+		// 3. Complete checkout form
+		await completeStripeCheckoutForm({ url: result.payment_url });
+		await timeout(12000); // Wait for webhook processing
 
-	// 4. Verify product is now attached
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// 4. Verify product is now attached
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: pro.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: pro.id,
+		});
 
-	// Verify messages feature
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 100,
-		balance: 100,
-		usage: 0,
-	});
+		// Verify messages feature
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 100,
+			balance: 100,
+			usage: 0,
+		});
 
-	// Verify invoice was paid (matches preview total)
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 20,
-		latestInvoiceProductId: pro.id,
-	});
+		// Verify invoice was paid (matches preview total)
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 20,
+			latestInvoiceProductId: pro.id,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Free → pro (upgrade via checkout)
@@ -123,84 +126,87 @@ test.concurrent(`${chalk.yellowBright("stripe-checkout: no product → pro")}`, 
  * - Returns payment_url
  * - After checkout: pro replaces free
  */
-test.concurrent(`${chalk.yellowBright("stripe-checkout: free → pro")}`, async () => {
-	const customerId = "stripe-checkout-free-to-pro";
+test.concurrent(
+	`${chalk.yellowBright("stripe-checkout: free → pro")}`,
+	async () => {
+		const customerId = "stripe-checkout-free-to-pro";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 50 });
-	const free = products.base({
-		id: "free-checkout",
-		items: [messagesItem],
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 50 });
+		const free = products.base({
+			id: "free-checkout",
+			items: [messagesItem],
+		});
 
-	const proMessagesItem = items.monthlyMessages({ includedUsage: 200 });
-	const pro = products.pro({
-		id: "pro-checkout-upgrade",
-		items: [proMessagesItem],
-	});
+		const proMessagesItem = items.monthlyMessages({ includedUsage: 200 });
+		const pro = products.pro({
+			id: "pro-checkout-upgrade",
+			items: [proMessagesItem],
+		});
 
-	const { autumnV1 } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }), // No payment method!
-			s.products({ list: [free, pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }), // No payment method!
+				s.products({ list: [free, pro] }),
+			],
+			actions: [],
+		});
 
-	// 1. First attach free product (no checkout needed - it's free)
-	await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: free.id,
-	});
+		// 1. First attach free product (no checkout needed - it's free)
+		await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: free.id,
+		});
 
-	// Verify free is attached
-	let customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	await expectProductActive({
-		customer,
-		productId: free.id,
-	});
+		// Verify free is attached
+		let customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		await expectProductActive({
+			customer,
+			productId: free.id,
+		});
 
-	// 2. Preview upgrade to pro - should show $20
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
-	expect(preview.total).toBe(20);
+		// 2. Preview upgrade to pro - should show $20
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
+		expect(preview.total).toBe(20);
 
-	// 3. Attempt attach pro - should return payment_url
-	const result = await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: pro.id,
-	});
+		// 3. Attempt attach pro - should return payment_url
+		const result = await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: pro.id,
+		});
 
-	expect(result.payment_url).toBeDefined();
+		expect(result.payment_url).toBeDefined();
 
-	// 4. Complete checkout
-	await completeStripeCheckoutForm({ url: result.payment_url });
-	await timeout(12000);
+		// 4. Complete checkout
+		await completeStripeCheckoutForm({ url: result.payment_url });
+		await timeout(12000);
 
-	// 5. Verify pro replaced free
-	customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// 5. Verify pro replaced free
+		customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: pro.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: pro.id,
+		});
 
-	// Verify messages feature from pro (200, not 50)
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 200,
-		balance: 200,
-		usage: 0,
-	});
+		// Verify messages feature from pro (200, not 50)
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 200,
+			balance: 200,
+			usage: 0,
+		});
 
-	// Verify invoice
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 20,
-		latestInvoiceProductId: pro.id,
-	});
-});
+		// Verify invoice
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 20,
+			latestInvoiceProductId: pro.id,
+		});
+	},
+);

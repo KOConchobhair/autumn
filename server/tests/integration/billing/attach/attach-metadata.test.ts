@@ -22,244 +22,256 @@ import { CusService } from "@/internal/customers/CusService";
 // TEST 1: metadata passthrough on subscription (non-checkout flow)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("metadata: passthrough to subscription")}`, async () => {
-	const customerId = "attach-metadata-sub-invoice";
+test.concurrent(
+	`${chalk.yellowBright("metadata: passthrough to subscription")}`,
+	async () => {
+		const customerId = "attach-metadata-sub-invoice";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({
-		id: "pro-metadata-passthrough",
-		items: [messagesItem],
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({
+			id: "pro-metadata-passthrough",
+			items: [messagesItem],
+		});
 
-	const { autumnV1, autumnV2_1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, autumnV2_1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	await autumnV2_1.billing.attach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: pro.id,
-		metadata: {
-			user_id: "u-123",
-			campaign: "summer",
-		},
-	});
+		await autumnV2_1.billing.attach<AttachParamsV1Input>({
+			customer_id: customerId,
+			plan_id: pro.id,
+			metadata: {
+				user_id: "u-123",
+				campaign: "summer",
+			},
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: pro.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: pro.id,
+		});
 
-	// Verify Stripe subscription has user-provided metadata
-	const fullCustomer = await CusService.getFull({
-		ctx,
-		idOrInternalId: customerId,
-	});
+		// Verify Stripe subscription has user-provided metadata
+		const fullCustomer = await CusService.getFull({
+			ctx,
+			idOrInternalId: customerId,
+		});
 
-	const stripeCustomerId = fullCustomer.processor?.id;
-	expect(stripeCustomerId).toBeDefined();
+		const stripeCustomerId = fullCustomer.processor?.id;
+		expect(stripeCustomerId).toBeDefined();
 
-	const subs = await ctx.stripeCli.subscriptions.list({
-		customer: stripeCustomerId!,
-		status: "all",
-	});
+		const subs = await ctx.stripeCli.subscriptions.list({
+			customer: stripeCustomerId!,
+			status: "all",
+		});
 
-	const subscription = subs.data.find(
-		(sub) => sub.status === "active" || sub.status === "trialing",
-	);
-	expect(subscription).toBeDefined();
-	expect(subscription!.metadata.user_id).toBe("u-123");
-	expect(subscription!.metadata.campaign).toBe("summer");
-});
+		const subscription = subs.data.find(
+			(sub) => sub.status === "active" || sub.status === "trialing",
+		);
+		expect(subscription).toBeDefined();
+		expect(subscription!.metadata.user_id).toBe("u-123");
+		expect(subscription!.metadata.campaign).toBe("summer");
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: autumn_* prefixed keys are stripped from user metadata
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("metadata: autumn_* keys are stripped")}`, async () => {
-	const customerId = "attach-metadata-strip-autumn";
+test.concurrent(
+	`${chalk.yellowBright("metadata: autumn_* keys are stripped")}`,
+	async () => {
+		const customerId = "attach-metadata-strip-autumn";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({
-		id: "pro-metadata-strip",
-		items: [messagesItem],
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({
+			id: "pro-metadata-strip",
+			items: [messagesItem],
+		});
 
-	const { autumnV1, autumnV2_1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, autumnV2_1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	await autumnV2_1.billing.attach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: pro.id,
-		metadata: {
-			user_id: "u-456",
-			autumn_evil: "hacked",
-			autumn_billing_update: "overridden",
-		},
-	});
+		await autumnV2_1.billing.attach<AttachParamsV1Input>({
+			customer_id: customerId,
+			plan_id: pro.id,
+			metadata: {
+				user_id: "u-456",
+				autumn_evil: "hacked",
+				autumn_billing_update: "overridden",
+			},
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: pro.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: pro.id,
+		});
 
-	const fullCustomer = await CusService.getFull({
-		ctx,
-		idOrInternalId: customerId,
-	});
+		const fullCustomer = await CusService.getFull({
+			ctx,
+			idOrInternalId: customerId,
+		});
 
-	const stripeCustomerId = fullCustomer.processor?.id;
-	expect(stripeCustomerId).toBeDefined();
+		const stripeCustomerId = fullCustomer.processor?.id;
+		expect(stripeCustomerId).toBeDefined();
 
-	const subs = await ctx.stripeCli.subscriptions.list({
-		customer: stripeCustomerId!,
-		status: "all",
-	});
+		const subs = await ctx.stripeCli.subscriptions.list({
+			customer: stripeCustomerId!,
+			status: "all",
+		});
 
-	const subscription = subs.data.find(
-		(sub) => sub.status === "active" || sub.status === "trialing",
-	);
-	expect(subscription).toBeDefined();
+		const subscription = subs.data.find(
+			(sub) => sub.status === "active" || sub.status === "trialing",
+		);
+		expect(subscription).toBeDefined();
 
-	// User's safe key should be present
-	expect(subscription!.metadata.user_id).toBe("u-456");
+		// User's safe key should be present
+		expect(subscription!.metadata.user_id).toBe("u-456");
 
-	// Autumn-prefixed keys should NOT be on the subscription
-	expect(subscription!.metadata.autumn_evil).toBeUndefined();
-	expect(subscription!.metadata.autumn_billing_update).toBeUndefined();
-});
+		// Autumn-prefixed keys should NOT be on the subscription
+		expect(subscription!.metadata.autumn_evil).toBeUndefined();
+		expect(subscription!.metadata.autumn_billing_update).toBeUndefined();
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: metadata passthrough on proration invoice (immediate upgrade)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("metadata: passthrough to proration invoice on upgrade")}`, async () => {
-	const customerId = "attach-metadata-upgrade-invoice";
+test.concurrent(
+	`${chalk.yellowBright("metadata: passthrough to proration invoice on upgrade")}`,
+	async () => {
+		const customerId = "attach-metadata-upgrade-invoice";
 
-	// Paid -> paid, so the proration lands on Autumn's manual invoice (a new subscription's first invoice is Stripe's).
-	const pro = products.pro({
-		id: "pro-metadata-inv",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
+		// Paid -> paid, so the proration lands on Autumn's manual invoice (a new subscription's first invoice is Stripe's).
+		const pro = products.pro({
+			id: "pro-metadata-inv",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
 
-	const premium = products.premium({
-		id: "premium-metadata-inv",
-		items: [items.monthlyMessages({ includedUsage: 500 })],
-	});
+		const premium = products.premium({
+			id: "premium-metadata-inv",
+			items: [items.monthlyMessages({ includedUsage: 500 })],
+		});
 
-	const { autumnV2_1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
+		const { autumnV2_1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+			],
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	const result = await autumnV2_1.billing.attach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: premium.id,
-		metadata: {
-			user_id: "u-invoice-test",
-			campaign: "upgrade-promo",
-		},
-	});
+		const result = await autumnV2_1.billing.attach<AttachParamsV1Input>({
+			customer_id: customerId,
+			plan_id: premium.id,
+			metadata: {
+				user_id: "u-invoice-test",
+				campaign: "upgrade-promo",
+			},
+		});
 
-	expect(result.invoice).toBeDefined();
-	expect(result.invoice!.stripe_id).toBeDefined();
+		expect(result.invoice).toBeDefined();
+		expect(result.invoice!.stripe_id).toBeDefined();
 
-	const stripeInvoice = await ctx.stripeCli.invoices.retrieve(
-		result.invoice!.stripe_id,
-	);
+		const stripeInvoice = await ctx.stripeCli.invoices.retrieve(
+			result.invoice!.stripe_id,
+		);
 
-	expect(stripeInvoice.metadata?.user_id).toBe("u-invoice-test");
-	expect(stripeInvoice.metadata?.campaign).toBe("upgrade-promo");
-	expect(stripeInvoice.metadata?.autumn_billing_update).toBe("true");
-});
+		expect(stripeInvoice.metadata?.user_id).toBe("u-invoice-test");
+		expect(stripeInvoice.metadata?.campaign).toBe("upgrade-promo");
+		expect(stripeInvoice.metadata?.autumn_billing_update).toBe("true");
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 4: metadata passthrough via Stripe checkout flow
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("metadata: passthrough via Stripe checkout")}`, async () => {
-	const customerId = "attach-metadata-checkout";
+test.concurrent(
+	`${chalk.yellowBright("metadata: passthrough via Stripe checkout")}`,
+	async () => {
+		const customerId = "attach-metadata-checkout";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({
-		id: "pro-metadata-checkout",
-		items: [messagesItem],
-	});
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({
+			id: "pro-metadata-checkout",
+			items: [messagesItem],
+		});
 
-	const { autumnV1, autumnV2_1, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer({ testClock: true }), s.products({ list: [pro] })],
-		actions: [],
-	});
+		const { autumnV1, autumnV2_1, ctx } = await initScenario({
+			customerId,
+			setup: [s.customer({ testClock: true }), s.products({ list: [pro] })],
+			actions: [],
+		});
 
-	const result = await autumnV2_1.billing.attach<AttachParamsV1Input>({
-		customer_id: customerId,
-		plan_id: pro.id,
-		metadata: {
-			datafast_visitor_id: "visitor-789",
-			datafast_session_id: "session-789",
-		},
-	});
+		const result = await autumnV2_1.billing.attach<AttachParamsV1Input>({
+			customer_id: customerId,
+			plan_id: pro.id,
+			metadata: {
+				datafast_visitor_id: "visitor-789",
+				datafast_session_id: "session-789",
+			},
+		});
 
-	expect(result.payment_url).toBeDefined();
-	expect(result.payment_url).toContain("checkout.stripe.com");
+		expect(result.payment_url).toBeDefined();
+		expect(result.payment_url).toContain("checkout.stripe.com");
 
-	const checkoutPathParts = new URL(result.payment_url).pathname.split("/");
-	const checkoutSessionId = checkoutPathParts[checkoutPathParts.length - 1];
-	expect(checkoutSessionId).toBeDefined();
+		const checkoutPathParts = new URL(result.payment_url).pathname.split("/");
+		const checkoutSessionId = checkoutPathParts[checkoutPathParts.length - 1];
+		expect(checkoutSessionId).toBeDefined();
 
-	const checkoutSession = await ctx.stripeCli.checkout.sessions.retrieve(
-		checkoutSessionId!,
-	);
-	expect(checkoutSession.metadata?.datafast_visitor_id).toBe("visitor-789");
-	expect(checkoutSession.metadata?.datafast_session_id).toBe("session-789");
+		const checkoutSession = await ctx.stripeCli.checkout.sessions.retrieve(
+			checkoutSessionId!,
+		);
+		expect(checkoutSession.metadata?.datafast_visitor_id).toBe("visitor-789");
+		expect(checkoutSession.metadata?.datafast_session_id).toBe("session-789");
 
-	await completeStripeCheckoutForm({ url: result.payment_url });
-	await timeout(12000);
+		await completeStripeCheckoutForm({ url: result.payment_url });
+		await timeout(12000);
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: pro.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: pro.id,
+		});
 
-	// Verify Stripe subscription has user-provided metadata
-	const fullCustomer = await CusService.getFull({
-		ctx,
-		idOrInternalId: customerId,
-	});
+		// Verify Stripe subscription has user-provided metadata
+		const fullCustomer = await CusService.getFull({
+			ctx,
+			idOrInternalId: customerId,
+		});
 
-	const stripeCustomerId = fullCustomer.processor?.id;
-	expect(stripeCustomerId).toBeDefined();
+		const stripeCustomerId = fullCustomer.processor?.id;
+		expect(stripeCustomerId).toBeDefined();
 
-	const subs = await ctx.stripeCli.subscriptions.list({
-		customer: stripeCustomerId!,
-		status: "all",
-	});
+		const subs = await ctx.stripeCli.subscriptions.list({
+			customer: stripeCustomerId!,
+			status: "all",
+		});
 
-	const subscription = subs.data.find(
-		(sub) => sub.status === "active" || sub.status === "trialing",
-	);
-	expect(subscription).toBeDefined();
-	expect(subscription!.metadata.datafast_visitor_id).toBe("visitor-789");
-	expect(subscription!.metadata.datafast_session_id).toBe("session-789");
-});
+		const subscription = subs.data.find(
+			(sub) => sub.status === "active" || sub.status === "trialing",
+		);
+		expect(subscription).toBeDefined();
+		expect(subscription!.metadata.datafast_visitor_id).toBe("visitor-789");
+		expect(subscription!.metadata.datafast_session_id).toBe("session-789");
+	},
+);

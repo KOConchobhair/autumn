@@ -1,5 +1,5 @@
-import { CusService } from "@/internal/customers/CusService.js";
 import type { TestContext } from "@tests/utils/testInitUtils/createTestContext";
+import { CusService } from "@/internal/customers/CusService.js";
 
 /** The Stripe customer id behind an Autumn customer, for scoping Stripe queries. */
 export const stripeCustomerId = async ({

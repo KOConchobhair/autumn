@@ -149,7 +149,9 @@ describe(chalk.yellowBright("voidInvoicesForSubscriptionDeleted"), () => {
 			expect(mockCli._calls.invoices.list).toHaveLength(1);
 			expect(mockCli._calls.invoices.voidInvoice).toHaveLength(2);
 			expect(mockCli._calls.invoices.voidInvoice).toContain("inv_open");
-			expect(mockCli._calls.invoices.voidInvoice).toContain("inv_uncollectible");
+			expect(mockCli._calls.invoices.voidInvoice).toContain(
+				"inv_uncollectible",
+			);
 		});
 
 		test("voids multiple open invoices", async () => {

@@ -19,9 +19,9 @@ import {
 import { products } from "@tests/utils/fixtures/products.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
+import { ProductService } from "@/internal/products/ProductService.js";
 import { PriceService } from "@/internal/products/prices/PriceService.js";
 import { priceRepo } from "@/internal/products/prices/repos/priceRepo.js";
-import { ProductService } from "@/internal/products/ProductService.js";
 import { generateId } from "@/utils/genUtils.js";
 import { uniqueSuffix } from "./feature-products/utils/createUnmintedFeaturePlans.js";
 
@@ -96,10 +96,7 @@ test.concurrent(
 			amount: number;
 			interval?: BillingInterval;
 			stripePriceId?: string | null;
-			currencies?: Record<
-				string,
-				{ amount: number; stripe_price_id?: string }
-			>;
+			currencies?: Record<string, { amount: number; stripe_price_id?: string }>;
 			isCustom?: boolean;
 		}) => {
 			await PriceService.insert({
@@ -215,9 +212,9 @@ test.concurrent(
 		const target25 = targetFixed({ amount: 25 });
 
 		expect((await find({ target: target25 }))?.id).toBe(catalog);
-		expect(
-			(await find({ target: { ...target25, id: usdEur } }))?.id,
-		).toBe(catalog);
+		expect((await find({ target: { ...target25, id: usdEur } }))?.id).toBe(
+			catalog,
+		);
 
 		expect(
 			await find({
@@ -250,9 +247,9 @@ test.concurrent(
 			}),
 		).toBeNull();
 
-		expect(
-			(await find({ target: target25, productId: premium.id }))?.id,
-		).toBe(otherPlan);
+		expect((await find({ target: target25, productId: premium.id }))?.id).toBe(
+			otherPlan,
+		);
 
 		expect(
 			(await find({ target: { ...target25, is_custom: false } }))?.id,

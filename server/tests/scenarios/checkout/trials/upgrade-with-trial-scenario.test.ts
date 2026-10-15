@@ -47,10 +47,12 @@ test(`${chalk.yellowBright("autumn-checkout: pro → premium with trial - Upgrad
 	// Get customer state after initial attach
 	const customerBefore = await autumnV1.customers.get(customerId);
 	console.log("customer before upgrade:", {
-		products: customerBefore.products?.map((p: { id: string; name: string | null }) => ({
-			id: p.id,
-			name: p.name,
-		})),
+		products: customerBefore.products?.map(
+			(p: { id: string; name: string | null }) => ({
+				id: p.id,
+				name: p.name,
+			}),
+		),
 	});
 
 	// 1. Preview the upgrade with trial

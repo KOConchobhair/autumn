@@ -27,9 +27,7 @@ test.concurrent(
 				}),
 			],
 			billingControls: {
-				overage_allowed: [
-					{ feature_id: TestFeature.Messages, enabled: false },
-				],
+				overage_allowed: [{ feature_id: TestFeature.Messages, enabled: false }],
 			},
 		});
 

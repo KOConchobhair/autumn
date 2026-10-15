@@ -7,12 +7,6 @@ import {
 	cusProductToPrices,
 	isFixedPrice,
 } from "@autumn/shared";
-import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
-import { expectProductNotPresent } from "@tests/integration/billing/utils/expectCustomerProductCorrect";
-import { createStripeFixedPriceUnderProduct } from "@tests/integration/billing/sync/utils/syncProductHelpers";
-import { TestFeature } from "@tests/setup/v2Features";
-import { timeout } from "@tests/utils/genUtils";
-import chalk from "chalk";
 import {
 	createCustomBasePriceForProduct,
 	createExternalStripeSubscription,
@@ -30,6 +24,12 @@ import {
 	trackCustomerUsage,
 	waitForCustomerProducts,
 } from "@tests/integration/billing/stripe-webhooks/utils/sharedStripeProductAutoSyncUtils";
+import { createStripeFixedPriceUnderProduct } from "@tests/integration/billing/sync/utils/syncProductHelpers";
+import { expectCustomerFeatureCorrect } from "@tests/integration/billing/utils/expectCustomerFeatureCorrect";
+import { expectProductNotPresent } from "@tests/integration/billing/utils/expectCustomerProductCorrect";
+import { TestFeature } from "@tests/setup/v2Features";
+import { timeout } from "@tests/utils/genUtils";
+import chalk from "chalk";
 
 test(`${chalk.yellowBright("customer.subscription.created auto-sync: exact variant prices win in shared Stripe product family")}`, async () => {
 	const customerId = "sub-created-shared-exact";
@@ -123,7 +123,9 @@ test(`${chalk.yellowBright("customer.subscription.created auto-sync: custom base
 		productId: variantFull.id,
 	});
 	expect(linked.is_custom).toBe(false);
-	const basePrice = cusProductToPrices({ cusProduct: linked }).find(isFixedPrice);
+	const basePrice = cusProductToPrices({ cusProduct: linked }).find(
+		isFixedPrice,
+	);
 	expect(basePrice?.config.amount).toBe(35);
 });
 
@@ -134,20 +136,15 @@ test(`${chalk.yellowBright("customer.subscription.created auto-sync: ambiguous s
 	const ambiguousVariantId = "shared_ambiguous_var_b";
 	const variantIncluded = 300_000;
 
-	const {
-		autumnV1,
-		ctx,
-		baseFull,
-		variantFull,
-		ambiguousVariantFull,
-	} = await setupSharedStripeProductFamily({
-		customerId,
-		baseId,
-		variantId,
-		variantIncluded,
-		ambiguousVariantId,
-		ambiguousVariantIncluded: 400_000,
-	});
+	const { autumnV1, ctx, baseFull, variantFull, ambiguousVariantFull } =
+		await setupSharedStripeProductFamily({
+			customerId,
+			baseId,
+			variantId,
+			variantIncluded,
+			ambiguousVariantId,
+			ambiguousVariantIncluded: 400_000,
+		});
 	if (!ambiguousVariantFull) {
 		throw new Error("Expected ambiguous variant setup to return full product");
 	}
@@ -196,13 +193,19 @@ test(`${chalk.yellowBright("customer.subscription.created auto-sync: base shape 
 			},
 		],
 	});
-	const variantFull = getFullProductFromMap({ fullProducts, productId: variantId });
+	const variantFull = getFullProductFromMap({
+		fullProducts,
+		productId: variantId,
+	});
 	const customBasePrice = await createCustomBasePriceForProduct({
 		ctx,
 		fullProduct: variantFull,
 		amount: 35,
 	});
-	const wrongUsagePrice = await createWrongUsagePrice({ ctx, fullProduct: variantFull });
+	const wrongUsagePrice = await createWrongUsagePrice({
+		ctx,
+		fullProduct: variantFull,
+	});
 
 	const stripeSubscription = await createExternalStripeSubscription({
 		ctx,
@@ -245,9 +248,7 @@ test(`${chalk.yellowBright("customer.subscription.created auto-sync: separate su
 				baseAmount: 20,
 				featureId: TestFeature.Messages,
 				baseIncluded: 25_000,
-				variants: [
-					{ id: groupAVariantId, amount: 35, included: 150_000 },
-				],
+				variants: [{ id: groupAVariantId, amount: 35, included: 150_000 }],
 			},
 			{
 				baseId: "shared_separate_groups_b_base",
@@ -255,9 +256,7 @@ test(`${chalk.yellowBright("customer.subscription.created auto-sync: separate su
 				baseAmount: 10,
 				featureId: TestFeature.Words,
 				baseIncluded: 1_000,
-				variants: [
-					{ id: groupBVariantId, amount: 15, included: 5_000 },
-				],
+				variants: [{ id: groupBVariantId, amount: 15, included: 5_000 }],
 			},
 		],
 	});
@@ -282,10 +281,7 @@ test(`${chalk.yellowBright("customer.subscription.created auto-sync: separate su
 	const groupASubscription = await createExternalStripeSubscription({
 		ctx,
 		customerId,
-		items: [
-			{ price: groupAPrice.id },
-			{ price: wrongGroupAUsagePrice.id },
-		],
+		items: [{ price: groupAPrice.id }, { price: wrongGroupAUsagePrice.id }],
 	});
 	expectStripeSubscriptionCreated({ subscription: groupASubscription });
 
@@ -293,7 +289,10 @@ test(`${chalk.yellowBright("customer.subscription.created auto-sync: separate su
 		autumnV1,
 		customerId,
 		active: [groupAVariantId],
-		notPresent: ["shared_separate_groups_a_base", "shared_separate_groups_b_base"],
+		notPresent: [
+			"shared_separate_groups_a_base",
+			"shared_separate_groups_b_base",
+		],
 	});
 	await trackCustomerUsage({
 		autumnV1,
@@ -318,7 +317,10 @@ test(`${chalk.yellowBright("customer.subscription.created auto-sync: separate su
 		autumnV1,
 		customerId,
 		active: [groupAVariantId, groupBVariantId],
-		notPresent: ["shared_separate_groups_a_base", "shared_separate_groups_b_base"],
+		notPresent: [
+			"shared_separate_groups_a_base",
+			"shared_separate_groups_b_base",
+		],
 	});
 	expectCustomerFeatureCorrect({
 		customer,
@@ -345,4 +347,3 @@ test(`${chalk.yellowBright("customer.subscription.created auto-sync: separate su
 		productIds: [groupBVariantId],
 	});
 });
-

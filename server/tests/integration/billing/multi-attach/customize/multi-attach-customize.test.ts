@@ -39,172 +39,180 @@ import { expectStripeSubscriptionCorrect } from "../../utils/expectStripeSubCorr
 // - Features correct
 // - Invoice total = $85
 // ═══════════════════════════════════════════════════════════════════
-test.concurrent(`${chalk.yellowBright("multi-attach customize 1: different custom prices per plan")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 500 });
-	const usersItem = items.monthlyUsers({ includedUsage: 10 });
+test.concurrent(
+	`${chalk.yellowBright("multi-attach customize 1: different custom prices per plan")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 500 });
+		const usersItem = items.monthlyUsers({ includedUsage: 10 });
 
-	const planA = products.pro({ id: "plan-a", items: [messagesItem] });
-	const planB = products.base({
-		id: "plan-b",
-		items: [usersItem, items.monthlyPrice({ price: 30 })],
-		group: "group-b",
-	});
+		const planA = products.pro({ id: "plan-a", items: [messagesItem] });
+		const planB = products.base({
+			id: "plan-b",
+			items: [usersItem, items.monthlyPrice({ price: 30 })],
+			group: "group-b",
+		});
 
-	const { customerId, autumnV1, ctx } = await initScenario({
-		customerId: "ma-customize-prices",
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [planA, planB] }),
-		],
-		actions: [],
-	});
+		const { customerId, autumnV1, ctx } = await initScenario({
+			customerId: "ma-customize-prices",
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [planA, planB] }),
+			],
+			actions: [],
+		});
 
-	const multiAttachParams = {
-		customer_id: customerId,
-		plans: [
-			{
-				plan_id: planA.id,
-				customize: {
-					price: itemsV2.monthlyPrice({ amount: 35 }),
+		const multiAttachParams = {
+			customer_id: customerId,
+			plans: [
+				{
+					plan_id: planA.id,
+					customize: {
+						price: itemsV2.monthlyPrice({ amount: 35 }),
+					},
 				},
-			},
-			{
-				plan_id: planB.id,
-				customize: {
-					price: itemsV2.monthlyPrice({ amount: 50 }),
+				{
+					plan_id: planB.id,
+					customize: {
+						price: itemsV2.monthlyPrice({ amount: 50 }),
+					},
 				},
-			},
-		],
-	};
+			],
+		};
 
-	// 1. Preview — $35 (planA custom) + $50 (planB custom) = $85
-	const preview = await autumnV1.billing.previewMultiAttach(multiAttachParams);
-	expect(preview.total).toBeCloseTo(85, 0);
+		// 1. Preview — $35 (planA custom) + $50 (planB custom) = $85
+		const preview =
+			await autumnV1.billing.previewMultiAttach(multiAttachParams);
+		expect(preview.total).toBeCloseTo(85, 0);
 
-	// 2. Attach
-	await autumnV1.billing.multiAttach(multiAttachParams);
+		// 2. Attach
+		await autumnV1.billing.multiAttach(multiAttachParams);
 
-	// 3. Verify
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// 3. Verify
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer,
-		active: [planA.id, planB.id],
-	});
+		await expectCustomerProducts({
+			customer,
+			active: [planA.id, planB.id],
+		});
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: 500,
-	});
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Users,
-		balance: 10,
-	});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: 500,
+		});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Users,
+			balance: 10,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 85,
-	});
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 85,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-		flags: { checkNotTrialing: true },
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+			flags: { checkNotTrialing: true },
+		});
+	},
+);
 
 // Separate groups allow both customized plans to remain active.
 // Purchased messages total 800; billable packs cost $40 + $120.
-test.concurrent(`${chalk.yellowBright("multi-attach customize 2: custom items per plan")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+test.concurrent(
+	`${chalk.yellowBright("multi-attach customize 2: custom items per plan")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
 
-	const addon = products.base({
-		id: "addon",
-		items: [messagesItem, items.monthlyPrice({ price: 20 })],
-	});
-	const planB = products.base({
-		id: "plan-b",
-		items: [messagesItem, items.monthlyPrice({ price: 20 })],
-		group: "group-b",
-	});
+		const addon = products.base({
+			id: "addon",
+			items: [messagesItem, items.monthlyPrice({ price: 20 })],
+		});
+		const planB = products.base({
+			id: "plan-b",
+			items: [messagesItem, items.monthlyPrice({ price: 20 })],
+			group: "group-b",
+		});
 
-	const { customerId, autumnV1, ctx } = await initScenario({
-		customerId: "ma-customize-items",
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [addon, planB] }),
-		],
-		actions: [],
-	});
+		const { customerId, autumnV1, ctx } = await initScenario({
+			customerId: "ma-customize-items",
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [addon, planB] }),
+			],
+			actions: [],
+		});
 
-	const multiAttachParams = {
-		customer_id: customerId,
+		const multiAttachParams = {
+			customer_id: customerId,
 
-		plans: [
-			{
-				plan_id: addon.id,
-				customize: {
-					price: null,
-					items: [
-						itemsV2.prepaidMessages({ included: 100, amount: 20 }),
-						itemsV2.dashboard(),
+			plans: [
+				{
+					plan_id: addon.id,
+					customize: {
+						price: null,
+						items: [
+							itemsV2.prepaidMessages({ included: 100, amount: 20 }),
+							itemsV2.dashboard(),
+						],
+					},
+					feature_quantities: [
+						{ feature_id: TestFeature.Messages, quantity: 300 },
 					],
 				},
-				feature_quantities: [
-					{ feature_id: TestFeature.Messages, quantity: 300 },
-				],
-			},
-			{
-				plan_id: planB.id,
-				customize: {
-					price: null,
-					items: [itemsV2.prepaidMessages({ included: 100, amount: 30 })],
+				{
+					plan_id: planB.id,
+					customize: {
+						price: null,
+						items: [itemsV2.prepaidMessages({ included: 100, amount: 30 })],
+					},
+					feature_quantities: [
+						{ feature_id: TestFeature.Messages, quantity: 500 },
+					],
 				},
-				feature_quantities: [
-					{ feature_id: TestFeature.Messages, quantity: 500 },
-				],
-			},
-		],
-	};
+			],
+		};
 
-	// 1. Preview — two $20 packs + four $30 packs = $160.
-	const preview = await autumnV1.billing.previewMultiAttach(multiAttachParams);
-	expect(preview.total).toEqual(40 + 120);
+		// 1. Preview — two $20 packs + four $30 packs = $160.
+		const preview =
+			await autumnV1.billing.previewMultiAttach(multiAttachParams);
+		expect(preview.total).toEqual(40 + 120);
 
-	// 2. Attach
-	await autumnV1.billing.multiAttach(multiAttachParams);
+		// 2. Attach
+		await autumnV1.billing.multiAttach(multiAttachParams);
 
-	// 3. Verify
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// 3. Verify
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerProducts({
-		customer,
-		active: [addon.id, planB.id],
-	});
+		await expectCustomerProducts({
+			customer,
+			active: [addon.id, planB.id],
+		});
 
-	// Messages: 300 + 500 purchased across the two plans.
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: 800,
-	});
+		// Messages: 300 + 500 purchased across the two plans.
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: 800,
+		});
 
-	// Dashboard: added via customize items
-	await expectCustomerFeatureExists({
-		customer,
-		featureId: TestFeature.Dashboard,
-	});
+		// Dashboard: added via customize items
+		await expectCustomerFeatureExists({
+			customer,
+			featureId: TestFeature.Dashboard,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 40 + 120,
-	});
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 40 + 120,
+		});
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);

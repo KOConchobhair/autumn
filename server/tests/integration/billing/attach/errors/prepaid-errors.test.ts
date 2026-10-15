@@ -23,32 +23,35 @@ import { constructPrepaidItem } from "@/utils/scriptUtils/constructItem.js";
  * Expected Result:
  * - Error thrown during product setup (when Stripe price creation fails)
  */
-test.concurrent(`${chalk.yellowBright("error: prepaid includedUsage must be multiple of billingUnits")}`, async () => {
-	const customerId = "prepaid-error-invalid-included-usage";
-	const billingUnits = 100;
+test.concurrent(
+	`${chalk.yellowBright("error: prepaid includedUsage must be multiple of billingUnits")}`,
+	async () => {
+		const customerId = "prepaid-error-invalid-included-usage";
+		const billingUnits = 100;
 
-	// Invalid: 50 is NOT a multiple of 100
-	const invalidPrepaidItem = constructPrepaidItem({
-		featureId: TestFeature.Messages,
-		includedUsage: 50, // 50 / 100 = 0.5 → invalid for Stripe tiers
-		billingUnits,
-		price: 10,
-	});
+		// Invalid: 50 is NOT a multiple of 100
+		const invalidPrepaidItem = constructPrepaidItem({
+			featureId: TestFeature.Messages,
+			includedUsage: 50, // 50 / 100 = 0.5 → invalid for Stripe tiers
+			billingUnits,
+			price: 10,
+		});
 
-	const pro = products.pro({
-		id: "pro-invalid-prepaid",
-		items: [invalidPrepaidItem],
-	});
+		const pro = products.pro({
+			id: "pro-invalid-prepaid",
+			items: [invalidPrepaidItem],
+		});
 
-	// Error should be thrown during product setup (initScenario) when Stripe price creation fails
-	await expect(
-		initScenario({
-			customerId,
-			setup: [
-				s.customer({ paymentMethod: "success" }),
-				s.products({ list: [pro] }),
-			],
-			actions: [],
-		}),
-	).rejects.toThrow();
-});
+		// Error should be thrown during product setup (initScenario) when Stripe price creation fails
+		await expect(
+			initScenario({
+				customerId,
+				setup: [
+					s.customer({ paymentMethod: "success" }),
+					s.products({ list: [pro] }),
+				],
+				actions: [],
+			}),
+		).rejects.toThrow();
+	},
+);

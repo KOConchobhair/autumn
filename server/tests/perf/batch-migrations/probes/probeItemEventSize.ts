@@ -53,7 +53,9 @@ const main = async () => {
 	console.log(
 		`projected 5,000-row POST: ${((avg(compactSizes) * 5000) / 1024 / 1024).toFixed(1)} MB`,
 	);
-	console.log(`sample compact row: ${JSON.stringify(compact(rows[0])).slice(0, 800)}`);
+	console.log(
+		`sample compact row: ${JSON.stringify(compact(rows[0])).slice(0, 800)}`,
+	);
 };
 
 await main();

@@ -29,9 +29,7 @@ describe("escapeIlikePattern", () => {
 	});
 
 	test("leaves normal entity IDs unchanged", () => {
-		expect(escapeIlikePattern("dispersive-preview")).toBe(
-			"dispersive-preview",
-		);
+		expect(escapeIlikePattern("dispersive-preview")).toBe("dispersive-preview");
 		expect(escapeIlikePattern("6a13cf0b9b6845d6edbb4aa4")).toBe(
 			"6a13cf0b9b6845d6edbb4aa4",
 		);

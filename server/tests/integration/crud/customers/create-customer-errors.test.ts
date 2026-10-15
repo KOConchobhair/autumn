@@ -8,21 +8,24 @@ import chalk from "chalk";
 // AUTO-ENABLE PLAN ERROR TESTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("errors: auto_enable_plan_id with non-existent product")}`, async () => {
-	const customerId = "error-auto-enable-nonexistent";
+test.concurrent(
+	`${chalk.yellowBright("errors: auto_enable_plan_id with non-existent product")}`,
+	async () => {
+		const customerId = "error-auto-enable-nonexistent";
 
-	const { autumnV1 } = await initScenario({
-		setup: [s.deleteCustomer({ customerId })],
-		actions: [],
-	});
+		const { autumnV1 } = await initScenario({
+			setup: [s.deleteCustomer({ customerId })],
+			actions: [],
+		});
 
-	await expectAutumnError({
-		errCode: ErrCode.ProductNotFound,
-		func: async () => {
-			await autumnV1.customers.create({
-				id: customerId,
-				auto_enable_plan_id: "non-existent-product-id",
-			});
-		},
-	});
-});
+		await expectAutumnError({
+			errCode: ErrCode.ProductNotFound,
+			func: async () => {
+				await autumnV1.customers.create({
+					id: customerId,
+					auto_enable_plan_id: "non-existent-product-id",
+				});
+			},
+		});
+	},
+);

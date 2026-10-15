@@ -25,172 +25,180 @@ import { constructPriceItem } from "@/internal/products/product-items/productIte
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Update included usage on one-off product with free messages
-test.concurrent(`${chalk.yellowBright("one-off: update included usage on free messages")}`, async () => {
-	const oldIncludedUsage = 100;
-	const messagesItem = items.monthlyMessages({
-		includedUsage: oldIncludedUsage,
-	});
-	const oneOffProduct = products.oneOff({
-		items: [messagesItem],
-		id: "one-off-free",
-	});
+test.concurrent(
+	`${chalk.yellowBright("one-off: update included usage on free messages")}`,
+	async () => {
+		const oldIncludedUsage = 100;
+		const messagesItem = items.monthlyMessages({
+			includedUsage: oldIncludedUsage,
+		});
+		const oneOffProduct = products.oneOff({
+			items: [messagesItem],
+			id: "one-off-free",
+		});
 
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "one-off-update-included",
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [oneOffProduct] }),
-		],
-		actions: [s.attach({ productId: oneOffProduct.id, timeout: 3000 })],
-	});
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "one-off-update-included",
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [oneOffProduct] }),
+			],
+			actions: [s.attach({ productId: oneOffProduct.id, timeout: 3000 })],
+		});
 
-	// Track some usage
-	const messagesUsed = 30;
-	await autumnV1.track(
-		{
+		// Track some usage
+		const messagesUsed = 30;
+		await autumnV1.track(
+			{
+				customer_id: customerId,
+				feature_id: TestFeature.Messages,
+				value: messagesUsed,
+			},
+			{ timeout: 2000 },
+		);
+
+		// Update to increase included usage
+		const newIncludedUsage = 200;
+		const updatedMessagesItem = items.monthlyMessages({
+			includedUsage: newIncludedUsage,
+		});
+
+		// Must include one-off price item to prevent transition to free product
+		const oneOffPriceItem = constructPriceItem({ price: 10, interval: null });
+
+		const updateParams = {
 			customer_id: customerId,
-			feature_id: TestFeature.Messages,
-			value: messagesUsed,
-		},
-		{ timeout: 2000 },
-	);
+			product_id: oneOffProduct.id,
+			items: [updatedMessagesItem, oneOffPriceItem],
+		};
 
-	// Update to increase included usage
-	const newIncludedUsage = 200;
-	const updatedMessagesItem = items.monthlyMessages({
-		includedUsage: newIncludedUsage,
-	});
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
 
-	// Must include one-off price item to prevent transition to free product
-	const oneOffPriceItem = constructPriceItem({ price: 10, interval: null });
+		// No charge for updating included usage on one-off product
+		expect(preview.total).toBe(0);
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: oneOffProduct.id,
-		items: [updatedMessagesItem, oneOffPriceItem],
-	};
+		await autumnV1.subscriptions.update(updateParams);
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// No charge for updating included usage on one-off product
-	expect(preview.total).toBe(0);
+		// Updated included usage, usage preserved
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: newIncludedUsage,
+			balance: newIncludedUsage - messagesUsed,
+			usage: messagesUsed,
+		});
 
-	await autumnV1.subscriptions.update(updateParams);
-
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-
-	// Updated included usage, usage preserved
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: newIncludedUsage,
-		balance: newIncludedUsage - messagesUsed,
-		usage: messagesUsed,
-	});
-
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1, // Only initial one-off invoice
-		latestTotal: 10, // One-off product price
-	});
-});
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1, // Only initial one-off invoice
+			latestTotal: 10, // One-off product price
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ONE-OFF PRODUCT WITH BOOLEAN FEATURES
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Add boolean feature to one-off product
-test.concurrent(`${chalk.yellowBright("one-off: add boolean feature")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const oneOffProduct = products.oneOff({
-		items: [messagesItem],
-		id: "one-off-no-dashboard",
-	});
+test.concurrent(
+	`${chalk.yellowBright("one-off: add boolean feature")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const oneOffProduct = products.oneOff({
+			items: [messagesItem],
+			id: "one-off-no-dashboard",
+		});
 
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "one-off-add-boolean",
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [oneOffProduct] }),
-		],
-		actions: [s.attach({ productId: oneOffProduct.id })],
-	});
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "one-off-add-boolean",
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [oneOffProduct] }),
+			],
+			actions: [s.attach({ productId: oneOffProduct.id })],
+		});
 
-	// Update to add dashboard boolean feature
-	const dashboardItem = items.dashboard();
-	const oneOffPriceItem = constructPriceItem({ price: 10, interval: null });
+		// Update to add dashboard boolean feature
+		const dashboardItem = items.dashboard();
+		const oneOffPriceItem = constructPriceItem({ price: 10, interval: null });
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: oneOffProduct.id,
-		items: [messagesItem, dashboardItem, oneOffPriceItem],
-	};
+		const updateParams = {
+			customer_id: customerId,
+			product_id: oneOffProduct.id,
+			items: [messagesItem, dashboardItem, oneOffPriceItem],
+		};
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
 
-	// No charge for adding boolean feature
-	expect(preview.total).toBe(0);
+		// No charge for adding boolean feature
+		expect(preview.total).toBe(0);
 
-	await autumnV1.subscriptions.update(updateParams);
+		await autumnV1.subscriptions.update(updateParams);
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Verify dashboard feature is now enabled
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Dashboard,
-	});
+		// Verify dashboard feature is now enabled
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Dashboard,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1, // Only initial one-off invoice
-		latestTotal: 10,
-	});
-});
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1, // Only initial one-off invoice
+			latestTotal: 10,
+		});
+	},
+);
 
 // Remove boolean feature from one-off product
-test.concurrent(`${chalk.yellowBright("one-off: remove boolean feature")}`, async () => {
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const dashboardItem = items.dashboard();
-	const oneOffProduct = products.oneOff({
-		items: [messagesItem, dashboardItem],
-		id: "one-off-with-dashboard",
-	});
+test.concurrent(
+	`${chalk.yellowBright("one-off: remove boolean feature")}`,
+	async () => {
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const dashboardItem = items.dashboard();
+		const oneOffProduct = products.oneOff({
+			items: [messagesItem, dashboardItem],
+			id: "one-off-with-dashboard",
+		});
 
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "one-off-remove-boolean",
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [oneOffProduct] }),
-		],
-		actions: [s.attach({ productId: oneOffProduct.id })],
-	});
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "one-off-remove-boolean",
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [oneOffProduct] }),
+			],
+			actions: [s.attach({ productId: oneOffProduct.id })],
+		});
 
-	// Update to remove dashboard boolean feature
-	const oneOffPriceItem = constructPriceItem({ price: 10, interval: null });
+		// Update to remove dashboard boolean feature
+		const oneOffPriceItem = constructPriceItem({ price: 10, interval: null });
 
-	const updateParams = {
-		customer_id: customerId,
-		product_id: oneOffProduct.id,
-		items: [messagesItem, oneOffPriceItem],
-	};
+		const updateParams = {
+			customer_id: customerId,
+			product_id: oneOffProduct.id,
+			items: [messagesItem, oneOffPriceItem],
+		};
 
-	const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
+		const preview = await autumnV1.subscriptions.previewUpdate(updateParams);
 
-	// No charge for removing boolean feature
-	expect(preview.total).toBe(0);
+		// No charge for removing boolean feature
+		expect(preview.total).toBe(0);
 
-	await autumnV1.subscriptions.update(updateParams);
+		await autumnV1.subscriptions.update(updateParams);
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	// Verify dashboard feature is removed
-	expect(customer.features[TestFeature.Dashboard]).toBeUndefined();
+		// Verify dashboard feature is removed
+		expect(customer.features[TestFeature.Dashboard]).toBeUndefined();
 
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1, // Only initial one-off invoice
-		latestTotal: 10,
-	});
-});
-
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1, // Only initial one-off invoice
+			latestTotal: 10,
+		});
+	},
+);

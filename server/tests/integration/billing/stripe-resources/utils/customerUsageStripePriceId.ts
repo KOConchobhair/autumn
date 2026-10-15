@@ -77,7 +77,9 @@ export const expectSharedUsageStripePrice = async ({
 	for (const result of results) {
 		expect(result.customerStripePriceId).toBe(first);
 		if (notCatalog) {
-			expect(result.customerStripePriceId).not.toBe(result.catalogStripePriceId);
+			expect(result.customerStripePriceId).not.toBe(
+				result.catalogStripePriceId,
+			);
 		}
 	}
 	return results;

@@ -161,22 +161,16 @@ test.concurrent(
 		const customerId = "attach-annual-monthly-multi-entity";
 		const plan = annualMonthlyMessagesPlan();
 
-		const {
-			autumnV1,
-			autumnV2_2,
-			ctx,
-			entities,
-			testClockId,
-			advancedTo,
-		} = await initScenario({
-			customerId,
-			setup: [
-				s.customer({ paymentMethod: "success" }),
-				s.products({ list: [plan] }),
-				s.entities({ count: 2, featureId: TestFeature.Users }),
-			],
-			actions: [],
-		});
+		const { autumnV1, autumnV2_2, ctx, entities, testClockId, advancedTo } =
+			await initScenario({
+				customerId,
+				setup: [
+					s.customer({ paymentMethod: "success" }),
+					s.products({ list: [plan] }),
+					s.entities({ count: 2, featureId: TestFeature.Users }),
+				],
+				actions: [],
+			});
 
 		const firstPhase = ANNUAL_MONTHLY_MESSAGES_PHASES[0]!;
 		const entity0Params = attachParams({
@@ -221,7 +215,9 @@ test.concurrent(
 				entity1Params,
 			)) as AttachPreviewResponse;
 
-		const annualLine = preview.line_items.find((item) => item.feature_id === null);
+		const annualLine = preview.line_items.find(
+			(item) => item.feature_id === null,
+		);
 		const prepaidLine = preview.line_items.find(
 			(item) => item.feature_id === TestFeature.Messages,
 		);

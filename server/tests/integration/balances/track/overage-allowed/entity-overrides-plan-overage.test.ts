@@ -12,8 +12,8 @@ import { items } from "@tests/utils/fixtures/items.js";
 import { products } from "@tests/utils/fixtures/products.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
-import { expectEntityFeatureBalance } from "../../utils/spend-limit-utils/entitySpendLimitUtils.js";
 import { setEntityOverageAllowed } from "../../utils/overage-allowed-utils/entityOverageAllowedUtils.js";
+import { expectEntityFeatureBalance } from "../../utils/spend-limit-utils/entitySpendLimitUtils.js";
 
 test.concurrent(
 	`${chalk.yellowBright("entity-overrides-plan-overage: entity overage_allowed:true overrides plan false; sibling inherits plan")}`,
@@ -27,9 +27,7 @@ test.concurrent(
 				}),
 			],
 			billingControls: {
-				overage_allowed: [
-					{ feature_id: TestFeature.Messages, enabled: false },
-				],
+				overage_allowed: [{ feature_id: TestFeature.Messages, enabled: false }],
 			},
 		});
 

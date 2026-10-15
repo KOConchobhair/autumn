@@ -16,7 +16,7 @@
 
 import { beforeAll, expect, test } from "bun:test";
 import { ErrCode } from "@autumn/shared";
-import { TestFeature, getFeatures } from "@tests/setup/v2Features.js";
+import { getFeatures, TestFeature } from "@tests/setup/v2Features.js";
 import { items } from "@tests/utils/fixtures/items.js";
 import { products } from "@tests/utils/fixtures/products.js";
 import ctx from "@tests/utils/testInitUtils/createTestContext.js";

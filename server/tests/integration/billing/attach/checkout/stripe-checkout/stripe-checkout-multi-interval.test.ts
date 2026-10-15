@@ -38,78 +38,81 @@ import chalk from "chalk";
  * - Consumable messages billed in arrears (not charged upfront)
  * - Invoice: $200 (base only)
  */
-test.concurrent(`${chalk.yellowBright("stripe-checkout: annual with consumable messages")}`, async () => {
-	const customerId = "stripe-checkout-annual-consumable";
-	const basePrice = 200; // proAnnual is $200/year
+test.concurrent(
+	`${chalk.yellowBright("stripe-checkout: annual with consumable messages")}`,
+	async () => {
+		const customerId = "stripe-checkout-annual-consumable";
+		const basePrice = 200; // proAnnual is $200/year
 
-	const consumableMessagesItem = items.consumableMessages({
-		includedUsage: 100,
-	});
+		const consumableMessagesItem = items.consumableMessages({
+			includedUsage: 100,
+		});
 
-	const proAnnual = products.proAnnual({
-		id: "pro-annual-consumable",
-		items: [consumableMessagesItem],
-	});
+		const proAnnual = products.proAnnual({
+			id: "pro-annual-consumable",
+			items: [consumableMessagesItem],
+		});
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }), // No payment method!
-			s.products({ list: [proAnnual] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }), // No payment method!
+				s.products({ list: [proAnnual] }),
+			],
+			actions: [],
+		});
 
-	// 1. Preview attach - should show $200 (base only, consumable billed in arrears)
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-	});
-	expect(preview.total).toBe(basePrice);
+		// 1. Preview attach - should show $200 (base only, consumable billed in arrears)
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+		});
+		expect(preview.total).toBe(basePrice);
 
-	// 2. Attempt attach - should return payment_url
-	const result = await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-	});
+		// 2. Attempt attach - should return payment_url
+		const result = await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+		});
 
-	expect(result.payment_url).toBeDefined();
-	expect(result.payment_url).toContain("checkout.stripe.com");
+		expect(result.payment_url).toBeDefined();
+		expect(result.payment_url).toContain("checkout.stripe.com");
 
-	// 3. Complete checkout
-	await completeStripeCheckoutForm({ url: result.payment_url });
+		// 3. Complete checkout
+		await completeStripeCheckoutForm({ url: result.payment_url });
 
-	// 4. Verify product attached
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// 4. Verify product attached
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: proAnnual.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: proAnnual.id,
+		});
 
-	// 5. Verify consumable messages feature
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 100,
-		balance: 100,
-		usage: 0,
-	});
+		// 5. Verify consumable messages feature
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 100,
+			balance: 100,
+			usage: 0,
+		});
 
-	// 6. Verify invoice: base price only
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: basePrice,
-	});
+		// 6. Verify invoice: base price only
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: basePrice,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST B: Annual product with consumable + prepaid messages
@@ -128,103 +131,106 @@ test.concurrent(`${chalk.yellowBright("stripe-checkout: annual with consumable m
  * - Invoice: $200
  * - Words balance: 100
  */
-test.concurrent(`${chalk.yellowBright("stripe-checkout: annual with consumable + prepaid (included only)")}`, async () => {
-	const customerId = "stripe-checkout-annual-mixed";
-	const basePrice = 200; // proAnnual is $200/year
-	const billingUnits = 100;
-	const pricePerPack = 10;
-	const includedWords = 100;
+test.concurrent(
+	`${chalk.yellowBright("stripe-checkout: annual with consumable + prepaid (included only)")}`,
+	async () => {
+		const customerId = "stripe-checkout-annual-mixed";
+		const basePrice = 200; // proAnnual is $200/year
+		const billingUnits = 100;
+		const pricePerPack = 10;
+		const includedWords = 100;
 
-	const consumableMessagesItem = items.consumableMessages({
-		includedUsage: 100,
-	});
+		const consumableMessagesItem = items.consumableMessages({
+			includedUsage: 100,
+		});
 
-	const prepaidWordsItem = items.prepaid({
-		featureId: TestFeature.Words,
-		includedUsage: includedWords, // 100 included (1 free pack)
-		billingUnits,
-		price: pricePerPack,
-	});
+		const prepaidWordsItem = items.prepaid({
+			featureId: TestFeature.Words,
+			includedUsage: includedWords, // 100 included (1 free pack)
+			billingUnits,
+			price: pricePerPack,
+		});
 
-	const proAnnual = products.proAnnual({
-		id: "pro-annual-mixed",
-		items: [consumableMessagesItem, prepaidWordsItem],
-	});
+		const proAnnual = products.proAnnual({
+			id: "pro-annual-mixed",
+			items: [consumableMessagesItem, prepaidWordsItem],
+		});
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }), // No payment method!
-			s.products({ list: [proAnnual] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }), // No payment method!
+				s.products({ list: [proAnnual] }),
+			],
+			actions: [],
+		});
 
-	// Quantity = included allowance only (no paid packs)
-	const prepaidQuantity = includedWords; // 100
+		// Quantity = included allowance only (no paid packs)
+		const prepaidQuantity = includedWords; // 100
 
-	// 1. Preview attach - should show $200 (base only, no prepaid charge)
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-		options: [{ feature_id: TestFeature.Words, quantity: prepaidQuantity }],
-	});
-	expect(preview.total).toBe(basePrice);
+		// 1. Preview attach - should show $200 (base only, no prepaid charge)
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+			options: [{ feature_id: TestFeature.Words, quantity: prepaidQuantity }],
+		});
+		expect(preview.total).toBe(basePrice);
 
-	// 2. Attempt attach - should return payment_url
-	const result = await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-		options: [{ feature_id: TestFeature.Words, quantity: prepaidQuantity }],
-	});
+		// 2. Attempt attach - should return payment_url
+		const result = await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+			options: [{ feature_id: TestFeature.Words, quantity: prepaidQuantity }],
+		});
 
-	expect(result.payment_url).toBeDefined();
-	expect(result.payment_url).toContain("checkout.stripe.com");
+		expect(result.payment_url).toBeDefined();
+		expect(result.payment_url).toContain("checkout.stripe.com");
 
-	// 3. Complete checkout
-	await completeStripeCheckoutForm({ url: result.payment_url });
-	await timeout(12000);
+		// 3. Complete checkout
+		await completeStripeCheckoutForm({ url: result.payment_url });
+		await timeout(12000);
 
-	// 4. Verify product attached
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// 4. Verify product attached
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: proAnnual.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: proAnnual.id,
+		});
 
-	// 5. Verify consumable messages feature (100 included)
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 100,
-		balance: 100,
-		usage: 0,
-	});
+		// 5. Verify consumable messages feature (100 included)
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 100,
+			balance: 100,
+			usage: 0,
+		});
 
-	// 6. Verify prepaid words feature (100 = included only)
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Words,
-		includedUsage: prepaidQuantity,
-		balance: prepaidQuantity,
-		usage: 0,
-	});
+		// 6. Verify prepaid words feature (100 = included only)
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Words,
+			includedUsage: prepaidQuantity,
+			balance: prepaidQuantity,
+			usage: 0,
+		});
 
-	// 7. Verify invoice: base only = $200
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: basePrice,
-	});
+		// 7. Verify invoice: base only = $200
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: basePrice,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST C: Annual product with allocated users (5 entities created beforehand)
@@ -245,139 +251,150 @@ test.concurrent(`${chalk.yellowBright("stripe-checkout: annual with consumable +
  * - Checkout includes annual base ($200) + users ($50)
  * - Invoice: $250
  */
-test.concurrent(`${chalk.yellowBright("stripe-checkout: annual with allocated users (0 usage)")}`, async () => {
-	const customerId = "stripe-checkout-annual-allocated";
-	const basePrice = 200; // proAnnual is $200/year
-	const pricePerUser = 10;
-	const userCount = 5;
+test.concurrent(
+	`${chalk.yellowBright("stripe-checkout: annual with allocated users (0 usage)")}`,
+	async () => {
+		const customerId = "stripe-checkout-annual-allocated";
+		const basePrice = 200; // proAnnual is $200/year
+		const pricePerUser = 10;
+		const userCount = 5;
 
-	const allocatedUsersItem = items.allocatedUsers({
-		includedUsage: 0, // No free users
-	});
+		const allocatedUsersItem = items.allocatedUsers({
+			includedUsage: 0, // No free users
+		});
 
-	const proAnnual = products.proAnnual({
-		id: "pro-annual-allocated",
-		items: [allocatedUsersItem],
-	});
+		const proAnnual = products.proAnnual({
+			id: "pro-annual-allocated",
+			items: [allocatedUsersItem],
+		});
 
-	const { autumnV1, ctx, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ testClock: true }), // No payment method!
-			s.products({ list: [proAnnual] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, ctx, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ testClock: true }), // No payment method!
+				s.products({ list: [proAnnual] }),
+			],
+			actions: [],
+		});
 
-	// 1. Preview attach - should show $200 (base) + $50 (users) = $250
-	const preview = await autumnV1.billing.previewAttach({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-	});
-	expect(preview.total).toBe(basePrice);
+		// 1. Preview attach - should show $200 (base) + $50 (users) = $250
+		const preview = await autumnV1.billing.previewAttach({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+		});
+		expect(preview.total).toBe(basePrice);
 
-	// 2. Attempt attach - should return payment_url
-	const result = await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: proAnnual.id,
-	});
+		// 2. Attempt attach - should return payment_url
+		const result = await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: proAnnual.id,
+		});
 
-	expect(result.payment_url).toBeDefined();
-	expect(result.payment_url).toContain("checkout.stripe.com");
+		expect(result.payment_url).toBeDefined();
+		expect(result.payment_url).toContain("checkout.stripe.com");
 
-	// 3. Complete checkout
-	await completeStripeCheckoutForm({ url: result.payment_url });
+		// 3. Complete checkout
+		await completeStripeCheckoutForm({ url: result.payment_url });
 
-	// 4. Verify product attached
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		// 4. Verify product attached
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: proAnnual.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: proAnnual.id,
+		});
 
-	// 5. Verify allocated users feature (5 users)
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Users,
-		includedUsage: 0,
-		balance: 0,
-		usage: 0,
-	});
+		// 5. Verify allocated users feature (5 users)
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Users,
+			includedUsage: 0,
+			balance: 0,
+			usage: 0,
+		});
 
-	// 6. Verify invoice: base + users = $250
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: basePrice,
-	});
+		// 6. Verify invoice: base + users = $250
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: basePrice,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
 
-	await autumnV1.track({
-		customer_id: customerId,
-		feature_id: TestFeature.Users,
-		value: 1,
-	});
+		await autumnV1.track({
+			customer_id: customerId,
+			feature_id: TestFeature.Users,
+			value: 1,
+		});
 
-	await timeout(4000);
+		await timeout(4000);
 
-	const customerAfter = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customerAfter =
+			await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	await expectCustomerInvoiceCorrect({
-		customer: customerAfter,
-		count: 2,
-		latestTotal: 10,
-		latestInvoiceProductId: proAnnual.id,
-	});
-});
+		await expectCustomerInvoiceCorrect({
+			customer: customerAfter,
+			count: 2,
+			latestTotal: 10,
+			latestInvoiceProductId: proAnnual.id,
+		});
+	},
+);
 
-test.concurrent(`${chalk.yellowBright("setup-payment: monthly plan + one-time payment - invoices paid after trial")}`, async () => {
-	const premium = products.base({
-		id: "premium",
-		items: [
-			items.annualPrice({ price: 50 }),
-			items.oneOffMessages({ price: 100, billingUnits: 100, includedUsage: 0 }),
-		],
-	});
+test.concurrent(
+	`${chalk.yellowBright("setup-payment: monthly plan + one-time payment - invoices paid after trial")}`,
+	async () => {
+		const premium = products.base({
+			id: "premium",
+			items: [
+				items.annualPrice({ price: 50 }),
+				items.oneOffMessages({
+					price: 100,
+					billingUnits: 100,
+					includedUsage: 0,
+				}),
+			],
+		});
 
-	const { customerId, autumnV1 } = await initScenario({
-		customerId: "setup-payment-monthly-oneoff",
-		setup: [s.customer({}), s.products({ list: [premium] })],
-		actions: [],
-	});
+		const { customerId, autumnV1 } = await initScenario({
+			customerId: "setup-payment-monthly-oneoff",
+			setup: [s.customer({}), s.products({ list: [premium] })],
+			actions: [],
+		});
 
-	// Attach product with quantity option for the one-off prepaid feature
-	const res = await autumnV1.billing.attach({
-		customer_id: customerId,
-		product_id: premium.id,
-		redirect_mode: "if_required",
-		options: [
-			{
-				feature_id: TestFeature.Messages,
-				quantity: 100,
-			},
-		],
-	});
+		// Attach product with quantity option for the one-off prepaid feature
+		const res = await autumnV1.billing.attach({
+			customer_id: customerId,
+			product_id: premium.id,
+			redirect_mode: "if_required",
+			options: [
+				{
+					feature_id: TestFeature.Messages,
+					quantity: 100,
+				},
+			],
+		});
 
-	await completeStripeCheckoutForm({ url: res.payment_url! });
+		await completeStripeCheckoutForm({ url: res.payment_url! });
 
-	const customer = await autumnV1.customers.get(customerId);
+		const customer = await autumnV1.customers.get(customerId);
 
-	await expectProductActive({
-		customer,
-		productId: premium.id,
-	});
+		await expectProductActive({
+			customer,
+			productId: premium.id,
+		});
 
-	await expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: 100,
-		usage: 0,
-	});
-});
+		await expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: 100,
+			usage: 0,
+		});
+	},
+);

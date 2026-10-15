@@ -54,74 +54,86 @@ const getActiveCustomerProductIsCustom = async ({
 	return row?.isCustom;
 };
 
-test.concurrent(`${chalk.yellowBright("migrations update_plan: add boolean and metered entitlements")}`, async () => {
-	const customerId = "migration-update-add-items";
-	const pro = products.pro({ items: [] });
+test.concurrent(
+	`${chalk.yellowBright("migrations update_plan: add boolean and metered entitlements")}`,
+	async () => {
+		const customerId = "migration-update-add-items";
+		const pro = products.pro({ items: [] });
 
-	const { autumnV1, autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-		],
-		actions: [s.billing.attach({ productId: pro.id })],
-	});
-
-	const expectMigrationApplied = async () => {
-		const customer = await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
-		await expectCustomerProducts({ customer, active: [pro.id] });
-		expectFlagCorrect({
-			customer,
-			featureId: TestFeature.Dashboard,
-			planId: pro.id,
-		});
-		expectBalanceCorrect({
-			customer,
-			featureId: TestFeature.Words,
-			remaining: 150,
-			usage: 0,
-			planId: pro.id,
-		});
-		return customer;
-	};
-
-	await runUpdatePlanMigration({
-		ctx,
-		migrationClient: autumnV2_2,
-		migrationId: `${customerId}-mig`,
-		customerId,
-		filter: { customer: { plan: { plan_id: pro.id } } },
-		operations: {
-			customer: [
-				{
-					type: "update_plan",
-					plan_filter: { plan_id: pro.id },
-					customize: {
-						add_items: [
-							itemsV2.dashboard(),
-							itemsV2.monthlyWords({ included: 150 }),
-						],
-					},
-				},
+		const { autumnV1, autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro] }),
 			],
-		},
-		runOnServer: true,
-		waitFor: async () => {
-			await expectMigrationApplied();
-		},
-		timeoutMs: 60_000,
-	});
+			actions: [s.billing.attach({ productId: pro.id })],
+		});
 
-	await expectMigrationApplied();
-	await expectCustomerInvoiceCorrect({
-		customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
-		count: 1,
-		latestTotal: 20,
-	});
-	// Items now diverge from the catalog, so the patched row derives is_custom.
-	expect(
-		await getActiveCustomerProductIsCustom({ ctx, customerId, productId: pro.id }),
-	).toBe(true);
-	await expectNoExpiredCustomerProducts({ ctx, customerId, productId: pro.id });
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		const expectMigrationApplied = async () => {
+			const customer =
+				await autumnV2_2.customers.get<ApiCustomerV5>(customerId);
+			await expectCustomerProducts({ customer, active: [pro.id] });
+			expectFlagCorrect({
+				customer,
+				featureId: TestFeature.Dashboard,
+				planId: pro.id,
+			});
+			expectBalanceCorrect({
+				customer,
+				featureId: TestFeature.Words,
+				remaining: 150,
+				usage: 0,
+				planId: pro.id,
+			});
+			return customer;
+		};
+
+		await runUpdatePlanMigration({
+			ctx,
+			migrationClient: autumnV2_2,
+			migrationId: `${customerId}-mig`,
+			customerId,
+			filter: { customer: { plan: { plan_id: pro.id } } },
+			operations: {
+				customer: [
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: pro.id },
+						customize: {
+							add_items: [
+								itemsV2.dashboard(),
+								itemsV2.monthlyWords({ included: 150 }),
+							],
+						},
+					},
+				],
+			},
+			runOnServer: true,
+			waitFor: async () => {
+				await expectMigrationApplied();
+			},
+			timeoutMs: 60_000,
+		});
+
+		await expectMigrationApplied();
+		await expectCustomerInvoiceCorrect({
+			customer: await autumnV1.customers.get<ApiCustomerV3>(customerId),
+			count: 1,
+			latestTotal: 20,
+		});
+		// Items now diverge from the catalog, so the patched row derives is_custom.
+		expect(
+			await getActiveCustomerProductIsCustom({
+				ctx,
+				customerId,
+				productId: pro.id,
+			}),
+		).toBe(true);
+		await expectNoExpiredCustomerProducts({
+			ctx,
+			customerId,
+			productId: pro.id,
+		});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);

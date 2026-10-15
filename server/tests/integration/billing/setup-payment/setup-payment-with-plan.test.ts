@@ -41,63 +41,66 @@ import chalk from "chalk";
  * - Returns setup checkout URL
  * - After completing form: PM saved, pro attached, invoice paid
  */
-test.concurrent(`${chalk.yellowBright("setup-payment: attach paid plan after setup")}`, async () => {
-	const customerId = "setup-pay-paid-plan";
+test.concurrent(
+	`${chalk.yellowBright("setup-payment: attach paid plan after setup")}`,
+	async () => {
+		const customerId = "setup-pay-paid-plan";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 100 });
-	const pro = products.pro({ id: "pro", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 100 });
+		const pro = products.pro({ id: "pro", items: [messagesItem] });
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({}), // No payment method
-			s.products({ list: [pro] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({}), // No payment method
+				s.products({ list: [pro] }),
+			],
+			actions: [],
+		});
 
-	// 1. Call setupPayment with plan_id
-	const res = await autumnV1.billing.setupPayment({
-		customer_id: customerId,
-		plan_id: pro.id,
-	});
+		// 1. Call setupPayment with plan_id
+		const res = await autumnV1.billing.setupPayment({
+			customer_id: customerId,
+			plan_id: pro.id,
+		});
 
-	expect(res.customer_id).toBe(customerId);
-	expect(res.url).toBeDefined();
-	expect(res.url).toContain("checkout.stripe.com");
+		expect(res.customer_id).toBe(customerId);
+		expect(res.url).toBeDefined();
+		expect(res.url).toContain("checkout.stripe.com");
 
-	// 2. Complete the setup form
-	await completeSetupPaymentForm({ url: res.url });
+		// 2. Complete the setup form
+		await completeSetupPaymentForm({ url: res.url });
 
-	// 3. Verify plan was attached by the webhook
-	await expectCustomerProducts({
-		autumn: autumnV1,
-		customerId,
-		active: [pro.id],
-	});
+		// 3. Verify plan was attached by the webhook
+		await expectCustomerProducts({
+			autumn: autumnV1,
+			customerId,
+			active: [pro.id],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 100,
-		balance: 100,
-		usage: 0,
-	});
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 100,
+			balance: 100,
+			usage: 0,
+		});
 
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 20,
-	});
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 20,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: Setup + free plan
@@ -113,56 +116,59 @@ test.concurrent(`${chalk.yellowBright("setup-payment: attach paid plan after set
  * - After completing form: PM saved, free product attached
  * - No invoice, no Stripe subscription (free product)
  */
-test.concurrent(`${chalk.yellowBright("setup-payment: attach free plan after setup")}`, async () => {
-	const customerId = "setup-pay-free-plan";
+test.concurrent(
+	`${chalk.yellowBright("setup-payment: attach free plan after setup")}`,
+	async () => {
+		const customerId = "setup-pay-free-plan";
 
-	const messagesItem = items.monthlyMessages({ includedUsage: 50 });
-	const free = products.base({ id: "free", items: [messagesItem] });
+		const messagesItem = items.monthlyMessages({ includedUsage: 50 });
+		const free = products.base({ id: "free", items: [messagesItem] });
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer({}), s.products({ list: [free] })],
-		actions: [],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [s.customer({}), s.products({ list: [free] })],
+			actions: [],
+		});
 
-	// 1. Call setupPayment with free plan_id
-	const res = await autumnV1.billing.setupPayment({
-		customer_id: customerId,
-		plan_id: free.id,
-	});
+		// 1. Call setupPayment with free plan_id
+		const res = await autumnV1.billing.setupPayment({
+			customer_id: customerId,
+			plan_id: free.id,
+		});
 
-	expect(res.url).toBeDefined();
+		expect(res.url).toBeDefined();
 
-	// 2. Complete the setup form
-	await completeSetupPaymentForm({ url: res.url });
+		// 2. Complete the setup form
+		await completeSetupPaymentForm({ url: res.url });
 
-	// 3. Verify free plan was attached
-	await expectCustomerProducts({
-		autumn: autumnV1,
-		customerId,
-		active: [free.id],
-	});
+		// 3. Verify free plan was attached
+		await expectCustomerProducts({
+			autumn: autumnV1,
+			customerId,
+			active: [free.id],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		includedUsage: 50,
-		balance: 50,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			includedUsage: 50,
+			balance: 50,
+			usage: 0,
+		});
 
-	// Free product: no invoices, no Stripe subscription
-	await expectCustomerInvoiceCorrect({ customer, count: 0 });
+		// Free product: no invoices, no Stripe subscription
+		await expectCustomerInvoiceCorrect({ customer, count: 0 });
 
-	await expectNoStripeSubscription({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectNoStripeSubscription({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 3: Setup + plan with feature_quantities (prepaid)
@@ -178,65 +184,68 @@ test.concurrent(`${chalk.yellowBright("setup-payment: attach free plan after set
  * - After completing form: pro attached with correct prepaid balance
  * - Invoice = base ($20) + prepaid (2 packs × $10 = $20) = $40
  */
-test.concurrent(`${chalk.yellowBright("setup-payment: attach plan with feature_quantities (prepaid)")}`, async () => {
-	const customerId = "setup-pay-prepaid";
+test.concurrent(
+	`${chalk.yellowBright("setup-payment: attach plan with feature_quantities (prepaid)")}`,
+	async () => {
+		const customerId = "setup-pay-prepaid";
 
-	const prepaidMessagesItem = items.prepaidMessages({
-		includedUsage: 0,
-		billingUnits: 100,
-		price: 10,
-	});
+		const prepaidMessagesItem = items.prepaidMessages({
+			includedUsage: 0,
+			billingUnits: 100,
+			price: 10,
+		});
 
-	const pro = products.pro({
-		id: "pro",
-		items: [prepaidMessagesItem],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [prepaidMessagesItem],
+		});
 
-	const { autumnV1, ctx } = await initScenario({
-		customerId,
-		setup: [s.customer({}), s.products({ list: [pro] })],
-		actions: [],
-	});
+		const { autumnV1, ctx } = await initScenario({
+			customerId,
+			setup: [s.customer({}), s.products({ list: [pro] })],
+			actions: [],
+		});
 
-	// 1. Call setupPayment with feature_quantities
-	const res = await autumnV1.billing.setupPayment({
-		customer_id: customerId,
-		plan_id: pro.id,
-		feature_quantities: [{ feature_id: TestFeature.Messages, quantity: 200 }],
-	});
+		// 1. Call setupPayment with feature_quantities
+		const res = await autumnV1.billing.setupPayment({
+			customer_id: customerId,
+			plan_id: pro.id,
+			feature_quantities: [{ feature_id: TestFeature.Messages, quantity: 200 }],
+		});
 
-	expect(res.url).toBeDefined();
+		expect(res.url).toBeDefined();
 
-	// 2. Complete the setup form
-	await completeSetupPaymentForm({ url: res.url });
+		// 2. Complete the setup form
+		await completeSetupPaymentForm({ url: res.url });
 
-	// 3. Verify plan attached with correct prepaid balance
-	await expectCustomerProducts({
-		autumn: autumnV1,
-		customerId,
-		active: [pro.id],
-	});
+		// 3. Verify plan attached with correct prepaid balance
+		await expectCustomerProducts({
+			autumn: autumnV1,
+			customerId,
+			active: [pro.id],
+		});
 
-	const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
 
-	expectCustomerFeatureCorrect({
-		customer,
-		featureId: TestFeature.Messages,
-		balance: 200,
-		usage: 0,
-	});
+		expectCustomerFeatureCorrect({
+			customer,
+			featureId: TestFeature.Messages,
+			balance: 200,
+			usage: 0,
+		});
 
-	// Invoice: $20 base + $20 prepaid (200 units / 100 billingUnits × $10) = $40
-	await expectCustomerInvoiceCorrect({
-		customer,
-		count: 1,
-		latestTotal: 40,
-	});
+		// Invoice: $20 base + $20 prepaid (200 units / 100 billingUnits × $10) = $40
+		await expectCustomerInvoiceCorrect({
+			customer,
+			count: 1,
+			latestTotal: 40,
+		});
 
-	await expectSubToBeCorrect({
-		db: ctx.db,
-		customerId,
-		org: ctx.org,
-		env: ctx.env,
-	});
-});
+		await expectSubToBeCorrect({
+			db: ctx.db,
+			customerId,
+			org: ctx.org,
+			env: ctx.env,
+		});
+	},
+);

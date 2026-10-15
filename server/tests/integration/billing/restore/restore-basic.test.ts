@@ -67,118 +67,130 @@ const firstStripePriceIdFor = async ({
 // TEST 1: Two entities, corrupt one sub, restore
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("restore-basic 1: two entities pro+premium, corrupt one, restore")}`, async () => {
-	const customerId = "restore-basic-two-entities";
+test.concurrent(
+	`${chalk.yellowBright("restore-basic 1: two entities pro+premium, corrupt one, restore")}`,
+	async () => {
+		const customerId = "restore-basic-two-entities";
 
-	const proMessages = items.monthlyMessages({ includedUsage: 200 });
-	const pro = products.pro({ id: "pro", items: [proMessages] });
+		const proMessages = items.monthlyMessages({ includedUsage: 200 });
+		const pro = products.pro({ id: "pro", items: [proMessages] });
 
-	const premiumMessages = items.monthlyMessages({ includedUsage: 1000 });
-	const premium = products.premium({ id: "premium", items: [premiumMessages] });
+		const premiumMessages = items.monthlyMessages({ includedUsage: 1000 });
+		const premium = products.premium({
+			id: "premium",
+			items: [premiumMessages],
+		});
 
-	const { autumnV2_2, ctx, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.billing.attach({ productId: pro.id, entityIndex: 0 }),
-			s.billing.attach({
-				productId: premium.id,
-				entityIndex: 1,
-				timeout: 4000,
-			}),
-		],
-	});
-	expect(entities.length).toBe(2);
+		const { autumnV2_2, ctx, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.billing.attach({ productId: pro.id, entityIndex: 0 }),
+				s.billing.attach({
+					productId: premium.id,
+					entityIndex: 1,
+					timeout: 4000,
+				}),
+			],
+		});
+		expect(entities.length).toBe(2);
 
-	// Corrupt the pro sub item by setting its quantity to a wrong value. Each
-	// entity may share a single Stripe subscription (entity-scoped items), so we
-	// avoid mutations that depend on the sub topology — a per-item quantity bump
-	// is a clean diff restore should reverse.
-	const stripeCustomerId = await stripeCustomerIdFor({ ctx, customerId });
-	const subs = await listActiveStripeSubscriptions({ ctx, stripeCustomerId });
-	const proStripePriceId = await firstStripePriceIdFor({
-		ctx,
-		productId: pro.id,
-	});
+		// Corrupt the pro sub item by setting its quantity to a wrong value. Each
+		// entity may share a single Stripe subscription (entity-scoped items), so we
+		// avoid mutations that depend on the sub topology — a per-item quantity bump
+		// is a clean diff restore should reverse.
+		const stripeCustomerId = await stripeCustomerIdFor({ ctx, customerId });
+		const subs = await listActiveStripeSubscriptions({ ctx, stripeCustomerId });
+		const proStripePriceId = await firstStripePriceIdFor({
+			ctx,
+			productId: pro.id,
+		});
 
-	const proSub = subs.find((sub) =>
-		sub.items.data.some((it) => it.price.id === proStripePriceId),
-	);
-	if (!proSub) throw new Error("Pro sub not found in Stripe");
+		const proSub = subs.find((sub) =>
+			sub.items.data.some((it) => it.price.id === proStripePriceId),
+		);
+		if (!proSub) throw new Error("Pro sub not found in Stripe");
 
-	await corruptStripeSubscription({
-		ctx,
-		subscriptionId: proSub.id,
-		mutations: {
-			setItemQuantities: [{ priceId: proStripePriceId, quantity: 7 }],
-		},
-	});
+		await corruptStripeSubscription({
+			ctx,
+			subscriptionId: proSub.id,
+			mutations: {
+				setItemQuantities: [{ priceId: proStripePriceId, quantity: 7 }],
+			},
+		});
 
-	// Restore — should remove the junk item.
-	await autumnV2_2.billing.restore({ customer_id: customerId });
+		// Restore — should remove the junk item.
+		await autumnV2_2.billing.restore({ customer_id: customerId });
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 2: With schedule — release schedule manually, restore recreates it
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test.concurrent(`${chalk.yellowBright("restore-basic 2: scheduled downgrade, schedule released externally, restore recreates")}`, async () => {
-	const customerId = "restore-basic-released-schedule";
+test.concurrent(
+	`${chalk.yellowBright("restore-basic 2: scheduled downgrade, schedule released externally, restore recreates")}`,
+	async () => {
+		const customerId = "restore-basic-released-schedule";
 
-	const proMessages = items.monthlyMessages({ includedUsage: 200 });
-	const pro = products.pro({ id: "pro", items: [proMessages] });
+		const proMessages = items.monthlyMessages({ includedUsage: 200 });
+		const pro = products.pro({ id: "pro", items: [proMessages] });
 
-	const premiumMessages = items.monthlyMessages({ includedUsage: 1000 });
-	const premium = products.premium({ id: "premium", items: [premiumMessages] });
+		const premiumMessages = items.monthlyMessages({ includedUsage: 1000 });
+		const premium = products.premium({
+			id: "premium",
+			items: [premiumMessages],
+		});
 
-	const { autumnV2_2, ctx, entities } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, premium] }),
-			s.entities({ count: 2, featureId: TestFeature.Users }),
-		],
-		actions: [
-			s.billing.attach({ productId: pro.id, entityIndex: 0 }),
-			s.billing.attach({ productId: premium.id, entityIndex: 1 }),
-			// Schedule downgrade premium → pro on entity 1
-			s.billing.attach({
-				productId: pro.id,
-				entityIndex: 1,
-				timeout: 4000,
-			}),
-		],
-	});
-	expect(entities.length).toBe(2);
+		const { autumnV2_2, ctx, entities } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, premium] }),
+				s.entities({ count: 2, featureId: TestFeature.Users }),
+			],
+			actions: [
+				s.billing.attach({ productId: pro.id, entityIndex: 0 }),
+				s.billing.attach({ productId: premium.id, entityIndex: 1 }),
+				// Schedule downgrade premium → pro on entity 1
+				s.billing.attach({
+					productId: pro.id,
+					entityIndex: 1,
+					timeout: 4000,
+				}),
+			],
+		});
+		expect(entities.length).toBe(2);
 
-	// Locate the entity-1 (premium) Stripe subscription which now has a schedule
-	const stripeCustomerId = await stripeCustomerIdFor({ ctx, customerId });
-	const subs = await listActiveStripeSubscriptions({ ctx, stripeCustomerId });
+		// Locate the entity-1 (premium) Stripe subscription which now has a schedule
+		const stripeCustomerId = await stripeCustomerIdFor({ ctx, customerId });
+		const subs = await listActiveStripeSubscriptions({ ctx, stripeCustomerId });
 
-	const premiumStripePriceId = await firstStripePriceIdFor({
-		ctx,
-		productId: premium.id,
-	});
-	const premiumSub = subs.find((sub) =>
-		sub.items.data.some((it) => it.price.id === premiumStripePriceId),
-	);
-	if (!premiumSub) throw new Error("Premium sub not found");
+		const premiumStripePriceId = await firstStripePriceIdFor({
+			ctx,
+			productId: premium.id,
+		});
+		const premiumSub = subs.find((sub) =>
+			sub.items.data.some((it) => it.price.id === premiumStripePriceId),
+		);
+		if (!premiumSub) throw new Error("Premium sub not found");
 
-	// Release the schedule directly via Stripe (corrupts state)
-	await corruptStripeSubscription({
-		ctx,
-		subscriptionId: premiumSub.id,
-		mutations: { releaseSchedule: true },
-	});
+		// Release the schedule directly via Stripe (corrupts state)
+		await corruptStripeSubscription({
+			ctx,
+			subscriptionId: premiumSub.id,
+			mutations: { releaseSchedule: true },
+		});
 
-	// Restore — should re-create the schedule
-	await autumnV2_2.billing.restore({ customer_id: customerId });
+		// Restore — should re-create the schedule
+		await autumnV2_2.billing.restore({ customer_id: customerId });
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);

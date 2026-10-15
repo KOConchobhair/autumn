@@ -75,7 +75,9 @@ test.concurrent(
 
 		expect(preview.total).toBe(50);
 
-		const creditLines = preview.line_items.filter((li: { total: number }) => li.total < 0);
+		const creditLines = preview.line_items.filter(
+			(li: { total: number }) => li.total < 0,
+		);
 		expect(creditLines.length).toBe(0);
 
 		await autumnV1.billing.attach({
@@ -155,10 +157,15 @@ test.concurrent(
 
 		expect(preview.total).toBe(-20);
 
-		const creditLines = preview.line_items.filter((li: { total: number }) => li.total < 0);
+		const creditLines = preview.line_items.filter(
+			(li: { total: number }) => li.total < 0,
+		);
 		expect(creditLines.length).toBeGreaterThan(0);
 
-		const creditTotal = creditLines.reduce((sum: number, li: { total: number }) => sum + li.total, 0);
+		const creditTotal = creditLines.reduce(
+			(sum: number, li: { total: number }) => sum + li.total,
+			0,
+		);
 		expect(creditTotal).toBe(-20);
 
 		await autumnV1.billing.attach({

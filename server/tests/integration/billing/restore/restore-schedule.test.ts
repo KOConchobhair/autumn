@@ -41,61 +41,64 @@ const stripeCustomerIdFor = async ({
 	return stripeCustomerId;
 };
 
-test.concurrent(`${chalk.yellowBright("restore-schedule 5: two-phase schedule, release schedule, restore re-creates phases")}`, async () => {
-	const customerId = "restore-schedule-multi-phase";
+test.concurrent(
+	`${chalk.yellowBright("restore-schedule 5: two-phase schedule, release schedule, restore re-creates phases")}`,
+	async () => {
+		const customerId = "restore-schedule-multi-phase";
 
-	const pro = products.pro({
-		id: "pro",
-		items: [items.monthlyMessages({ includedUsage: 100 })],
-	});
-	const addon = products.recurringAddOn({
-		id: "addon",
-		items: [items.monthlyWords({ includedUsage: 25 })],
-	});
+		const pro = products.pro({
+			id: "pro",
+			items: [items.monthlyMessages({ includedUsage: 100 })],
+		});
+		const addon = products.recurringAddOn({
+			id: "addon",
+			items: [items.monthlyWords({ includedUsage: 25 })],
+		});
 
-	const { autumnV1, autumnV2_2, ctx } = await initScenario({
-		customerId,
-		setup: [
-			s.customer({ paymentMethod: "success" }),
-			s.products({ list: [pro, addon] }),
-		],
-		actions: [],
-	});
+		const { autumnV1, autumnV2_2, ctx } = await initScenario({
+			customerId,
+			setup: [
+				s.customer({ paymentMethod: "success" }),
+				s.products({ list: [pro, addon] }),
+			],
+			actions: [],
+		});
 
-	const now = Date.now();
-	const params: CreateScheduleParamsV0Input = {
-		customer_id: customerId,
-		phases: [
-			{
-				starts_at: now,
-				plans: [{ plan_id: pro.id }, { plan_id: addon.id }],
-			},
-			{
-				starts_at: now + ms.days(30),
-				plans: [{ plan_id: pro.id }],
-			},
-		],
-	};
+		const now = Date.now();
+		const params: CreateScheduleParamsV0Input = {
+			customer_id: customerId,
+			phases: [
+				{
+					starts_at: now,
+					plans: [{ plan_id: pro.id }, { plan_id: addon.id }],
+				},
+				{
+					starts_at: now + ms.days(30),
+					plans: [{ plan_id: pro.id }],
+				},
+			],
+		};
 
-	const response = await autumnV1.billing.createSchedule(params);
-	expect(response.status).toBe("created");
-	expect(response.phases).toHaveLength(2);
+		const response = await autumnV1.billing.createSchedule(params);
+		expect(response.status).toBe("created");
+		expect(response.phases).toHaveLength(2);
 
-	// Locate the Stripe sub for this customer (single sub backing both phases)
-	const stripeCustomerId = await stripeCustomerIdFor({ ctx, customerId });
-	const subs = await listActiveStripeSubscriptions({ ctx, stripeCustomerId });
-	expect(subs.length).toBe(1);
-	const sub = subs[0];
+		// Locate the Stripe sub for this customer (single sub backing both phases)
+		const stripeCustomerId = await stripeCustomerIdFor({ ctx, customerId });
+		const subs = await listActiveStripeSubscriptions({ ctx, stripeCustomerId });
+		expect(subs.length).toBe(1);
+		const sub = subs[0];
 
-	// Drift: release the schedule (caller "fixed" something in Stripe by hand).
-	await corruptStripeSubscription({
-		ctx,
-		subscriptionId: sub.id,
-		mutations: { releaseSchedule: true },
-	});
+		// Drift: release the schedule (caller "fixed" something in Stripe by hand).
+		await corruptStripeSubscription({
+			ctx,
+			subscriptionId: sub.id,
+			mutations: { releaseSchedule: true },
+		});
 
-	// Restore should re-create the schedule and put both phases back.
-	await autumnV2_2.billing.restore({ customer_id: customerId });
+		// Restore should re-create the schedule and put both phases back.
+		await autumnV2_2.billing.restore({ customer_id: customerId });
 
-	await expectStripeSubscriptionCorrect({ ctx, customerId });
-});
+		await expectStripeSubscriptionCorrect({ ctx, customerId });
+	},
+);

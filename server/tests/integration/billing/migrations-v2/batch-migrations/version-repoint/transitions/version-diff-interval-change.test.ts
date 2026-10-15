@@ -56,90 +56,87 @@ for (const scenario of [
 		expectedInterval: EntInterval.Month,
 	},
 ] as const) {
-	test.skip(
-		`${chalk.yellowBright(`batch version repoint transitions: interval change ${scenario.name}`)}`,
-		async () => {
-			const stem = `bvrt-interval-${scenario.name.replaceAll(" ", "-")}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-			const customerId = `${stem}-customer`;
-			const plan = products.base({
-				id: `${stem}-plan`,
-				items: [scenario.fromItem],
-			});
-			const { ctx, autumnV2_3 } = await initScenario({
-				customerId,
-				setup: [s.customer({ testClock: false }), s.products({ list: [plan] })],
-				actions: [
-					s.billing.attach({ productId: plan.id }),
-					s.track({
-						featureId: TestFeature.Messages,
-						value: 30,
-						timeout: 2_000,
-					}),
-				],
-			});
-			await mintPlanVersion({
-				client: autumnV2_3,
-				planId: plan.id,
-				items: [scenario.toItem],
-			});
-			const before = await readRepointableCustomerPlanRow({
-				ctx,
-				customerId,
-				planId: plan.id,
-			});
-			const [rowBefore] = await readFeatureRowsWithDefinition({
-				ctx,
-				customerId,
-				featureId: TestFeature.Messages,
-			});
-
-			const { result } = await runVersionRepointMigration({
-				ctx,
-				migrationClient: autumnV2_3,
-				migrationId: `${stem}-migration`,
-				filter: { customer: { plan: { plan_id: plan.id, version: 1 } } },
-				operations: {
-					customer: [
-						{
-							type: "update_plan",
-							plan_filter: { plan_id: plan.id, version: 1 },
-							version: 2,
-						},
-					],
-				},
-			});
-
-			await expectVersionRepointedOnce({
-				ctx,
-				customerId,
-				planId: plan.id,
-				before,
-				targetVersion: 2,
-				result,
-			});
-
-			const [rowAfter] = await readFeatureRowsWithDefinition({
-				ctx,
-				customerId,
-				featureId: TestFeature.Messages,
-			});
-			expect(rowAfter).toMatchObject({
-				id: rowBefore.id,
-				balance: scenario.expectedBalance,
-				interval: scenario.expectedInterval,
-			});
-			expect(rowAfter.entitlementId).not.toBe(rowBefore.entitlementId);
-
-			// Replace-item anchor behavior: the live row's anchor is kept and the
-			// next reset is the first target-cadence boundary after it.
-			expect(rowAfter.resetCycleAnchor).toBe(rowBefore.resetCycleAnchor);
-			expect(rowAfter.nextResetAt).toBe(
-				getCycleEnd({
-					anchor: rowBefore.resetCycleAnchor as number,
-					interval: scenario.expectedInterval,
-					now: Date.now(),
+	test.skip(`${chalk.yellowBright(`batch version repoint transitions: interval change ${scenario.name}`)}`, async () => {
+		const stem = `bvrt-interval-${scenario.name.replaceAll(" ", "-")}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+		const customerId = `${stem}-customer`;
+		const plan = products.base({
+			id: `${stem}-plan`,
+			items: [scenario.fromItem],
+		});
+		const { ctx, autumnV2_3 } = await initScenario({
+			customerId,
+			setup: [s.customer({ testClock: false }), s.products({ list: [plan] })],
+			actions: [
+				s.billing.attach({ productId: plan.id }),
+				s.track({
+					featureId: TestFeature.Messages,
+					value: 30,
+					timeout: 2_000,
 				}),
-			);
-		},
-	);
+			],
+		});
+		await mintPlanVersion({
+			client: autumnV2_3,
+			planId: plan.id,
+			items: [scenario.toItem],
+		});
+		const before = await readRepointableCustomerPlanRow({
+			ctx,
+			customerId,
+			planId: plan.id,
+		});
+		const [rowBefore] = await readFeatureRowsWithDefinition({
+			ctx,
+			customerId,
+			featureId: TestFeature.Messages,
+		});
+
+		const { result } = await runVersionRepointMigration({
+			ctx,
+			migrationClient: autumnV2_3,
+			migrationId: `${stem}-migration`,
+			filter: { customer: { plan: { plan_id: plan.id, version: 1 } } },
+			operations: {
+				customer: [
+					{
+						type: "update_plan",
+						plan_filter: { plan_id: plan.id, version: 1 },
+						version: 2,
+					},
+				],
+			},
+		});
+
+		await expectVersionRepointedOnce({
+			ctx,
+			customerId,
+			planId: plan.id,
+			before,
+			targetVersion: 2,
+			result,
+		});
+
+		const [rowAfter] = await readFeatureRowsWithDefinition({
+			ctx,
+			customerId,
+			featureId: TestFeature.Messages,
+		});
+		expect(rowAfter).toMatchObject({
+			id: rowBefore.id,
+			balance: scenario.expectedBalance,
+			interval: scenario.expectedInterval,
+		});
+		expect(rowAfter.entitlementId).not.toBe(rowBefore.entitlementId);
+
+		// Replace-item anchor behavior: the live row's anchor is kept and the
+		// next reset is the first target-cadence boundary after it.
+		expect(rowAfter.resetCycleAnchor).toBe(rowBefore.resetCycleAnchor);
+		expect(rowAfter.nextResetAt).toBe(
+			getCycleEnd({
+				anchor: rowBefore.resetCycleAnchor as number,
+				interval: scenario.expectedInterval,
+				now: Date.now(),
+			}),
+		);
+	});
 }

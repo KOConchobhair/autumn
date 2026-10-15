@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
 	BillingInterval,
 	BillWhen,
-	findPriceSuccessor,
 	type FixedPriceConfig,
+	findPriceSuccessor,
 	type Price,
 	type UsagePriceConfig,
 } from "@autumn/shared";
@@ -126,7 +126,10 @@ describe("findPriceSuccessor", () => {
 
 	describe("billing type collapsing (derived, not stored)", () => {
 		test("in_advance and start_of_period share identity (both usage_in_advance)", () => {
-			const candidate = usage({ bill_when: BillWhen.StartOfPeriod }, { id: "cand" });
+			const candidate = usage(
+				{ bill_when: BillWhen.StartOfPeriod },
+				{ id: "cand" },
+			);
 			expect(
 				findPriceSuccessor({
 					sourcePrice: usage({ bill_when: BillWhen.InAdvance }),

@@ -122,8 +122,7 @@ describe(`${chalk.yellowBright(`${testCase}: Testing usage_limits with pay_per_u
 
 		// The Redis→Postgres sync is batched + queued; poll instead of a fixed wait.
 		const customer = await pollUntil({
-			fetch: () =>
-				autumnV1.customers.get(customerId, { skip_cache: "true" }),
+			fetch: () => autumnV1.customers.get(customerId, { skip_cache: "true" }),
 			until: (result) => result.features[TestFeature.Messages]?.balance === -4,
 		});
 

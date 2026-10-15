@@ -24,7 +24,10 @@ describe("usesSubjectCache", () => {
 
 	test("skipCache wins over everything", () => {
 		expect(
-			usesSubjectCache({ ctx: ctxWith({ skipCache: true }), customerId: "cus" }),
+			usesSubjectCache({
+				ctx: ctxWith({ skipCache: true }),
+				customerId: "cus",
+			}),
 		).toBe(false);
 	});
 

@@ -19,27 +19,30 @@ const pro = products.pro({
 	items: [messagesItem, wordsItem, creditsItem],
 });
 
-test.concurrent(`${chalk.yellowBright("rpc get: get plan response in latest format")}`, async () => {
-	await initScenario({
-		setup: [s.products({ list: [pro], prefix: testCase })],
-		actions: [],
-	});
+test.concurrent(
+	`${chalk.yellowBright("rpc get: get plan response in latest format")}`,
+	async () => {
+		await initScenario({
+			setup: [s.products({ list: [pro], prefix: testCase })],
+			actions: [],
+		});
 
-	const plan = await autumnRpc.plans.get<ApiPlanV1>(pro.id);
-	ApiPlanV1Schema.parse(plan);
+		const plan = await autumnRpc.plans.get<ApiPlanV1>(pro.id);
+		ApiPlanV1Schema.parse(plan);
 
-	const messagesResponseItem = plan.items.find(
-		(item) => item.feature_id === TestFeature.Messages,
-	);
-	const wordsResponseItem = plan.items.find(
-		(item) => item.feature_id === TestFeature.Words,
-	);
-	const creditsResponseItem = plan.items.find(
-		(item) => item.feature_id === TestFeature.Credits,
-	);
+		const messagesResponseItem = plan.items.find(
+			(item) => item.feature_id === TestFeature.Messages,
+		);
+		const wordsResponseItem = plan.items.find(
+			(item) => item.feature_id === TestFeature.Words,
+		);
+		const creditsResponseItem = plan.items.find(
+			(item) => item.feature_id === TestFeature.Credits,
+		);
 
-	expect(messagesResponseItem).toBeDefined();
-	expect(wordsResponseItem).toBeDefined();
-	expect(creditsResponseItem).toBeDefined();
-	expect(plan.price).toBeDefined();
-});
+		expect(messagesResponseItem).toBeDefined();
+		expect(wordsResponseItem).toBeDefined();
+		expect(creditsResponseItem).toBeDefined();
+		expect(plan.price).toBeDefined();
+	},
+);

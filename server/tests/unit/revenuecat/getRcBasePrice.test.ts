@@ -3,6 +3,7 @@
  * RevenueCat micros + uppercased currency, or null for free / usage-only plans.
  */
 
+import { expect, test } from "bun:test";
 import {
 	BillingInterval,
 	type FullProduct,
@@ -10,7 +11,6 @@ import {
 	type Price,
 	PriceType,
 } from "@autumn/shared";
-import { expect, test } from "bun:test";
 import chalk from "chalk";
 import { getRcBasePrice } from "@/external/revenueCat/sync/revenuecatProductSyncUtils.js";
 
@@ -41,7 +41,9 @@ const product = (prices: Price[]): FullProduct =>
 	({ id: "pro", name: "Pro", prices }) as unknown as FullProduct;
 
 test(`${chalk.yellowBright("getRcBasePrice: fixed price -> micros + uppercased currency")}`, () => {
-	expect(getRcBasePrice({ product: product([fixedPrice(4.99)]), org: org() })).toEqual({
+	expect(
+		getRcBasePrice({ product: product([fixedPrice(4.99)]), org: org() }),
+	).toEqual({
 		amountMicros: 4_990_000,
 		currency: "USD",
 	});
@@ -54,7 +56,9 @@ test(`${chalk.yellowBright("getRcBasePrice: respects org currency, uppercased")}
 });
 
 test(`${chalk.yellowBright("getRcBasePrice: usage-only plan -> null")}`, () => {
-	expect(getRcBasePrice({ product: product([usagePrice()]), org: org() })).toBeNull();
+	expect(
+		getRcBasePrice({ product: product([usagePrice()]), org: org() }),
+	).toBeNull();
 });
 
 test(`${chalk.yellowBright("getRcBasePrice: free plan (no prices) -> null")}`, () => {
@@ -62,5 +66,7 @@ test(`${chalk.yellowBright("getRcBasePrice: free plan (no prices) -> null")}`, (
 });
 
 test(`${chalk.yellowBright("getRcBasePrice: zero-amount base -> null")}`, () => {
-	expect(getRcBasePrice({ product: product([fixedPrice(0)]), org: org() })).toBeNull();
+	expect(
+		getRcBasePrice({ product: product([fixedPrice(0)]), org: org() }),
+	).toBeNull();
 });

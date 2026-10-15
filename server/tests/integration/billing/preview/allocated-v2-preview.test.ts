@@ -100,7 +100,7 @@ test.concurrent(
 						price: itemsV2.monthlyPrice({ amount: 30 }),
 					},
 				},
-		);
+			);
 
 		expect(preview.total).toBe(10);
 		expect(

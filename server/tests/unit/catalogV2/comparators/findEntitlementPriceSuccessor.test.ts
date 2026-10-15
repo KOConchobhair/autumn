@@ -78,7 +78,11 @@ describe("findEntitlementPriceSuccessor", () => {
 		test("exact definition beats price identity beats interval beats feature", () => {
 			const source = ep({ priced: true });
 			const featureOnly = ep({
-				entitlement: { id: "feature", interval: EntInterval.Year, allowance: 9 },
+				entitlement: {
+					id: "feature",
+					interval: EntInterval.Year,
+					allowance: 9,
+				},
 			});
 			const intervalMatch = ep({
 				entitlement: { id: "interval", allowance: 9 },
@@ -102,9 +106,9 @@ describe("findEntitlementPriceSuccessor", () => {
 					candidates: [featureOnly, intervalMatch, priceIdentity],
 				}),
 			).toBe(priceIdentity);
-			expect(
-				find({ source, candidates: [featureOnly, intervalMatch] }),
-			).toBe(intervalMatch);
+			expect(find({ source, candidates: [featureOnly, intervalMatch] })).toBe(
+				intervalMatch,
+			);
 			expect(find({ source, candidates: [featureOnly] })).toBe(featureOnly);
 		});
 

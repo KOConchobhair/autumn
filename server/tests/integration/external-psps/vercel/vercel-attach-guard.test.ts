@@ -13,11 +13,11 @@
  */
 
 import { expect, test } from "bun:test";
-import chalk from "chalk";
 import { items } from "@tests/utils/fixtures/items";
 import { products } from "@tests/utils/fixtures/products";
 import ctx from "@tests/utils/testInitUtils/createTestContext";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario";
+import chalk from "chalk";
 import {
 	seedVercelCustomer,
 	setupVercelOrg,

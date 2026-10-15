@@ -35,10 +35,7 @@ import {
 } from "../../../../packages/atmn/src/generated/client";
 import { uniqueTestId } from "../catalog-v2/utils/uniqueTestId.js";
 
-const CLI_PACKAGE_DIR = join(
-	import.meta.dir,
-	"../../../../packages/atmn",
-);
+const CLI_PACKAGE_DIR = join(import.meta.dir, "../../../../packages/atmn");
 
 /**
  * initAtmnScenario's default source only imports `feature` — these tests also

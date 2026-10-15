@@ -44,7 +44,10 @@ import {
 const EXISTING_ALIAS_ID = "pro_legacy";
 const FREE_REWARD_COUNT = PLAN_RENAME_BENCH_REWARDS / 2;
 
-const time = async <T>(label: string, fn: () => Promise<T>): Promise<{
+const time = async <T>(
+	label: string,
+	fn: () => Promise<T>,
+): Promise<{
 	result: T;
 	ms: number;
 }> => {
@@ -102,9 +105,7 @@ const seedRenameFixture = async ({
 				env,
 				created_at: now,
 				name: `bench reward ${index}`,
-				type: isFree
-					? RewardType.FreeProduct
-					: RewardType.PercentageDiscount,
+				type: isFree ? RewardType.FreeProduct : RewardType.PercentageDiscount,
 				free_product_id: isFree ? planId : null,
 				discount_config: isFree
 					? null
@@ -121,19 +122,21 @@ const seedRenameFixture = async ({
 	await db.insert(rewards).values(rewardRows);
 
 	await db.insert(rewardPrograms).values(
-		rewardRows.slice(0, PLAN_RENAME_BENCH_REWARD_PROGRAMS).map((reward, index) => ({
-			internal_id: generateId("rp"),
-			id: `bench_rp_${index}`,
-			org_id: org.id,
-			env,
-			created_at: now,
-			internal_reward_id: reward.internal_id,
-			product_ids: [planId],
-			when: RewardTriggerEvent.Checkout,
-			max_redemptions: 1,
-			unlimited_redemptions: false,
-			exclude_trial: false,
-		})),
+		rewardRows
+			.slice(0, PLAN_RENAME_BENCH_REWARD_PROGRAMS)
+			.map((reward, index) => ({
+				internal_id: generateId("rp"),
+				id: `bench_rp_${index}`,
+				org_id: org.id,
+				env,
+				created_at: now,
+				internal_reward_id: reward.internal_id,
+				product_ids: [planId],
+				when: RewardTriggerEvent.Checkout,
+				max_redemptions: 1,
+				unlimited_redemptions: false,
+				exclude_trial: false,
+			})),
 	);
 
 	// PK is (org_id, env, autumn_product_id) — one row per plan is the max legal.
@@ -187,7 +190,10 @@ const seedRenameFixture = async ({
 		customers: cpTargets.length,
 		customerProducts: cpTargets.length,
 	};
-	return { seeded, productInternalIds: productRows.map((row) => row.internal_id) };
+	return {
+		seeded,
+		productInternalIds: productRows.map((row) => row.internal_id),
+	};
 };
 
 const verifyRename = async ({
@@ -245,9 +251,7 @@ const verifyRename = async ({
 	const aliasRows = await db
 		.select()
 		.from(productAliases)
-		.where(
-			and(eq(productAliases.org_id, orgId), eq(productAliases.env, env)),
-		);
+		.where(and(eq(productAliases.org_id, orgId), eq(productAliases.env, env)));
 	const cpUnchanged = await countWhere({
 		db,
 		query: sql`
@@ -275,7 +279,9 @@ const verifyRename = async ({
 		);
 	}
 	if (rcUpdated !== 1) {
-		throw new Error(`revenuecat_mappings: expected 1 updated, got ${rcUpdated}`);
+		throw new Error(
+			`revenuecat_mappings: expected 1 updated, got ${rcUpdated}`,
+		);
 	}
 	if (
 		aliasRows.length !== 1 ||
@@ -313,7 +319,9 @@ const main = async () => {
 
 		const { ctx, org } = await createPlanRenameBenchContext({ db, orgSlug });
 		orgId = org.id;
-		console.log(`bench: org ${org.slug} (${org.id}) env=${PLAN_RENAME_BENCH_ENV}`);
+		console.log(
+			`bench: org ${org.slug} (${org.id}) env=${PLAN_RENAME_BENCH_ENV}`,
+		);
 
 		const { seeded } = await seedRenameFixture({ ctx });
 		console.log("seeded:", JSON.stringify(seeded, null, 2));

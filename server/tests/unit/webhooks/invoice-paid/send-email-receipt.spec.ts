@@ -24,25 +24,26 @@ const createMockLogger = () => ({
 
 const createMockFullCustomer = (
 	overrides: Partial<FullCustomer> = {},
-): FullCustomer => ({
-	id: "cus_test",
-	internal_id: "cus_internal_test",
-	name: "Test Customer",
-	email: "test@example.com",
-	fingerprint: null,
-	org_id: "org_test",
-	created_at: Date.now(),
-	env: AppEnv.Sandbox,
-	processor: { type: "stripe", id: "cus_stripe_test" },
-	processors: null,
-	metadata: {},
-	config: {},
-	customer_products: [],
-	entities: [],
-	extra_customer_entitlements: [],
-	send_email_receipts: true,
-	...overrides,
-} as FullCustomer);
+): FullCustomer =>
+	({
+		id: "cus_test",
+		internal_id: "cus_internal_test",
+		name: "Test Customer",
+		email: "test@example.com",
+		fingerprint: null,
+		org_id: "org_test",
+		created_at: Date.now(),
+		env: AppEnv.Sandbox,
+		processor: { type: "stripe", id: "cus_stripe_test" },
+		processors: null,
+		metadata: {},
+		config: {},
+		customer_products: [],
+		entities: [],
+		extra_customer_entitlements: [],
+		send_email_receipts: true,
+		...overrides,
+	}) as FullCustomer;
 
 const createMockInvoicePaidContext = (
 	paymentIntentId?: string,

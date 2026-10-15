@@ -13,35 +13,38 @@ import chalk from "chalk";
 // =============================================================================
 // Test: legacy-update-balance1 - V1 API setBalance for entity
 // =============================================================================
-test.concurrent(`${chalk.yellowBright("legacy-update-balance1: V1 API setBalance for entity")}`, async () => {
-	const creditsItem = items.monthlyCredits({ includedUsage: 500 });
-	const pro = products.pro({ id: "pro", items: [creditsItem] });
+test.concurrent(
+	`${chalk.yellowBright("legacy-update-balance1: V1 API setBalance for entity")}`,
+	async () => {
+		const creditsItem = items.monthlyCredits({ includedUsage: 500 });
+		const pro = products.pro({ id: "pro", items: [creditsItem] });
 
-	const { customerId, autumnV1, entities } = await initScenario({
-		customerId: "legacy-update-balance1",
-		setup: [
-			s.customer({ testClock: true, paymentMethod: "success" }),
-			s.products({ list: [pro] }),
-			s.entities({ count: 1, featureId: TestFeature.Workflows }),
-		],
-		actions: [s.attach({ productId: pro.id, entityIndex: 0 })],
-	});
+		const { customerId, autumnV1, entities } = await initScenario({
+			customerId: "legacy-update-balance1",
+			setup: [
+				s.customer({ testClock: true, paymentMethod: "success" }),
+				s.products({ list: [pro] }),
+				s.entities({ count: 1, featureId: TestFeature.Workflows }),
+			],
+			actions: [s.attach({ productId: pro.id, entityIndex: 0 })],
+		});
 
-	const entityId = entities[0].id;
+		const entityId = entities[0].id;
 
-	// Use legacy V1 API to set balance
-	await autumnV1.customers.setBalance({
-		customerId: customerId,
-		entityId: entityId,
-		balances: [
-			{
-				feature_id: TestFeature.Credits,
-				balance: 100,
-			},
-		],
-	});
+		// Use legacy V1 API to set balance
+		await autumnV1.customers.setBalance({
+			customerId: customerId,
+			entityId: entityId,
+			balances: [
+				{
+					feature_id: TestFeature.Credits,
+					balance: 100,
+				},
+			],
+		});
 
-	// Verify via V1 API
-	const entity = await autumnV1.entities.get(customerId, entityId);
-	expect(entity.features.credits.balance).toBe(100);
-});
+		// Verify via V1 API
+		const entity = await autumnV1.entities.get(customerId, entityId);
+		expect(entity.features.credits.balance).toBe(100);
+	},
+);

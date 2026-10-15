@@ -100,7 +100,9 @@ describe("validateCreditSystemSchemaReferences — cross-feature restrictions", 
 		expect(() =>
 			validateCreditSystemSchemaReferences({
 				config: {
-					schema: [{ metered_feature_id: "dashboard", credit_amount: 1 } as any],
+					schema: [
+						{ metered_feature_id: "dashboard", credit_amount: 1 } as any,
+					],
 					usage_type: FeatureUsageType.Single,
 				},
 				allFeatures: [makeFeature("dashboard", FeatureType.Boolean)],

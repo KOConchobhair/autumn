@@ -63,7 +63,9 @@ for (const entry of customer.billing_controls?.usage_limits ?? []) {
 	const filter = Object.entries(entry.filter?.properties ?? {})
 		.map(([k, v]) => `${k}=${v}`)
 		.join(",");
-	console.log(`limit [${filter || "unfiltered"}]: ${entry.usage}/${entry.limit}`);
+	console.log(
+		`limit [${filter || "unfiltered"}]: ${entry.usage}/${entry.limit}`,
+	);
 }
 console.log("messages balance:", JSON.stringify(customer.balances?.messages));
 process.exit(0);

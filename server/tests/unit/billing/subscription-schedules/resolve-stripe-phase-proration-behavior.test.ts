@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { PhaseProrationBehavior } from "@autumn/shared";
+import type { SchedulePhasePlan } from "@/internal/billing/v2/actions/setPlans/types/schedulePhasePlan";
+import { carrySavedProrationBehaviors } from "@/internal/billing/v2/actions/setPlans/utils/carrySavedProrationBehaviors";
 import type { SchedulePhaseProration } from "@/internal/billing/v2/providers/stripe/setup/resolveSchedulePhaseProrations";
 import { phaseProrationBehaviorToStripe } from "@/internal/billing/v2/providers/stripe/utils/subscriptionSchedules/phaseProrationBehaviorToStripe";
 import { resolveStripePhaseProrationBehavior } from "@/internal/billing/v2/providers/stripe/utils/subscriptionSchedules/resolveStripePhaseProrationBehavior";
-import type { SchedulePhasePlan } from "@/internal/billing/v2/actions/setPlans/types/schedulePhasePlan";
-import { carrySavedProrationBehaviors } from "@/internal/billing/v2/actions/setPlans/utils/carrySavedProrationBehaviors";
 
 const PHASE_START_MS = Date.UTC(2027, 2, 1);
 

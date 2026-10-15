@@ -6,7 +6,9 @@ export const expectPreviewVariantsCorrect = ({
 	variants,
 }: {
 	preview: PlanUpdatePreview;
-	variants: Array<Partial<PlanUpdatePreview["variants"][number]> & { plan_id: string }>;
+	variants: Array<
+		Partial<PlanUpdatePreview["variants"][number]> & { plan_id: string }
+	>;
 }) => {
 	expect(preview.variants).toHaveLength(variants.length);
 
@@ -32,8 +34,7 @@ export const expectPreviewItemChangeCorrect = ({
 	item?: Record<string, unknown>;
 }) => {
 	const actual = preview.item_changes.find(
-		(change) =>
-			change.action === action && change.feature_id === featureId,
+		(change) => change.action === action && change.feature_id === featureId,
 	);
 
 	expect(actual).toBeDefined();

@@ -6,13 +6,13 @@ import type {
 	TrackResponseV3,
 } from "@autumn/shared";
 import { ApiVersion, FeatureType } from "@autumn/shared";
+import { findCustomerEntitlement } from "@tests/balances/utils/findCustomerEntitlement.js";
 import { expectBalanceCorrect } from "@tests/integration/utils/expectBalanceCorrect.js";
 import { TestFeature } from "@tests/setup/v2Features.js";
 import { items } from "@tests/utils/fixtures/items.js";
 import { products } from "@tests/utils/fixtures/products.js";
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
-import { findCustomerEntitlement } from "@tests/balances/utils/findCustomerEntitlement.js";
 import { AutumnInt } from "@/external/autumn/autumnCli.js";
 import { timeout } from "@/utils/genUtils";
 
@@ -132,7 +132,11 @@ test.concurrent(
 		const syncDeadline = Date.now() + 30_000;
 		let dbBalance: number | null | undefined;
 		while (Date.now() < syncDeadline) {
-			const cusEnt = await findCustomerEntitlement({ ctx, customerId, featureId });
+			const cusEnt = await findCustomerEntitlement({
+				ctx,
+				customerId,
+				featureId,
+			});
 			dbBalance = cusEnt?.balance;
 			if (dbBalance === 999.8) break;
 			await timeout(500);

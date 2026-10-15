@@ -4,11 +4,11 @@
  */
 
 import { expect, test } from "bun:test";
-import { type ApiCustomerV5 } from "@autumn/shared";
+import type { ApiCustomerV5 } from "@autumn/shared";
 import {
-	type FlashClient,
 	callFlash,
 	createRealStripeSub,
+	type FlashClient,
 } from "@tests/integration/billing/dfu/billing-import/utils/flashTestUtils.js";
 import { expectCustomerProducts } from "@tests/integration/billing/utils/expectCustomerProductCorrect.js";
 import { TestFeature } from "@tests/setup/v2Features.js";

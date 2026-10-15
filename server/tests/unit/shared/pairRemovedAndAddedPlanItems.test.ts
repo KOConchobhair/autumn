@@ -13,14 +13,14 @@
 
 import { describe, expect, test } from "bun:test";
 import {
-	BillWhen,
 	BillingMethod,
+	BillWhen,
 	EntInterval,
 	type EntitlementPrice,
-	type PlanItemFilter,
-	ResetInterval,
 	keepAddEntitlementPricesForLiveRemoves,
+	type PlanItemFilter,
 	pairRemovedAndAddedPlanItems,
+	ResetInterval,
 } from "@autumn/shared";
 import { entitlements } from "@tests/utils/fixtures/db/entitlements";
 import { features } from "@tests/utils/fixtures/db/features";
@@ -96,8 +96,7 @@ const monthMessagesFilter = ({
 	...(billingMethod !== undefined ? { billing_method: billingMethod } : {}),
 });
 
-const ids = (adds: EntitlementPrice[]) =>
-	adds.map((add) => add.entitlement.id);
+const ids = (adds: EntitlementPrice[]) => adds.map((add) => add.entitlement.id);
 
 const expectPairing = ({
 	removeItems,

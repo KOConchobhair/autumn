@@ -17,10 +17,10 @@ import { advanceToNextInvoice } from "@tests/utils/testAttachUtils/testAttachUti
 import { initScenario, s } from "@tests/utils/testInitUtils/initScenario.js";
 import chalk from "chalk";
 import {
-	LICENSE_POOLED_LOW_GRANT,
 	expectLicensePooledBalanceExpired,
 	expectLicensePooledGrant,
 	expectLicensePrivateSeatGrant,
+	LICENSE_POOLED_LOW_GRANT,
 	lifetimeLicensePoolLifecycle,
 	pooledLifetimeMessages,
 	pooledMonthlyMessages,
@@ -122,10 +122,9 @@ test.concurrent(
 			redirect_mode: "if_required",
 		});
 
-		const customer = await autumnV2_3.customers.get<ApiCustomerV5>(
-			customerId,
-			{ skip_cache: "true" },
-		);
+		const customer = await autumnV2_3.customers.get<ApiCustomerV5>(customerId, {
+			skip_cache: "true",
+		});
 		await expectCustomerProducts({ customer, active: [premium.id] });
 		await expectLicensePooledGrant({
 			autumn: autumnV2_3,
@@ -310,10 +309,9 @@ test.concurrent(
 			redirect_mode: "if_required",
 		});
 
-		const customer = await autumnV2_3.customers.get<ApiCustomerV5>(
-			customerId,
-			{ skip_cache: "true" },
-		);
+		const customer = await autumnV2_3.customers.get<ApiCustomerV5>(customerId, {
+			skip_cache: "true",
+		});
 		await expectCustomerProducts({ customer, active: [premium.id] });
 		await expectLicensePooledGrant({
 			autumn: autumnV2_3,

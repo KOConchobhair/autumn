@@ -49,6 +49,7 @@ const getSvixMessageWithRetry = async (
 	}
 	throw lastError;
 };
+
 import {
 	getTestSvixAppId,
 	setupWebhookTest,
@@ -140,9 +141,7 @@ test.concurrent(
 		expect(message.tags).toContain(customerTag);
 
 		// ── Contract assertion 2: no entity_id tag for customer-level event ──────
-		expect(
-			message.tags?.some((t) => t.startsWith("entity_id.")),
-		).toBe(false);
+		expect(message.tags?.some((t) => t.startsWith("entity_id."))).toBe(false);
 	},
 );
 

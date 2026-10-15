@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+	isOneOffProductV2,
+	type ProductItem,
 	ProductItemFeatureType,
 	ProductItemInterval,
-	UsageModel,
-	type ProductItem,
-	isOneOffProductV2,
 	type ProductV2,
+	UsageModel,
 } from "@autumn/shared";
 import { productV2ToProperties } from "../../../../shared/utils/productV2Utils/productV2ToProperties.js";
 

@@ -55,51 +55,54 @@ describe("default applies to entities", () => {
 		});
 	});
 
-	test.concurrent(`${chalk.yellowBright("default applies to entities 1")}`, async () => {
-		const customerId = "default-applies-to-entities";
+	test.concurrent(
+		`${chalk.yellowBright("default applies to entities 1")}`,
+		async () => {
+			const customerId = "default-applies-to-entities";
 
-		const consumableMessagesItem = items.monthlyMessages({
-			includedUsage: 100,
-		});
+			const consumableMessagesItem = items.monthlyMessages({
+				includedUsage: 100,
+			});
 
-		const free = products.base({
-			id: "free",
-			isDefault: true,
-			items: [consumableMessagesItem],
-		});
+			const free = products.base({
+				id: "free",
+				isDefault: true,
+				items: [consumableMessagesItem],
+			});
 
-		const { autumnV1 } = await initScenario({
-			customerId,
-			setup: [
-				s.customer({ paymentMethod: "success" }),
-				s.products({ list: [free] }),
-			],
-			actions: [],
-		});
+			const { autumnV1 } = await initScenario({
+				customerId,
+				setup: [
+					s.customer({ paymentMethod: "success" }),
+					s.products({ list: [free] }),
+				],
+				actions: [],
+			});
 
-		const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
-		await expectCustomerProducts({
-			customer,
-			notPresent: [free.id],
-		});
+			const customer = await autumnV1.customers.get<ApiCustomerV3>(customerId);
+			await expectCustomerProducts({
+				customer,
+				notPresent: [free.id],
+			});
 
-		await autumnV1.entities.create(customerId, {
-			id: "user1",
-			name: "User 1",
-			feature_id: TestFeature.Users,
-			customer_data: {
-				internal_options: {
-					default_group: customerId,
+			await autumnV1.entities.create(customerId, {
+				id: "user1",
+				name: "User 1",
+				feature_id: TestFeature.Users,
+				customer_data: {
+					internal_options: {
+						default_group: customerId,
+					},
 				},
-			},
-		});
+			});
 
-		const entity = await autumnV1.entities.get(customerId, "user1");
-		await expectCustomerProducts({
-			customer: entity,
-			active: [free.id],
-		});
-	});
+			const entity = await autumnV1.entities.get(customerId, "user1");
+			await expectCustomerProducts({
+				customer: entity,
+				active: [free.id],
+			});
+		},
+	);
 
 	test(`${chalk.yellowBright("default applies to entities 2: product cron expires trial and activates default")}`, async () => {
 		const customerId = "cron-default-entity";

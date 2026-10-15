@@ -66,8 +66,9 @@ test.concurrent(
 			throw new Error("Expected the reset transition to create an invoice");
 		}
 
-		const transitionInvoice =
-			await ctx.stripeCli.invoices.retrieve(latestInvoiceStripeId);
+		const transitionInvoice = await ctx.stripeCli.invoices.retrieve(
+			latestInvoiceStripeId,
+		);
 		expect(transitionInvoice.total / 100).toBeCloseTo(20, 2);
 	},
 );

@@ -505,10 +505,14 @@ const getArgValue = (name: string) => {
 
 export const runKnowledgePlatformSeed = async () => {
 	const customerCount = Number(getArgValue("--count") ?? KP_SEED.customerCount);
-	const concurrency = Number(getArgValue("--concurrency") ?? KP_SEED.concurrency);
-	const attachPlan = (getArgValue("--attach-plan") ?? KP_SEED.attachPlan) as
-		| Extract<KnowledgePlatformPlanKey, "trial" | "enterprise">
-		| null;
+	const concurrency = Number(
+		getArgValue("--concurrency") ?? KP_SEED.concurrency,
+	);
+	const attachPlan = (getArgValue("--attach-plan") ??
+		KP_SEED.attachPlan) as Extract<
+		KnowledgePlatformPlanKey,
+		"trial" | "enterprise"
+	> | null;
 	if (!process.env.TESTS_ORG) {
 		throw new Error("TESTS_ORG is required to seed knowledge platform data");
 	}
